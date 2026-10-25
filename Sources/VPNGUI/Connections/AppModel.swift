@@ -117,6 +117,53 @@ final class AppModel: ObservableObject {
         data = updated
         manager.sessions.removeValue(forKey: connection.id)
     }
+    /// Encrypted backup of every connection with its password and profile.
+    func exportBackupAsync(password: String, preferences: BackupPreferences?) async throws -> Data {
+        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
+        let snapshot = data, passwords = passwords
+        return try await PersistenceIO.run {
+            try ConfigBackup.export(snapshot, store: store, passwords: passwords, preferences: preferences, password: password)
+        }
+    }
+    /// Decrypts and validates a backup; nothing is written yet.
+    func openBackupAsync(_ file: Data, password: String) async throws -> BackupImportPlan {
+        let current = data
+        return try await Task.detached {
+            let payload = try ConfigBackup.open(file, password: password)
+            let certificates = payload.connections.contains { $0.connection.clientCertificate != nil }
+                ? Set(ClientIdentities.list().map { $0.sha1.lowercased() }) : []
+            return ConfigBackup.plan(payload, current: current, certificates: certificates)
+        }.value
+    }
+    /// Adds the backup's connections and replaces those with the same identifier; the rest stays.
+    func importBackupAsync(_ plan: BackupImportPlan) async throws {
+        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
+        let ids = Set(plan.payload.connections.map(\.connection.id))
+        if let active = data.connections.first(where: { ids.contains($0.id) && manager.sessions[$0.id]?.state.active == true }) {
+            throw AppFailure("Desconecte \u{201C}\(active.name)\u{201D} antes de importar: o backup substitui essa conexão.")
+        }
+        writing = true
+        defer { writing = false }
+        let current = data, passwords = passwords, cookies = cookies, payload = plan.payload
+        do {
+            data = try await PersistenceIO.run {
+                try ConfigBackup.apply(payload, current: current, store: store, passwords: passwords, cookies: cookies)
+            }
+        } catch let failure as BackupImportFailure {
+            data = failure.saved
+            refreshImported(ids)
+            if failure.message.contains("Operação pendente") { ready = false }
+            throw failure
+        }
+        refreshImported(ids)
+    }
+    private func refreshImported(_ ids: Set<UUID>) {
+        for id in ids where data.connections.contains(where: { $0.id == id }) {
+            let session = manager.session(id)
+            session.authenticationRejected = false
+            session.digestFix = nil
+        }
+    }
     func delete(_ connection: Connection) throws {
         guard ready, let store else { throw AppFailure("Os dados não foram carregados.") }
         guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de excluir.") }

@@ -102,6 +102,8 @@ with an administrator account. You only do this once per macOS user.
   WireGuard `PostUp`-style commands, are removed or refused, never silently weakened.
 - **Updates are announced, never installed for you.** Upgrade with
   `brew upgrade --cask luizmz94/tunnelmac/tunnelmac` after quitting with **Sair**.
+- **Moving to another Mac?** **Configurações… → Backup** exports every connection,
+  password and profile to one password-encrypted file, and imports it on the other Mac.
 - **Before uninstalling,** use **Configurações… → Serviço privilegiado → Remover serviço**.
 
 The [guide](docs/GUIDE.md) covers each protocol, where data is stored, updates, migration

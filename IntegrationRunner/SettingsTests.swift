@@ -456,11 +456,14 @@ enum SettingsTests {
             menuBar.checkForUpdates()
             try require(transport.requests.count == 1 && menuBar.settingsTab == .updates, "Verificar atualizações… não verificou nem abriu a aba")
             window.orderOut(nil)
-            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape", "arrow.triangle.2.circlepath", "lock.shield", "info.circle"], "Ícones das abas")
+            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape", "arrow.triangle.2.circlepath", "lock.shield", "archivebox", "info.circle"], "Ícones das abas")
             for symbol in SettingsTab.allCases.map(\.symbol) + ["menubar.rectangle", "dock.rectangle", "power", "rectangle.portrait.and.arrow.right",
                            "shippingbox", "clock.arrow.circlepath", "testtube.2", "wifi.exclamationmark", "checkmark.circle", "arrow.up.right.square",
                            "doc.on.doc", "terminal", "arrow.down.circle", "chevron.left.forwardslash.chevron.right", "doc.text", "checkmark.seal",
-                           "list.bullet.rectangle", "doc.text.magnifyingglass", "chevron.right", "checkmark"] {
+                           "list.bullet.rectangle", "doc.text.magnifyingglass", "chevron.right", "checkmark",
+                           "square.and.arrow.up", "square.and.arrow.down", "plus.circle.fill", "arrow.triangle.2.circlepath.circle.fill",
+                           "key.fill", "person.badge.key.fill", "info.circle.fill", "checkmark.circle.fill", "exclamationmark.circle.fill",
+                           "exclamationmark.triangle.fill"] {
                 try require(NSImage(systemSymbolName: symbol, accessibilityDescription: nil) != nil, "SF Symbol inexistente: \(symbol)")
             }
         }
@@ -536,7 +539,7 @@ enum SettingsTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 22, "Renders esperados: 22, gerados: \(files.count)")
+            try require(files.count == 26, "Renders esperados: 26, gerados: \(files.count)")
         }
         return failures
     }

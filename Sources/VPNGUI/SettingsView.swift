@@ -97,6 +97,7 @@ struct SettingsDetail: View {
                 case .updates: UpdateSettings(updates: menuBar.updates, preferences: menuBar.preferences,
                                               installedByHomebrew: installedByHomebrew)
                 case .service: ServiceSettings(model: menuBar.model)
+                case .backup: BackupSettings(model: menuBar.model, preferences: menuBar.preferences)
                 case .about: AboutSettings()
                 }
             }

@@ -22,6 +22,12 @@
   ends; a VPN's servers left behind are replaced by it, a change made in System
   Settings meanwhile is kept.
 - Shorter OpenVPN password note in the editor.
+- Configurações → Backup: export every connection with its password and OpenVPN or
+  WireGuard profile, plus the app preferences, into one `.tunnelmacbackup` file
+  encrypted with a password (AES-256-GCM, PBKDF2-SHA256 600k), and import it on this or
+  another Mac. Import validates everything first, shows what will be added or replaced,
+  and keeps connections that are not in the backup. SAML sessions are not exported;
+  client certificates must already be in the other Mac's Keychain.
 
 ## 0.5.0-rc.4
 
