@@ -142,7 +142,11 @@ WireGuard profiles (private keys included) and, optionally, the app preferences
 (menu bar, Dock, update check and DNS da internet) into one file, encrypted with
 AES-256-GCM under a key derived from the password you choose (PBKDF2-HMAC-SHA256,
 600,000 iterations, random salt and nonce; the header is authenticated too). The
-password has at least 8 characters and cannot be recovered.
+password must be rated **Forte** by the strength meter (at least 12 characters; common
+words, years, whole dictionary-like words, repeats and keyboard sequences count
+little) and cannot be recovered.
+**Gerar senha forte** fills in a random password shaped like the ones macOS suggests
+(three groups of six letters and digits, about 105 bits) with a Copiar button.
 
 **Importar…** asks for that password, validates every connection and profile with
 the same rules as a manual save and shows what will change before writing anything:

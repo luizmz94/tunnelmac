@@ -76,7 +76,7 @@ enum ConfigBackup {
     static func export(_ data: SavedData, store: JSONStore, passwords: PasswordStore,
                        preferences: BackupPreferences?, password: String,
                        iterations: UInt32 = BackupCipher.defaultIterations) throws -> Data {
-        try BackupCipher.checkPassword(password)
+        try BackupPassword.check(password)
         let entries = try data.connections.map { connection -> BackupPayload.Entry in
             var entry = BackupPayload.Entry(connection: connection)
             if connection.usesPassword { entry.password = try passwords.read(connection.id) }

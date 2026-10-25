@@ -1,5 +1,7 @@
 @testable import VPNApp
 import Foundation
+import AppKit
+import SwiftUI
 import VPNHelperShared
 
 /// Backup round trip through the real Keychain, with throwaway services and folders:
@@ -45,7 +47,7 @@ enum BackupLocalTests {
             let preferencesA = AppPreferences.disposable()
             preferencesA.showMenuBarIcon = false
             preferencesA.addCustomDNS(try InternetDNSOption.custom(name: "Casa", servers: "192.0.2.53"))
-            let sealed = try wait { try await modelA.exportBackupAsync(password: "senha do backup", preferences: preferencesA.backup) }
+            let sealed = try wait { try await modelA.exportBackupAsync(password: "Vq7-Lago-Dourado-29!", preferences: preferencesA.backup) }
             for secret in ["s3nha", WireGuardTests.privateKey, "vpn.exemplo.invalid"] {
                 try require(sealed.range(of: Data(secret.utf8)) == nil, "Texto em claro no backup: \(secret)")
             }
@@ -62,7 +64,9 @@ enum BackupLocalTests {
             let modelB = AppModel(store: storeB, passwords: target, cookies: cookies, service: HelperTests.readyService())
 
             try require((try? wait { try await modelB.openBackupAsync(sealed, password: "senha errada") }) == nil, "Senha errada abriu o backup")
-            let plan = try wait { try await modelB.openBackupAsync(sealed, password: "senha do backup") }
+            let tooWeak = String(repeating: "senha1", count: 3) // Common word, repeated: rated very weak.
+            try require((try? wait { try await modelA.exportBackupAsync(password: tooWeak, preferences: nil) }) == nil, "Senha fraca exportou")
+            let plan = try wait { try await modelB.openBackupAsync(sealed, password: "Vq7-Lago-Dourado-29!") }
             try require(plan.replacing == ["Escritório"] && plan.adding == ["Casa", "SSO"], "Plano: \(plan.replacing) \(plan.adding)")
             try require(plan.missingPasswords.isEmpty && plan.missingCertificates.isEmpty && plan.hasPreferences, "Plano com pendências inesperadas")
             try require(try storeB.load().connections.map(\.name) == ["Escritório antigo", "Só aqui"], "Abrir o backup já gravou dados")
@@ -92,15 +96,37 @@ enum BackupLocalTests {
                                              InternetDNSOption(id: "google", name: "Falso", servers: ["192.0.2.1"])]
             preferences.internetDNSSelection = "x"
             let payload = BackupPayload(connections: [.init(connection: office)], preferences: preferences)
-            let sealed = try BackupCipher.seal(JSONEncoder().encode(payload), password: "senha do backup")
+            let sealed = try BackupCipher.seal(JSONEncoder().encode(payload), password: "Vq7-Lago-Dourado-29!")
             let model = AppModel(store: store, passwords: target, cookies: cookies, service: HelperTests.readyService())
-            let plan = try wait { try await model.openBackupAsync(sealed, password: "senha do backup") }
+            let plan = try wait { try await model.openBackupAsync(sealed, password: "Vq7-Lago-Dourado-29!") }
             try require(plan.missingPasswords == ["Sem senha"], "Senha ausente não sinalizada")
             try wait { try await model.importBackupAsync(plan) }
             try require(try target.read(office.id) == nil && model.data.connections == [office], "Importação sem senha")
             let restored = AppPreferences.disposable()
             restored.restore(try plan.payload.preferences.unwrap())
             try require(restored.customInternetDNS.isEmpty && restored.internetDNSServers == nil, "DNS inválido ou preset falso aceito")
+        }
+        test("Renderização fora da tela: exportar e medidor de força, claro e escuro") {
+            let output = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("ui-review/backup", isDirectory: true)
+            try? FileManager.default.removeItem(at: output)
+            try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
+            let model = AppModel(store: try JSONStore(directory: root.appendingPathComponent("render")), passwords: target, cookies: cookies,
+                                 service: HelperTests.readyService())
+            let meters = VStack(alignment: .leading, spacing: 14) {
+                ForEach(["senha123", "Gatinho2024", "Cachorro-Amarelo-2024", "Gato azul come 37 bananas!", BackupPassword.generate()], id: \.self) { sample in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(sample).font(.caption.monospaced())
+                        PasswordStrengthMeter(evaluation: BackupPassword.evaluate(sample))
+                    }
+                }
+            }.padding(20)
+            for (appearance, suffix) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
+                try UIPreviewTests.snapshot(ExportBackupSheet(model: model, preferences: AppPreferences.disposable()) { _ in },
+                                            size: NSSize(width: 460, height: 360), appearance: appearance,
+                                            to: output.appendingPathComponent("export-\(suffix).png"))
+                try UIPreviewTests.snapshot(meters, size: NSSize(width: 460, height: 380), appearance: appearance,
+                                            to: output.appendingPathComponent("strength-\(suffix).png"))
+            }
         }
         return failures
     }

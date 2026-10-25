@@ -4,4 +4,5 @@ useDefault = true
 
 [[allowlists]]
 description = "RFC 7748 section 6.1 X25519 test vector (Alice's private key), WireGuard checks"
-regexes = ['''^77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a$''']
+regexes = ['''^77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a$''',
+           '''^dwdtCnMYpX08FsFyUbJmRd9ML4frwJkqsXf7pR25LCo=$'''] # Same key in base64 (backup checks).

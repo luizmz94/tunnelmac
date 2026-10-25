@@ -28,6 +28,9 @@
   another Mac. Import validates everything first, shows what will be added or replaced,
   and keeps connections that are not in the backup. SAML sessions are not exported;
   client certificates must already be in the other Mac's Keychain.
+- The backup password must be strong: a strength meter (length, variety, common words,
+  repeats and sequences) gates Exportar, and Gerar senha forte suggests a random
+  macOS-style password (xxxxxx-xxxxxx-xxxxxx) with show/hide and Copiar.
 
 ## 0.5.0-rc.4
 

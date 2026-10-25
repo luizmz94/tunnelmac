@@ -40,7 +40,7 @@ struct BackupSettings: View {
     @State private var importing: BackupFile?
     @State private var notice: BackupNotice?
 
-    static let footer = "Criptografado com AES-256-GCM e uma chave derivada da senha (PBKDF2-SHA256, 600 mil iterações). Sem a senha não há como abrir o arquivo. Sessões SAML não são incluídas; certificados do cliente precisam estar no Keychain do outro Mac."
+    static let footer = "Criptografado com AES-256-GCM e uma chave derivada de uma senha forte (PBKDF2-SHA256, 600 mil iterações). Sem a senha não há como abrir o arquivo. Sessões SAML não são incluídas; certificados do cliente precisam estar no Keychain do outro Mac."
 
     var body: some View {
         SettingsSection(title: "Backup", footer: Self.footer) {
@@ -100,16 +100,16 @@ struct ExportBackupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var password = ""
     @State private var confirmation = ""
+    @State private var reveal = false
+    @State private var generated = false
+    @State private var copied = false
     @State private var includePreferences = true
     @State private var working = false
     @State private var error: String?
 
-    private var problem: String? {
-        if password.count < BackupCipher.minimumPassword { return "Pelo menos \(BackupCipher.minimumPassword) caracteres." }
-        if password != confirmation { return confirmation.isEmpty ? nil : "As senhas não coincidem." }
-        return nil
-    }
-    private var canExport: Bool { problem == nil && password == confirmation && !working }
+    private var evaluation: BackupPassword.Evaluation { BackupPassword.evaluate(password) }
+    private var matches: Bool { password == confirmation }
+    private var canExport: Bool { evaluation.acceptable && matches && !working }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -117,15 +117,26 @@ struct ExportBackupSheet: View {
             Text("\(model.data.connections.count) \(model.data.connections.count == 1 ? "conexão" : "conexões") com senhas e perfis. Guarde a senha: ela será pedida ao importar e não pode ser recuperada.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Form {
-                SecureField("Senha do backup", text: $password)
-                SecureField("Confirmar senha", text: $confirmation)
+                Section {
+                    passwordField("Senha do backup", text: $password)
+                    if !generated { passwordField("Confirmar senha", text: $confirmation) }
+                } footer: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !password.isEmpty { PasswordStrengthMeter(evaluation: evaluation) }
+                        if generated { generatedNote }
+                        else if !confirmation.isEmpty && !matches {
+                            Text("As senhas não coincidem.").font(.caption).foregroundStyle(.red)
+                        }
+                    }
+                }
                 Toggle("Incluir as preferências do app", isOn: $includePreferences)
             }
             .formStyle(.grouped)
-            if let message = error ?? (password.isEmpty ? nil : problem) {
-                Text(message).font(.caption).foregroundStyle(error == nil ? Color.secondary : Color.red)
-            }
+            if let error { Text(error).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
             HStack {
+                Button { suggest() } label: { Label("Gerar senha forte", systemImage: "key.fill") }
+                    .disabled(working)
+                    .help("Cria uma senha aleatória no formato das senhas sugeridas pelo macOS")
                 if working { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(working)
@@ -135,7 +146,48 @@ struct ExportBackupSheet: View {
             }
         }
         .padding(20)
-        .frame(width: 420)
+        .frame(width: 460)
+    }
+
+    @ViewBuilder private func passwordField(_ title: String, text: Binding<String>) -> some View {
+        let edited = Binding(get: { text.wrappedValue }, set: { value in
+            text.wrappedValue = value
+            // Typing over a suggestion turns the confirmation back on.
+            if generated { generated = false; copied = false; confirmation = "" }
+        })
+        HStack(spacing: 6) {
+            Group {
+                if reveal { TextField(title, text: edited).font(.body.monospaced()) }
+                else { SecureField(title, text: edited) }
+            }
+            Button { reveal.toggle() } label: { Image(systemName: reveal ? "eye.slash" : "eye") }
+                .buttonStyle(.borderless)
+                .help(reveal ? "Ocultar senha" : "Mostrar senha")
+                .accessibilityLabel(reveal ? "Ocultar senha" : "Mostrar senha")
+        }
+    }
+
+    private var generatedNote: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("Senha gerada. Copie e guarde-a num gerenciador de senhas antes de exportar: sem ela o backup não abre.")
+                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 4)
+            Button(copied ? "Copiada" : "Copiar") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(password, forType: .string)
+                copied = true
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private func suggest() {
+        let value = BackupPassword.generate()
+        password = value
+        confirmation = value
+        generated = true
+        copied = false
+        reveal = true
     }
 
     private func export() {
@@ -263,5 +315,42 @@ struct ImportBackupSheet: View {
                 } else { self.error = error.localizedDescription }
             }
         }
+    }
+}
+
+/// Five segments colored by strength, the level name and the most useful hint.
+struct PasswordStrengthMeter: View {
+    let evaluation: BackupPassword.Evaluation
+
+    private var color: Color {
+        switch evaluation.strength {
+        case .veryWeak: return .red
+        case .weak: return .orange
+        case .fair: return .yellow
+        case .strong, .veryStrong: return .green
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                HStack(spacing: 3) {
+                    ForEach(0..<5, id: \.self) { index in
+                        Capsule().fill(index <= evaluation.strength.rawValue ? color : Color.primary.opacity(0.12))
+                            .frame(height: 4)
+                    }
+                }
+                .frame(maxWidth: 180)
+                Text("Força: \(evaluation.strength.title)").font(.caption.weight(.semibold)).foregroundStyle(color)
+            }
+            if !evaluation.acceptable {
+                Text(evaluation.hints.first.map { "Exige uma senha forte. \($0)" } ?? "Exige uma senha forte; use uma senha mais longa.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            } else if let hint = evaluation.hints.first, evaluation.strength == .strong {
+                Text(hint).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Força da senha: \(evaluation.strength.title)")
     }
 }

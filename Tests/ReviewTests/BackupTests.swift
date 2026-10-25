@@ -104,3 +104,39 @@ final class BackupTests: XCTestCase {
         XCTAssertTrue(present.missingCertificates.isEmpty)
     }
 }
+
+final class BackupPasswordTests: XCTestCase {
+    func strength(_ password: String) -> BackupPassword.Strength { BackupPassword.evaluate(password).strength }
+
+    func testWeakPasswordsAreRefused() {
+        for weak in ["", "12345678", "password", "senha123", "Senha@2024", "aaaaaaaaaaaaaaaa", "abcdefghijklmnop", "qwertyuiopasdfgh",
+                     "1234567890123456", "P@ssw0rdP@ssw0rd", "tunnelmacbackup1", "S3nh@Forte!", "Ab1!Ab1!Ab1", "Gato-azul-37", "Cachorro-Amarelo-2024", "MARIANA-SILVA-1990"] {
+            XCTAssertFalse(BackupPassword.evaluate(weak).acceptable, "Senha fraca aceita: \(weak) (\(strength(weak).title))")
+            XCTAssertThrowsError(try BackupPassword.check(weak))
+        }
+        XCTAssertLessThanOrEqual(strength("Xk9#mQ2!"), .fair, "Curta demais para ser forte")
+        XCTAssertFalse(BackupPassword.evaluate("senha").hints.isEmpty)
+    }
+
+    func testStrongPasswordsAreAccepted() {
+        for strong in ["Vq7-Lago-Dourado-29!", "correct-Horse-battery-staple-9", "mT4#vL9@qZ2!wR7$", "Gato azul come 37 bananas!"] {
+            XCTAssertTrue(BackupPassword.evaluate(strong).acceptable, "Senha forte recusada: \(strong) (\(strength(strong).title))")
+            XCTAssertNoThrow(try BackupPassword.check(strong))
+        }
+    }
+
+    func testGeneratedPasswordsLookLikeMacOSSuggestions() {
+        var seen = Set<String>()
+        for _ in 0..<200 {
+            let password = BackupPassword.generate()
+            let groups = password.split(separator: "-")
+            XCTAssertEqual(groups.count, 3)
+            XCTAssertTrue(groups.allSatisfy { $0.count == 6 && $0.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber) } }, password)
+            XCTAssertTrue(password.contains { $0.isUppercase } && password.contains { $0.isNumber } && password.contains { $0.isLowercase }, password)
+            XCTAssertFalse(password.contains { "0O1lI".contains($0) }, "Caractere ambíguo: \(password)")
+            XCTAssertTrue(BackupPassword.evaluate(password).acceptable, password)
+            seen.insert(password)
+        }
+        XCTAssertEqual(seen.count, 200, "Senhas geradas repetidas")
+    }
+}

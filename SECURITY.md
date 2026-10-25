@@ -43,7 +43,8 @@ ask supervisors to stop normally.
 
 Backups (Configurações → Backup) are the only export of passwords and private keys.
 The file is AES-256-GCM with a key from PBKDF2-HMAC-SHA256 (600,000 iterations,
-16-byte random salt, header authenticated); it is written 0600 where the user
+16-byte random salt, header authenticated) under a password the app rates strong
+(or generates from SecRandomCopyBytes); it is written 0600 where the user
 chooses. Import accepts only bounded parameters, decrypts in memory and revalidates
 every connection and profile before the normal per-connection transaction. SAML
 cookies are never exported.
