@@ -146,6 +146,40 @@ enum OpenVPNTests {
             try require(logged?.to == "SHA256", "Erro do OpenVPN não reconhecido")
         }
 
+        test("Formato 2b: .visc.zip é extraído numa pasta temporária privada; o .zip é o único original") {
+            let folder = try bundle(keyMode: 0o600)
+            let archive = folder.deletingLastPathComponent().appendingPathComponent("Exemplo.visc.zip")
+            let zip = Process()
+            zip.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            zip.arguments = ["-c", "-k", "--keepParent", folder.path, archive.path]
+            try zip.run(); zip.waitUntilExit()
+            chmod(archive.path, 0o600)
+            let before = TestSupport.sha256(try Data(contentsOf: archive))
+            let imported = try OpenVPNImporter.load(archive)
+            try require(TestSupport.sha256(try Data(contentsOf: archive)) == before, "O .zip original foi alterado")
+            try require(imported.name == "Summit" && Set(imported.profile.blocks.map(\.tag)) == ["ca", "cert", "key", "tls-auth"],
+                        "Perfil do .zip: \(imported.name) \(imported.profile.blocks.map(\.tag))")
+            try require(imported.sourceFiles == [archive.standardizedFileURL] && imported.sourceFolder == nil, "Originais do .zip: \(imported.sourceFiles)")
+            try require(!imported.warnings.contains { $0.contains("chmod") }, "Aviso de permissão com .zip privado")
+            let leftovers = try FileManager.default.contentsOfDirectory(atPath: FileManager.default.temporaryDirectory.path)
+            try require(!leftovers.contains { $0.hasPrefix("TunnelMac-import-") }, "Pasta temporária ficou para trás")
+            chmod(archive.path, 0o644)
+            try require(try OpenVPNImporter.load(archive).warnings.contains { $0.contains("Exemplo.visc.zip") && $0.contains("chmod 600") },
+                        "Chaves num .zip legível por outros sem aviso")
+            // Two loose folders: no single profile folder.
+            let other = try bundle("Outro.visc")
+            let mixed = folder.deletingLastPathComponent().appendingPathComponent("Dois.zip")
+            let two = Process()
+            two.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+            two.currentDirectoryURL = folder.deletingLastPathComponent()
+            try FileManager.default.copyItem(at: other, to: folder.deletingLastPathComponent().appendingPathComponent("Outro.visc"))
+            two.arguments = ["-q", "-r", mixed.path, "Exemplo.visc", "Outro.visc"]
+            two.standardOutput = FileHandle.nullDevice
+            try two.run(); two.waitUntilExit()
+            let message = try expectFailure("Zip com duas pastas") { _ = try OpenVPNImporter.load(mixed) }
+            try require(message.contains(".visc"), "Mensagem do .zip ambíguo: \(message)")
+        }
+
         test("Formato 2: pasta .visc com arquivos externos, tls-auth com direção e usuário/senha; originais intactos") {
             let folder = try bundle()
             let before = try digest(folder)

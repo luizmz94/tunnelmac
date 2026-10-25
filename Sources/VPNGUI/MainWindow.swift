@@ -14,6 +14,9 @@ struct MainView: View {
     @State private var query = ""
     @State private var rowHeight: CGFloat = 0
     @State private var sidebarHeight: CGFloat = 0
+    @State private var onboarding = false
+    /// Sidebar width that keeps the traffic lights and its three toolbar buttons visible.
+    static let sidebarMinimum: CGFloat = 260
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -27,7 +30,13 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             sidebar
-                .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
+                .navigationSplitViewColumnWidth(min: Self.sidebarMinimum, ideal: 300, max: 400)
+                .sheet(isPresented: $onboarding) {
+                    ServiceOnboardingSheet(model: model) { completed in
+                        if !completed { ServiceOnboarding.postponed = true }
+                        onboarding = false
+                    }
+                }
                 .withoutSidebarToggle()
                 .toolbar {
                     // Declared in the sidebar column; the flexible spacer (macOS 26+) pushes the
@@ -80,6 +89,8 @@ struct MainView: View {
             // Back from System Settings: read the real status again (approval or revocation).
             if !model.service.busy { model.service.refresh() }
         }
+        .onAppear { evaluateOnboarding(service.health) }
+        .onChange(of: service.health) { evaluateOnboarding($0) }
         .sheet(item: $editing, onDismiss: { pendingImport = nil }) { connection in
             ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport) { selected = connection.id }
         }
@@ -108,6 +119,18 @@ struct MainView: View {
                 if model.data.connections.contains(where: { $0.id == id }) { selected = id }
                 menuBar.pendingSelection = nil
             }
+        }
+    }
+
+    /// Shows the first-run guide while the service waits for activation or approval. The
+    /// guide follows on to the client approval; a state it does not handle continues in
+    /// Serviço privilegiado.
+    private func evaluateOnboarding(_ health: ServiceController.Health) {
+        if ServiceOnboarding.needed(health) {
+            if !onboarding, !ServiceOnboarding.postponed, editing == nil { onboarding = true }
+        } else if onboarding, health != .checking, ServiceOnboarding.step(health) == nil {
+            onboarding = false
+            menuBar.showServiceManagement()
         }
     }
 
@@ -352,6 +375,7 @@ struct ConnectionDetail: View {
     @ObservedObject var session: Session
     @ObservedObject var model: AppModel
     @ObservedObject private var service: ServiceController
+    @ObservedObject private var versions: ClientVersionChecker
     let edit: () -> Void
     let delete: () -> Void
     let manageService: () -> Void
@@ -364,6 +388,7 @@ struct ConnectionDetail: View {
         self.connection = connection; self.edit = edit; self.delete = delete; self.manageService = manageService
         _session = ObservedObject(wrappedValue: session); _model = ObservedObject(wrappedValue: model)
         _service = ObservedObject(wrappedValue: model.service)
+        _versions = ObservedObject(wrappedValue: model.clientVersions)
     }
 
     private var action: MenuBarRowAction {
@@ -379,6 +404,8 @@ struct ConnectionDetail: View {
                 .padding(.horizontal, 28).padding(.bottom, 10).padding(.top, 2)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { versions.refresh(status: service.status) }
+        .onChange(of: service.status) { versions.refresh(status: $0) }
         .toolbar {
             // Name and state in the window's title area, instead of a header in the content.
             ToolbarItem(placement: .navigation) {
@@ -509,6 +536,12 @@ struct ConnectionDetail: View {
                          message: "Os detalhes estão nos logs abaixo.")
                 .transition(.opacity)
         }
+        if let outdated = outdatedClient {
+            InlineNotice(tone: .warning, symbol: "arrow.up.circle", title: outdated.title, message: outdated.message) {
+                Button("Gerenciar…", action: manageService)
+            }
+            .transition(.opacity)
+        }
         if !session.state.active && !service.canConnect {
             InlineNotice(tone: service.health.tone == .danger ? .danger : .warning, symbol: service.health.symbol,
                          title: "Conectar fica disponível quando o serviço privilegiado estiver pronto",
@@ -517,6 +550,16 @@ struct ConnectionDetail: View {
             }
             .transition(.opacity)
         }
+    }
+
+    /// The approved copy this connection runs is older than Homebrew's latest. Connecting
+    /// keeps working; the notice says how to move to the new release.
+    private var outdatedClient: (title: String, message: String)? {
+        let kind = connection.kind.runtime
+        guard let approved = service.status?.runtime(kind),
+              case .updateAvailable(_, let latest) = versions.state(kind, status: service.status) else { return nil }
+        return ("\(kind.title) \(latest) disponível",
+                "Esta conexão usa a cópia aprovada \(ClientVersion.clean(approved.version)). Atualize no Terminal com brew upgrade \(kind.executableName) e aprove a nova versão em Serviço privilegiado.")
     }
 
     @ViewBuilder private var facts: some View {

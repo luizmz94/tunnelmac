@@ -23,6 +23,8 @@ final class AppModel: ObservableObject {
     let cookies: SAMLCookieStore
     /// Privileged service (SMAppService + authenticated XPC); the manager's transport.
     let service: ServiceController
+    /// Installed and latest Homebrew versions of the VPN clients, shared by every view.
+    lazy var clientVersions: ClientVersionChecker = .production(helper: service.client)
     /// Called on a user Conectar (not on automatic reconnects). Must return at once:
     /// the update check it triggers never delays or changes the connection.
     var onUserConnect: (() -> Void)?

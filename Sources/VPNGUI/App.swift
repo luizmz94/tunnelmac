@@ -259,10 +259,28 @@ final class MainWindowBinding: NSView {
         }
         window.identifier = MenuBarCoordinator.windowIdentifier
         menuBar.mainWindow = window
+        Self.enforceSidebarMinimum(in: window)
+        DispatchQueue.main.async { [weak window] in if let window { Self.enforceSidebarMinimum(in: window) } }
         if let closeButton = window.standardWindowButton(.closeButton) {
             closeButton.target = self
             closeButton.action = #selector(hideWindow(_:))
         }
+    }
+
+    /// macOS 13–15 restore the split view's saved sidebar width even when it is below
+    /// navigationSplitViewColumnWidth(min:), hiding the sidebar's toolbar buttons.
+    static func enforceSidebarMinimum(in window: NSWindow, width: CGFloat = MainView.sidebarMinimum) {
+        guard let split = window.contentView.flatMap(splitView(in:)), let sidebar = split.arrangedSubviews.first else { return }
+        if let controller = split.delegate as? NSSplitViewController, let item = controller.splitViewItems.first {
+            item.minimumThickness = max(item.minimumThickness, width)
+        }
+        if !split.isSubviewCollapsed(sidebar), sidebar.frame.width < width { split.setPosition(width, ofDividerAt: 0) }
+    }
+
+    private static func splitView(in view: NSView) -> NSSplitView? {
+        if let split = view as? NSSplitView, split.isVertical { return split }
+        for subview in view.subviews { if let found = splitView(in: subview) { return found } }
+        return nil
     }
 
     @objc private func hideWindow(_ sender: Any?) {

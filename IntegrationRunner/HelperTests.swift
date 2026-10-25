@@ -102,18 +102,35 @@ enum HelperTests {
             try require(service.message?.contains("Ajustes") == true, "Sem orientação de aprovação")
             service.refresh(); service.refresh()
             try require(registrar.events == ["register"], "Registro repetido sem clique")
+            try require(registrar.settingsOpened == 1, "Ativar não levou aos Itens de Início")
             service.openSettings()
-            try require(registrar.settingsOpened == 1, "Ajustes não abertos")
+            try require(registrar.settingsOpened == 2, "Ajustes não abertos")
             registrar.status = .notFound
+            service.daemonPlistInBundle = { false }
             service.refresh()
             try require(service.health == .notFound && !service.canConnect, "Helper ausente não detectado")
+            service.daemonPlistInBundle = { true }
+            service.refresh()
+            try require(service.health == .notRegistered, "Nunca registrado (notFound com o plist no bundle) não pede Ativar")
+            // First registration: macOS throws EPERM and waits for the user's approval.
+            registrar.registerError = NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM))
+            registrar.status = .requiresApproval
+            service.activate()
+            try require(service.health == .requiresApproval && service.message?.contains("Permitir em segundo plano") == true
+                        && service.message?.contains("Não foi possível") == false && registrar.settingsOpened == 3,
+                        "EPERM aguardando aprovação mostrado como falha: \(service.message ?? "-")")
+            registrar.registerError = nil
+            // The first-run guide shows the switch first; System Settings opens on its button.
+            registrar.status = .notRegistered
+            service.activate(openingSettings: false)
+            try require(service.health == .requiresApproval && registrar.settingsOpened == 3, "O guia abriu os Ajustes sem o clique")
             registrar.status = .notRegistered
             registrar.registerError = NSError(domain: "SMAppServiceErrorDomain", code: Int(kSMErrorInvalidSignature))
             service.activate()
-            try require(service.message?.contains("assinatura") == true && registrar.events.count == 2, "Erro de assinatura sem diagnóstico")
+            try require(service.message?.contains("assinatura") == true && registrar.events.count == 4, "Erro de assinatura sem diagnóstico")
             let unsigned = ServiceController(policy: .unavailable(reason: "Build sem Team ID."), registrar: registrar, client: nil)
             unsigned.activate()
-            try require(registrar.events.count == 2, "Build ad hoc tentou registrar")
+            try require(registrar.events.count == 4, "Build ad hoc tentou registrar")
             unsigned.refresh()
             if case .unsigned = unsigned.health {} else { throw TestSupport.Failure("Ad hoc não marcado como assinatura necessária") }
         }
@@ -456,6 +473,8 @@ enum HelperTests {
             guard case .failure(let denied)? = raw.send(.approveRuntime(path: candidate, digest: second.digest, authorization: Data(count: 32))),
                   denied.code == .authorizationDenied else { throw TestSupport.Failure("Recusa do administrador ignorada") }
             guard case .status(let none)? = raw.send(.status), none.runtime == nil else { throw TestSupport.Failure("Runtime instalado sem aprovação") }
+            try require(fixture.authorizer.prompts.last == SystemAdminAuthorizer.approvalPrompt(.openfortivpn, path: candidate),
+                        "Pedido de senha sem o nome do cliente: \(fixture.authorizer.prompts.last ?? "-")")
             fixture.authorizer.allow = true
             let approval = raw.send(MessageCodec.encode(HelperRequest.approveRuntime(path: candidate, digest: second.digest, authorization: Data(count: 32))), timeout: 180)
             guard case .status(let approved)? = approval, let runtime = approved.runtime, approved.userAuthorized else {
@@ -481,7 +500,7 @@ enum HelperTests {
             try require(SystemAdminAuthorizer.definitionIsExpected(["class": "rule", "rule": ["authenticate-admin"], "kofn": 1]), "Regra um-de-um recusada")
             try require(!SystemAdminAuthorizer.definitionIsExpected(["class": "rule", "rule": ["is-root", "authenticate-admin"]]), "Regra composta aceita")
             try require(SystemAdminAuthorizer.definitionIsExpected(["class": "rule", "rule": ["authenticate-admin"]]), "Regra esperada recusada")
-            try require(!SystemAdminAuthorizer().authorize(Data(count: 3)), "Formulário de tamanho errado aceito")
+            try require(!SystemAdminAuthorizer().authorize(Data(count: 3), prompt: "teste"), "Formulário de tamanho errado aceito")
         }
 
         test("Supervisor gerenciado: cópia protegida validada por assinatura; requisito de outro Team é recusado") {

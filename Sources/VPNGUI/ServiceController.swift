@@ -15,7 +15,9 @@ protocol ServiceRegistrar: AnyObject {
 
 @MainActor
 final class DaemonRegistrar: ServiceRegistrar {
-    private let service = SMAppService.daemon(plistName: HelperConstants.plistName)
+    /// A fresh object per read: one kept from launch can go on reporting requiresApproval
+    /// after the switch is turned on in System Settings.
+    private var service: SMAppService { SMAppService.daemon(plistName: HelperConstants.plistName) }
     var status: SMAppService.Status { service.status }
     func register() throws { try service.register() }
     func unregister(completion: @escaping (Error?) -> Void) {
@@ -110,6 +112,12 @@ final class ServiceController: ObservableObject, SessionTransport {
     /// Poll interval/limit while waiting for sessions to end before unregistering.
     var cleanupPoll: TimeInterval = 0.3
     var cleanupLimit: TimeInterval = 120
+    /// macOS reports a daemon that was never registered as notFound, like a missing one.
+    /// The bundle tells them apart: with its LaunchDaemon plist it only needs activating.
+    var daemonPlistInBundle: () -> Bool = {
+        FileManager.default.fileExists(atPath: Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Library/LaunchDaemons/\(HelperConstants.plistName)").path)
+    }
 
     init(policy: CodeTrust.Policy, registrar: ServiceRegistrar?, client: HelperClient?) {
         self.policy = policy
@@ -168,7 +176,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         switch registrar.status {
         case .notRegistered: health = .notRegistered; status = nil
         case .requiresApproval: health = .requiresApproval; status = nil
-        case .notFound: health = .notFound; status = nil
+        case .notFound: health = daemonPlistInBundle() ? .notRegistered : .notFound; status = nil
         case .enabled: handshake()
         @unknown default: health = .unresponsive("estado de registro desconhecido"); status = nil
         }
@@ -201,7 +209,8 @@ final class ServiceController: ObservableObject, SessionTransport {
 
     // MARK: Actions (one attempt per click; never a register loop)
 
-    func activate() {
+    /// openingSettings: false when the caller shows what to turn on first (first-run guide).
+    func activate(openingSettings: Bool = true) {
         guard case .trusted = policy, let registrar else { refresh(); return }
         if registrar.status == .enabled { refresh(); return }
         // Same label installed the legacy way would conflict; never touch someone else's file.
@@ -211,19 +220,23 @@ final class ServiceController: ObservableObject, SessionTransport {
             refresh()
             return
         }
+        let approval = "Serviço registrado. Em Ajustes do Sistema › Geral › Itens de Início, ative TunnelMac em Permitir em segundo plano e volte ao app."
         do {
             try registrar.register()
-            message = registrar.status == .requiresApproval
-                ? "Serviço registrado. Aprove TunnelMac em Ajustes do Sistema › Geral › Itens de Início e volte ao app."
-                : "Serviço registrado."
+            message = registrar.status == .requiresApproval ? approval : "Serviço registrado."
         } catch {
             let code = (error as NSError).code
-            if code == kSMErrorAlreadyRegistered { message = nil }
+            // The first registration of a daemon throws "Operation not permitted" while it
+            // waits for the user's approval: that is the expected next step, not a failure.
+            if registrar.status == .requiresApproval { message = approval }
+            else if code == kSMErrorAlreadyRegistered { message = nil }
             else if code == kSMErrorLaunchDeniedByUser { message = "O macOS aguarda sua aprovação em Ajustes do Sistema › Itens de Início." }
             else if code == kSMErrorInvalidSignature { message = "O macOS recusou a assinatura do app. Daemons exigem app assinado com Team ID e notarizado; veja o guia de ativação." }
             else { message = "Não foi possível registrar o serviço: \(error.localizedDescription)" }
         }
         refresh()
+        // Straight to the switch the user has to turn on.
+        if openingSettings, health == .requiresApproval { openSettings() }
     }
 
     func openSettings() { registrar?.openSystemSettings() }

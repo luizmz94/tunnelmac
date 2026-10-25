@@ -10,6 +10,9 @@ final class DNSHost: WireGuardHost {
     var primary: String? = "primary"
     var failWrites = false
     var writes = 0
+    /// What System Settings has saved for the service; nil = unknown.
+    var configured: [String]?
+    func configuredDNSServers(service: String) -> [String]? { configured }
     func run(_ tool: String, _ arguments: [String]) -> CommandResult { .init(status: 0, output: "") }
     func resolve(_ host: String, port: Int) -> [String] { [] }
     func uapi(interface: String, pid: pid_t, request: String) throws -> String { "errno=0\n\n" }
@@ -76,6 +79,52 @@ final class ReviewTests: XCTestCase {
         XCTAssertEqual(try managedLeaf(prefix: "/opt/homebrew"), "liblz4.1.10.0.dylib")
         XCTAssertEqual(try managedLeaf(prefix: "/usr/local"), "liblz4.1.dylib")
     }
+    func testDNSBaselineRestoresTheUserDNSAfterTheLastVPN() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        let baseline = DNSBaseline(host: host, recordPath: path)
+        host.configured = ["192.0.2.53"]
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]   // first VPN
+        baseline.capture()                                         // second VPN: same snapshot
+        host.values["primary"] = ["ServerAddresses": ["10.9.0.1"]]
+        XCTAssertEqual(baseline.settle(), .restored(servers: ["192.0.2.53"]))
+        XCTAssertEqual(WireGuardTunnel.servers(host.values["primary"]), ["192.0.2.53"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        XCTAssertNil(baseline.settle())
+    }
+    func testDNSBaselineLeavesARestoredOrUserChangedDNSAlone() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        let baseline = DNSBaseline(host: host, recordPath: path)
+        baseline.capture()
+        XCTAssertEqual(baseline.settle(), .unchanged)
+        XCTAssertEqual(host.writes, 0)
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["9.9.9.9"]]
+        host.configured = ["9.9.9.9"]                                // set in System Settings meanwhile
+        XCTAssertEqual(baseline.settle(), .keptUserChange(servers: ["9.9.9.9"]))
+        XCTAssertEqual(WireGuardTunnel.servers(host.values["primary"]), ["9.9.9.9"])
+        XCTAssertEqual(host.writes, 0)
+        host.configured = nil                                        // settings unreadable: leave it
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        XCTAssertEqual(baseline.settle(), .unchanged)
+        XCTAssertEqual(host.writes, 0)
+    }
+    func testDNSBaselineSurvivesAHelperRestartAndRemovesAVPNDNSOverDHCP() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        host.values["primary"] = nil                                 // automatic DNS (DHCP)
+        DNSBaseline(host: host, recordPath: path).capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        host.configured = []
+        let restarted = DNSBaseline(host: host, recordPath: path)
+        XCTAssertEqual(restarted.settle(), .restored(servers: []))
+        XCTAssertNil(host.values["primary"])
+        host.failWrites = true
+        restarted.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        XCTAssertEqual(restarted.settle(), .failed)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))  // kept for the retry
+    }
     func testDNSJournalWriteFailureDoesNotChangeDNS() throws {
         let host = DNSHost(), root = try temporary()
         let dns = InternetDNS(host: host, recordPath: root.appendingPathComponent("missing/journal").path)
@@ -108,7 +157,10 @@ final class ReviewTests: XCTestCase {
         _ = dns.acquire(token: "a", servers: ["9.9.9.9"])
         XCTAssertEqual(host.writes, 0)
         lock.withLock { owned = false }
-        Thread.sleep(forTimeInterval: 0.12)
+        // Waits for the monitor's first tick (bounded): slow CI runners can miss a fixed sleep.
+        let deadline = Date().addingTimeInterval(5)
+        while !dns.active, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        XCTAssertTrue(dns.active, "Monitor did not apply the deferred DNS")
         _ = dns.release(token: "a") // Synchronizes with the timer before assertions.
         XCTAssertGreaterThanOrEqual(host.writes, 2)
     }
@@ -270,5 +322,49 @@ extension ReviewTests {
         XCTAssertEqual(try store.load().connections, [connection])
         XCTAssertTrue(secrets.staged.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.directory.appendingPathComponent("pending-operation.json").path))
+    }
+}
+
+extension ReviewTests {
+    func testOnboardingHomebrewCommandsCoverOnlyChosenClients() {
+        let states: [RuntimeKind: ClientState] = [
+            .openfortivpn: .notInstalled,
+            .openvpn: .notApproved(installed: "2.7.8", latest: "2.7.10"),
+            .wireguard: .notApproved(installed: "0.0.20250522", latest: nil),
+        ]
+        let all = ServiceOnboarding.commands(RuntimeKind.allCases) { states[$0]! }
+        XCTAssertEqual(all, ["brew install openfortivpn", "brew upgrade openvpn"])
+        XCTAssertEqual(ServiceOnboarding.commands([.wireguard]) { states[$0]! }, [])
+        XCTAssertEqual(ServiceOnboarding.commands([.wireguard, .openfortivpn]) { _ in .notInstalled }, ["brew install openfortivpn wireguard-go"])
+        XCTAssertFalse(ServiceOnboarding.installed(states[.openvpn]!))
+        XCTAssertTrue(ServiceOnboarding.installed(states[.wireguard]!))
+        XCTAssertEqual(ServiceOnboarding.step(.ready), .approve)
+    }
+}
+
+extension ReviewTests {
+    func testAdminPromptNamesTheClientAndOldDescriptionsAreRewritten() {
+        let prompts = RuntimeKind.allCases.map { SystemAdminAuthorizer.approvalPrompt($0, path: "/opt/homebrew/bin/\($0.executableName)") }
+        XCTAssertEqual(Set(prompts).count, RuntimeKind.allCases.count)
+        XCTAssertTrue(prompts.allSatisfy { $0.hasPrefix("TunnelMac ") && !$0.contains("VPN GUI") })
+        XCTAssertTrue(prompts[1].contains("OpenVPN") && prompts[1].contains("/opt/homebrew/bin/openvpn"))
+        let old: [String: Any] = ["class": "rule", "rule": ["authenticate-admin"],
+                                  "default-prompt": ["": "VPN GUI quer aprovar ou remover a cópia protegida do openfortivpn."]]
+        XCTAssertTrue(SystemAdminAuthorizer.definitionIsExpected(old))
+        XCTAssertFalse(SystemAdminAuthorizer.descriptionIsCurrent(old))
+        var current = old
+        current["default-prompt"] = ["": SystemAdminAuthorizer.description]
+        XCTAssertTrue(SystemAdminAuthorizer.descriptionIsCurrent(current))
+    }
+}
+
+extension ReviewTests {
+    func testDowngradedInstallationKeepsTheCurrentApprovedCopy() {
+        let state = ClientState.evaluate(approved: "1.24.1", installed: "1.24.0", installedExists: true, sourceChanged: true, latest: "1.24.1")
+        XCTAssertEqual(state, .upToDate("1.24.1"))
+        XCTAssertEqual(ClientState.evaluate(approved: "1.24.0", installed: "1.23.1", installedExists: true, sourceChanged: true, latest: "1.24.1"),
+                       .updateAvailable(current: "1.24.0", latest: "1.24.1"))
+        XCTAssertEqual(ClientState.evaluate(approved: "1.24.1", installed: "1.24.1", installedExists: true, sourceChanged: true, latest: "1.24.1"),
+                       .approvalOutdated(approved: "1.24.1", installed: "1.24.1"))
     }
 }

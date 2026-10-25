@@ -3,12 +3,12 @@ import AppKit
 import UniformTypeIdentifiers
 import VPNHelperShared
 
-/// Open panel for OpenVPN profiles: a .ovpn/.conf file or a Viscosity .visc folder.
+/// Open panel for OpenVPN profiles: a .ovpn/.conf file, a Viscosity .visc folder or its .zip.
 enum OpenVPNImportPanel {
     @MainActor static func choose() -> [URL]? {
         let panel = NSOpenPanel()
         panel.title = "Importar perfil OpenVPN"
-        panel.message = "Escolha o .ovpn (ou .conf), uma pasta .visc, ou o .ovpn junto com os certificados (⌘-clique para selecionar vários). Os originais não são alterados."
+        panel.message = "Escolha o .ovpn (ou .conf), uma pasta .visc ou o .zip dela, ou o .ovpn junto com os certificados (⌘-clique para selecionar vários). Os originais não são alterados."
         panel.prompt = "Importar"
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -112,7 +112,7 @@ struct ConnectionEditor: View {
                              subtitle: "Gateway FortiGate, o mesmo usado pelo FortiClient. Usuário e senha ou login SAML no navegador.",
                              status: clientStatus(.fortinet)) { choose(.fortinet) }
                 ProtocolCard(kind: .openvpn, title: "OpenVPN",
-                             subtitle: "Perfil .ovpn ou pasta .visc do Viscosity. Certificados e chaves ficam guardados junto com a conexão.",
+                             subtitle: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip). Certificados e chaves ficam guardados junto com a conexão.",
                              status: clientStatus(.openvpn)) { choose(.openvpn) }
                 ProtocolCard(kind: .wireguard, title: "WireGuard",
                              subtitle: "Arquivo .conf do servidor ou do app WireGuard. A chave privada fica guardada junto com a conexão.",
@@ -173,7 +173,7 @@ struct ConnectionEditor: View {
                         Label("Um [Interface] com PrivateKey e Address, e um ou mais [Peer]", systemImage: "point.3.connected.trianglepath.dotted")
                     } else {
                         Label("Um .ovpn ou .conf com os certificados embutidos", systemImage: "doc.text")
-                        Label("Uma pasta .visc do Viscosity", systemImage: "folder")
+                        Label("Uma pasta .visc do Viscosity, ou o .zip dela", systemImage: "folder")
                         Label("O .ovpn junto com ca, cert, key e ta, selecionados de uma vez", systemImage: "doc.on.doc")
                     }
                 }
@@ -548,7 +548,7 @@ struct ConnectionEditor: View {
             } header: {
                 Text("Autenticação")
             } footer: {
-                Text("A senha fica no Keychain e chega ao OpenVPN só pelo canal protegido do serviço, nunca em arquivo ou argumento.")
+                Text("A senha fica no Keychain, nunca em arquivo.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

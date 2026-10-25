@@ -129,6 +129,9 @@ final class SessionRunner {
     private(set) var stopRequested = false
     private(set) var finished = false
     var onFinish: ((SessionRunner) -> Void)?
+    /// On the core queue once the client ended and its observers cleaned up, before the
+    /// terminal event: a line it returns goes to this session's log.
+    var finalCheck: (() -> String?)?
     /// Set before `startReading`; never changed afterwards.
     var observer: SessionObserver?
 
@@ -202,6 +205,7 @@ final class SessionRunner {
                 // Closed on the queue that also writes STOP, so the number is never reused under it.
                 close(self.control)
                 self.finished = true
+                if let line = self.finalCheck?() { self.pump.enqueue(.line(line)) }
                 if let failure = self.observer?.cleanupFailure { self.pump.enqueue(.failed(failure)) }
                 else if code == 137 { self.pump.enqueue(.failed("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar.")) }
                 else if code >= 0 { self.pump.enqueue(.exited(code: code)) }

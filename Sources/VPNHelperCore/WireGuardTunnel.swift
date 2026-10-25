@@ -25,6 +25,13 @@ public protocol WireGuardHost: AnyObject {
     func dnsSetup(service: String) -> [String: Any]?
     /// Replaces (or with nil removes) that dictionary. Not persistent across reboots.
     func setDNSSetup(service: String, value: [String: Any]?) -> Bool
+    /// DNS servers the user saved for `service` in System Settings ([] = automatic);
+    /// nil when unknown.
+    func configuredDNSServers(service: String) -> [String]?
+}
+
+public extension WireGuardHost {
+    func configuredDNSServers(service: String) -> [String]? { nil }
 }
 
 public enum WireGuardTools {
@@ -168,6 +175,13 @@ public final class SystemWireGuardHost: WireGuardHost {
             }
             return SCDynamicStoreSetValue(store, key, value as CFDictionary)
         }
+    }
+
+    /// Read fresh each time: the network preferences, as System Settings saves them.
+    public func configuredDNSServers(service: String) -> [String]? {
+        guard let preferences = SCPreferencesCreate(nil, "com.luiz.vpngui.helper.dns" as CFString, nil) else { return nil }
+        let value = SCPreferencesPathGetValue(preferences, "/NetworkServices/\(service)/DNS" as CFString) as? [String: Any]
+        return value?["ServerAddresses"] as? [String] ?? []
     }
 }
 
