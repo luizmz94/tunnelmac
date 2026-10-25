@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
+- Automatic releases: a push to main that passes the checks is released (version picked
+  or bumped by `scripts/next-version.py`) and the Homebrew tap is updated.
+
 ## 0.5.0-rc.2
 
 - Address parser, authentication, runtime consent, timeout and network recovery findings.

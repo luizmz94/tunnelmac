@@ -241,7 +241,20 @@ Team. `package-release.sh` accepts only Developer ID signed, timestamped, harden
 notarized/stapled arm64 bundles and computes SHA-256 after final ZIP packaging.
 `publish-release.sh` gates draft creation on a clean default branch, full test report,
 audit and successful CI. `update-tap.py` generates a versioned cask only from a
-published, verified release. No private key export or signing secret in CI is needed.
+published, verified release.
+
+Releases of this repository are automatic. Every push to `main` runs the macOS checks;
+when they pass, `.github/workflows/release.yml` runs the full suite and the shared
+publication preflight, then picks the version with `scripts/next-version.py`: a
+`releaseVersion` set by hand in `Constants.swift` (for example `1.0.0`) is used as is;
+if it is already released, the next one (`-rc.N+1`, or the next patch) and the next
+build number are committed back to `main`. Pushes that change nothing under `Sources`,
+`Package.swift` or `Resources` are not released. The app is signed, notarized and
+published (prerelease when the version has a suffix), and the cask in
+`luizmz94/homebrew-tunnelmac` is updated with a deploy key limited to that repository.
+Signing and notarization credentials live only in the `release` environment, which
+accepts `main` only. A manual run with `dry_run` builds, signs and notarizes without
+publishing.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
 [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

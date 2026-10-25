@@ -1,14 +1,19 @@
-# Builds, signs, notarizes and packages a release on a GitHub-hosted Mac and uploads it as
-# a draft GitHub release. Manual only (workflow_dispatch) and limited to main by the
-# `release` environment: pull requests never reach these secrets.
-# The draft is published by hand after review; the tap is updated with scripts/update-tap.py.
+# Releases main automatically: after "macOS checks" passes on a push to main, this builds,
+# signs, notarizes, publishes the GitHub release and updates the Homebrew tap. The version
+# comes from scripts/next-version.py (Constants.swift by hand, or the next rc/patch, committed
+# back to main). Limited to main by the `release` environment: pull requests never reach these
+# secrets. A manual run with dry_run builds, signs and notarizes without publishing anything.
 name: release
 
 on:
+  workflow_run:
+    workflows: [macOS checks]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       dry_run:
-        description: Build, sign and notarize without creating the draft release.
+        description: Build, sign and notarize without publishing the release or the tap.
         type: boolean
         default: true
 
@@ -25,7 +30,10 @@ defaults:
 
 jobs:
   release:
-    if: github.ref == 'refs/heads/main'
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+       && github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: macos-26
     environment: release
     timeout-minutes: 60
@@ -45,8 +53,31 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      # skip: nothing shipped changed, or main moved on (the newer push gets its own run).
+      - name: Plan
+        id: plan
+        env:
+          AUTOMATIC: ${{ github.event_name == 'workflow_run' }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -eu
+          publish=true
+          [[ "$AUTOMATIC" == true || "$DRY_RUN" == false ]] || publish=false
+          if [[ $(git rev-parse HEAD) != $(git rev-parse origin/main) ]]; then
+            echo "::notice::main moved past $(git rev-parse --short HEAD); the newer push releases."
+            plan=skip
+          else
+            plan=$(python3 -I scripts/next-version.py)
+            git checkout -- Sources/VPNHelperShared/Constants.swift # applied after the preflight
+          fi
+          echo "Plan: $plan (publish=$publish)"
+          echo "skip=$([[ $plan == skip ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
 
       - name: Toolchain
+        if: steps.plan.outputs.skip != 'true'
         run: |
           swift --version
           xcrun --show-sdk-version
@@ -54,9 +85,11 @@ jobs:
 
       # The full graphical suite: hosted macOS runners have a logged-in session.
       - name: Full suite
+        if: steps.plan.outputs.skip != 'true'
         run: ./scripts/test.sh
 
       - name: Shared publication preflight
+        if: steps.plan.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           TEST_REPORT: ${{ env.OUTPUT_DIR }}/TestResults.txt
@@ -64,6 +97,7 @@ jobs:
 
       # Own keychain, outside the search list; passwords only reach security/notarytool.
       - name: Temporary keychain
+        if: steps.plan.outputs.skip != 'true'
         env:
           P12_BASE64: ${{ secrets.MACOS_SIGNING_P12_BASE64 }}
           P12_PASSWORD: ${{ secrets.MACOS_SIGNING_P12_PASSWORD }}
@@ -93,7 +127,24 @@ jobs:
           [ "$(printf '%s\n' "$identity" | grep -c .)" = 1 ] || { echo "::error::Expected one Developer ID Application of $TEAM_ID in the keychain."; exit 1; }
           echo "SIGNING_IDENTITY=$identity" >> "$GITHUB_ENV"
 
+      # The bump commit only changes Constants.swift of the commit that passed the suite,
+      # the preflight and "macOS checks". It is pushed only once the release is ready.
+      - name: Version
+        if: steps.plan.outputs.skip != 'true'
+        run: |
+          set -eu
+          plan=$(python3 -I scripts/next-version.py)
+          release=$(sed -n 's/.*static let releaseVersion = "\(.*\)".*/\1/p' Sources/VPNHelperShared/Constants.swift)
+          if [[ $plan == bump* ]]; then
+            build=$(sed -n 's/.*static let build = "\(.*\)".*/\1/p' Sources/VPNHelperShared/Constants.swift)
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "Release $release (build $build)" -- Sources/VPNHelperShared/Constants.swift
+          fi
+          echo "RELEASE=$release" >> "$GITHUB_ENV"
+          echo "Releasing $release from $(git rev-parse --short HEAD) ($plan)"
+
       - name: Sign, notarize and package
+        if: steps.plan.outputs.skip != 'true'
         run: |
           set -eu
           SIGNING_KEYCHAIN="$KEYCHAIN" ./scripts/build.sh
@@ -101,31 +152,60 @@ jobs:
           ./scripts/package-release.sh "$OUTPUT_DIR/TunnelMac.app"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: steps.plan.outputs.skip != 'true'
         with:
           name: release-${{ github.sha }}
           path: ${{ env.RELEASE_DIR }}
           if-no-files-found: error
           retention-days: 7
 
-      # A draft creates no tag; publishing the draft creates it on this commit.
-      - name: Draft release
-        if: inputs.dry_run == false
+      # Publishing creates the tag on the released commit (the bump commit, when there is one).
+      - name: Publish release
+        if: steps.plan.outputs.skip != 'true' && steps.plan.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          release=$(sed -n 's/.*static let releaseVersion = "\(.*\)".*/\1/p' Sources/VPNHelperShared/Constants.swift)
-          if gh release view "v$release" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "::error::Release v$release already exists."; exit 1
+          if gh release view "v$RELEASE" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::Release v$RELEASE already exists."; exit 1
           fi
-          if git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/v$release" > /dev/null; then
-            echo "::error::Tag v$release already exists."; exit 1
+          if git ls-remote --exit-code --tags "https://github.com/$GITHUB_REPOSITORY" "refs/tags/v$RELEASE" > /dev/null; then
+            echo "::error::Tag v$RELEASE already exists."; exit 1
+          fi
+          if [[ $(git rev-parse HEAD) != $(git rev-parse origin/main) ]]; then
+            # Fast-forward only: fails if main moved meanwhile, before anything is published.
+            git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" HEAD:refs/heads/main
           fi
           prerelease=()
-          [[ "$release" != *-* ]] || prerelease=(--prerelease)
-          gh release create "v$release" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft ${prerelease[@]+"${prerelease[@]}"} \
-            --title "TunnelMac $release" --notes-file packaging/release-notes.md \
-            "$RELEASE_DIR/TunnelMac-$release-arm64.zip" "$RELEASE_DIR/SHA256SUMS"
+          [[ "$RELEASE" != *-* ]] || prerelease=(--prerelease)
+          notes=(--notes-file packaging/release-notes.md)
+          # Hand-written notes only when they describe this version; otherwise GitHub's
+          # generated list of changes since the previous release.
+          grep -qF "Changes in $RELEASE:" packaging/release-notes.md ||
+            notes=(--generate-notes --notes "Automatic release from main. Details in CHANGELOG.md.")
+          gh release create "v$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" ${prerelease[@]+"${prerelease[@]}"} \
+            --title "TunnelMac $RELEASE" "${notes[@]}" \
+            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/SHA256SUMS"
+
+      # Deploy key with write access to the tap only, pinned GitHub host key.
+      - name: Update the Homebrew tap
+        if: steps.plan.outputs.skip != 'true' && steps.plan.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAP_DEPLOY_KEY: ${{ secrets.TAP_DEPLOY_KEY }}
+        run: |
+          set +x -eu
+          umask 077
+          printf '%s\n' "$TAP_DEPLOY_KEY" > "$RUNNER_TEMP/tap-key"
+          echo 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $RUNNER_TEMP/tap-key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts -o StrictHostKeyChecking=yes"
+          git clone -q --depth 1 git@github.com:luizmz94/homebrew-tunnelmac.git "$RUNNER_TEMP/tap"
+          ./scripts/update-tap.py "v$RELEASE" --tap "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          if git diff --quiet; then echo 'Tap already up to date.'; exit 0; fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit -q -am "tunnelmac $RELEASE"
+          git push -q origin HEAD:main
 
       # Removes the keychain even when the job fails and checks the search list is restored.
       - name: Remove the temporary keychain
@@ -135,7 +215,7 @@ jobs:
             security list-keychains -d user -s $(tr -d '"' < "$RUNNER_TEMP/keychains-before")
           fi
           security delete-keychain "$KEYCHAIN" 2> /dev/null || true
-          rm -f "$RUNNER_TEMP/signing.p12"
+          rm -f "$RUNNER_TEMP/signing.p12" "$RUNNER_TEMP/tap-key"
           if [ -f "$RUNNER_TEMP/keychains-before" ]; then
             diff "$RUNNER_TEMP/keychains-before" <(security list-keychains -d user)
             rm -f "$RUNNER_TEMP/keychains-before"
