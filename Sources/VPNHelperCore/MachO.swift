@@ -85,6 +85,11 @@ public struct MachOImage {
         self = try MachOImage(file: data)
     }
 
+    /// Whether `replacement` fits every command in `commands` whose current value is `value`.
+    func fits(_ replacement: String, for value: String, commands: Set<Command>) -> Bool {
+        strings.allSatisfy { !commands.contains($0.command) || $0.value != value || replacement.utf8.count + 1 <= $0.size - $0.stringOffset }
+    }
+
     static func u32(_ data: Data, _ offset: Int) -> UInt32 {
         let base = data.startIndex + offset
         return UInt32(data[base]) | UInt32(data[base + 1]) << 8 | UInt32(data[base + 2]) << 16 | UInt32(data[base + 3]) << 24

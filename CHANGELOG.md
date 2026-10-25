@@ -1,14 +1,24 @@
 # Changelog
 
-## Unreleased
+## 0.5.0-rc.4
 
-- WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
-- Automatic releases: a push to main that passes the checks is released (version picked
-  or bumped by `scripts/next-version.py`) and the Homebrew tap is updated.
+- Intel Macs (x86_64) are supported: each release ships `TunnelMac-<version>-arm64.zip`
+  and `TunnelMac-<version>-x86_64.zip`, and the Homebrew cask picks the right one. The
+  Apple Silicon archive, its name and its contents are unchanged.
+- Intel: the protected OpenVPN copy fits library names into the shorter `/usr/local`
+  load commands (it uses the install name, e.g. `liblz4.1.dylib`, when the Cellar file
+  name does not fit), and the default client paths use the Intel Homebrew prefix.
+- CI runs the full suite on an Intel runner too; a release needs both to pass.
 - Shorter README with screenshots and a connect GIF; protocol details moved to docs/GUIDE.md.
 - `scripts/showcase.sh` opens the interface with fictitious connections (local checks
   runner only) and regenerates the README images with `--capture`.
 - CONTRIBUTING.md: local setup, project map and contribution workflow.
+
+## 0.5.0-rc.3
+
+- WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
+- Automatic releases: a push to main that passes the checks is released (version picked
+  or bumped by `scripts/next-version.py`) and the Homebrew tap is updated.
 
 ## 0.5.0-rc.2
 

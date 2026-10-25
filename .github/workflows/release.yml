@@ -147,9 +147,14 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: |
           set -eu
-          SIGNING_KEYCHAIN="$KEYCHAIN" ./scripts/build.sh
-          NOTARY_PROFILE=tunnelmac-ci NOTARY_KEYCHAIN="$KEYCHAIN" ./scripts/notarize.sh "$OUTPUT_DIR/TunnelMac.app"
-          ./scripts/package-release.sh "$OUTPUT_DIR/TunnelMac.app"
+          # One app per architecture; x86_64 is cross-compiled here and ran on Intel in checks.yml.
+          for arch in arm64 x86_64; do
+            out="$OUTPUT_DIR"
+            [[ $arch == arm64 ]] || out="$OUTPUT_DIR-$arch"
+            ARCH=$arch OUTPUT_DIR="$out" SIGNING_KEYCHAIN="$KEYCHAIN" ./scripts/build.sh
+            NOTARY_PROFILE=tunnelmac-ci NOTARY_KEYCHAIN="$KEYCHAIN" ./scripts/notarize.sh "$out/TunnelMac.app"
+            ./scripts/package-release.sh "$out/TunnelMac.app"
+          done
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: steps.plan.outputs.skip != 'true'
@@ -185,7 +190,7 @@ jobs:
             notes=(--generate-notes --notes "Automatic release from main. Details in CHANGELOG.md.")
           gh release create "v$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" ${prerelease[@]+"${prerelease[@]}"} \
             --title "TunnelMac $RELEASE" "${notes[@]}" \
-            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/SHA256SUMS"
+            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/TunnelMac-$RELEASE-x86_64.zip" "$RELEASE_DIR/SHA256SUMS"
 
       # Deploy key with write access to the tap only, pinned GitHub host key.
       - name: Update the Homebrew tap

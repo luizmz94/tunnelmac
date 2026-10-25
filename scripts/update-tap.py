@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the tap only from a published, signed, stapled arm64 release."""
+"""Generate the tap only from a published, signed, stapled release (arm64 and x86_64)."""
 import argparse
 import hashlib
 import json
@@ -9,20 +9,25 @@ import subprocess
 import tempfile
 
 REPO = 'luizmz94/tunnelmac'
+# Homebrew arch name -> release asset architecture (lipo name).
+ARCHES = {'arm': 'arm64', 'intel': 'x86_64'}
 
 def command(*args):
     return subprocess.check_output(args, text=True).strip()
 
-def cask(version, digest):
+def cask(version, digests):
     if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc\.\d+)?', version):
         raise ValueError('Invalid version')
-    if not re.fullmatch(r'[0-9a-f]{64}', digest):
+    if set(digests) != set(ARCHES) or not all(re.fullmatch(r'[0-9a-f]{64}', d) for d in digests.values()):
         raise ValueError('Invalid SHA-256')
     return r'''cask "tunnelmac" do
-  version "%s"
-  sha256 "%s"
+  arch arm: "arm64", intel: "x86_64"
 
-  url "https://github.com/luizmz94/tunnelmac/releases/download/v#{version}/TunnelMac-#{version}-arm64.zip"
+  version "%s"
+  sha256 arm:   "%s",
+         intel: "%s"
+
+  url "https://github.com/luizmz94/tunnelmac/releases/download/v#{version}/TunnelMac-#{version}-#{arch}.zip"
   name "TunnelMac"
   desc "Native GUI for openfortivpn, OpenVPN and WireGuard"
   homepage "https://github.com/luizmz94/tunnelmac"
@@ -38,7 +43,6 @@ def cask(version, digest):
     end
   end
 
-  depends_on arch: :arm64
   depends_on formula: "openfortivpn"
   depends_on macos: :ventura
 
@@ -100,7 +104,7 @@ def cask(version, digest):
     files.
   EOS
 end
-''' % (version, digest, 'Release candidate: isolated root lifecycle integration is not yet validated.' if '-' in version else 'Stable release: see the release validation report for supported platforms.')
+''' % (version, digests['arm'], digests['intel'], 'Release candidate: isolated root lifecycle integration is not yet validated.' if '-' in version else 'Stable release: see the release validation report for supported platforms.')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -115,29 +119,35 @@ def main():
     if release['isDraft'] or release['tagName'] != args.tag:
         raise SystemExit('Only an existing published release can populate the tap')
     version = args.tag[1:]
-    asset = f'TunnelMac-{version}-arm64.zip'
-    if asset not in [a['name'] for a in release['assets']]:
-        raise SystemExit('The required release asset is absent')
+    assets = {key: f'TunnelMac-{version}-{arch}.zip' for key, arch in ARCHES.items()}
+    if not set(assets.values()) <= {a['name'] for a in release['assets']}:
+        raise SystemExit('A required release asset is absent')
+    digests = {}
     with tempfile.TemporaryDirectory(prefix='tunnelmac-tap-') as tmp:
-        command('gh', 'release', 'download', args.tag, '--repo', REPO, '--pattern', asset,
-                '--pattern', 'SHA256SUMS', '--dir', tmp)
         root = Path(tmp)
-        digest = hashlib.sha256((root / asset).read_bytes()).hexdigest()
-        if f'{digest}  {asset}' not in (root / 'SHA256SUMS').read_text().splitlines():
-            raise SystemExit('Published checksum mismatch')
-        command('ditto', '-x', '-k', str(root / asset), str(root / 'unpacked'))
-        app = root / 'unpacked/TunnelMac.app'
-        command(str(Path(__file__).resolve().parent / 'verify-bundle.sh'), str(app))
-        if command('/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleShortVersionString', str(app / 'Contents/Info.plist')) != version.split('-')[0]:
-            raise SystemExit('Bundle version differs from the release tag')
-        command('xcrun', 'stapler', 'validate', str(app))
-        command('spctl', '--assess', '--type', 'execute', str(app))
-        for binary in ('VPNGUI', 'VPNHelper', 'VPNSupervisor'):
-            if command('lipo', '-archs', str(app / 'Contents/MacOS' / binary)) != 'arm64':
-                raise SystemExit('Release architectures do not match the cask')
+        patterns = [arg for name in assets.values() for arg in ('--pattern', name)]
+        command('gh', 'release', 'download', args.tag, '--repo', REPO, *patterns,
+                '--pattern', 'SHA256SUMS', '--dir', tmp)
+        sums = (root / 'SHA256SUMS').read_text().splitlines()
+        for key, asset in assets.items():
+            digest = hashlib.sha256((root / asset).read_bytes()).hexdigest()
+            if f'{digest}  {asset}' not in sums:
+                raise SystemExit(f'Published checksum mismatch: {asset}')
+            unpacked = root / f'unpacked-{key}'
+            command('ditto', '-x', '-k', str(root / asset), str(unpacked))
+            app = unpacked / 'TunnelMac.app'
+            command(str(Path(__file__).resolve().parent / 'verify-bundle.sh'), str(app))
+            if command('/usr/libexec/PlistBuddy', '-c', 'Print :CFBundleShortVersionString', str(app / 'Contents/Info.plist')) != version.split('-')[0]:
+                raise SystemExit('Bundle version differs from the release tag')
+            command('xcrun', 'stapler', 'validate', str(app))
+            command('spctl', '--assess', '--type', 'execute', str(app))
+            for binary in ('VPNGUI', 'VPNHelper', 'VPNSupervisor'):
+                if command('lipo', '-archs', str(app / 'Contents/MacOS' / binary)) != ARCHES[key]:
+                    raise SystemExit(f'Release architectures do not match the cask: {asset}')
+            digests[key] = digest
         target = args.tap / 'Casks/tunnelmac.rb'
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(cask(version, digest))
+        target.write_text(cask(version, digests))
         print(target)
 
 if __name__ == '__main__':

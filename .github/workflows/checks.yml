@@ -24,3 +24,26 @@ jobs:
         run: ./scripts/test.sh
       - name: Shell syntax
         run: for script in scripts/*.sh; do bash -n "$script"; done
+  # The same suite, executed on Intel: the x86_64 release is cross-compiled on Apple
+  # Silicon, so this job is what runs that code before a release (release.yml waits
+  # for the whole workflow). Homebrew has no Intel bottles for some dependencies, so
+  # openfortivpn may build from source here.
+  intel-checks:
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Toolchain
+        run: |
+          xcode=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [[ -z "$xcode" ]] || sudo xcode-select -s "$xcode/Contents/Developer"
+          swift --version
+          xcrun --show-sdk-version
+          # The Intel image ships an older Homebrew; the cask sandbox check needs Homebrew 7.
+          brew update --quiet
+          brew --version
+          brew install openfortivpn
+      - name: Build and run the actual GUI, Keychain and XPC checks
+        run: ./scripts/test.sh

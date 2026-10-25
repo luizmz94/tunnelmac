@@ -1,7 +1,19 @@
-TunnelMac release candidate: macOS 13+, Apple Silicon arm64 only.
+TunnelMac release candidate: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
 TunnelMac is the new name of OpenFortiDesk: the app now handles Fortinet SSL VPN
 (openfortivpn), OpenVPN profiles and WireGuard configurations.
+
+Changes in 0.5.0-rc.4:
+- Intel Macs: this release ships TunnelMac-0.5.0-rc.4-x86_64.zip next to the arm64
+  archive, and the Homebrew cask installs the right one. The arm64 build is unchanged.
+- Intel: the protected OpenVPN copy now fits Homebrew's /usr/local library paths, and
+  the default client paths point to /usr/local. Homebrew no longer has Intel bottles for
+  every client: OpenVPN may build from source (re-run brew install if a build fails).
+- The full suite runs on an Intel runner in CI as well as on Apple Silicon.
+
+Changes in 0.5.0-rc.3:
+- WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
+- Releases are automatic from main, including the Homebrew tap.
 
 Changes in 0.5.0-rc.2 (stabilization review):
 - Helper protocol 7: after upgrading, use Atualizar serviço, then approve

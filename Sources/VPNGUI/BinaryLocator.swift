@@ -21,11 +21,17 @@ enum BinaryLocator {
             FileManager.default.isExecutableFile(atPath: $0)
         } ?? {
             switch kind {
-            case .openfortivpn: return "/opt/homebrew/bin/openfortivpn"
-            case .openvpn: return "/opt/homebrew/sbin/openvpn"
-            case .wireguard: return "/opt/homebrew/bin/wireguard-go"
+            case .openfortivpn: return homebrewPrefix + "/bin/openfortivpn"
+            case .openvpn: return homebrewPrefix + "/sbin/openvpn"
+            case .wireguard: return homebrewPrefix + "/bin/wireguard-go"
             }
         }()
     }
+    /// Default Homebrew prefix for this Mac's architecture, shown when nothing is installed yet.
+    #if arch(arm64)
+    static let homebrewPrefix = "/opt/homebrew"
+    #else
+    static let homebrewPrefix = "/usr/local"
+    #endif
 }
 
