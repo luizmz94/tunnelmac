@@ -37,17 +37,30 @@ Installing an offered version happens only when the user clicks **Atualizar agor
 the install button of the update window shown at launch), through Sparkle 2
 (sparkle-project.org). Sparkle reads the appcast attached to that exact GitHub release
 (`releases/download/v<version>/appcast-<arch>.xml`), which must carry a valid EdDSA
-signature (`SURequireSignedFeed`, with failure expiration disabled), downloads the archive listed there, verifies its
-EdDSA signature before extracting it (`SUVerifyUpdateBeforeExtraction`) and validates the
-new bundle’s code signature. Sparkle permits Apple signing identity rotation when the
-archive is authenticated by the trusted EdDSA key; these are not two independent
-same-identity requirements. Release builds separately enforce the configured Apple Team ID.
-The app also rejects feeds pointing to an archive outside the offered release/architecture. The public
-key ships in Info.plist (`SUPublicEDKey`); the private key lives only in the
-maintainer's Keychain and in the release environment's secrets. Sparkle never checks on
-its own schedule, never installs silently and sends no system profile. Quitting for the
-installation goes through the normal Sair path (VPNs disconnected and cleaned up first);
-the service registration is kept, as with `brew upgrade`.
+signature (`SURequireSignedFeed`, with failure expiration disabled); the app rejects an
+appcast whose archive is not the offered release and architecture. Sparkle then
+downloads that archive and verifies its EdDSA signature before extracting it
+(`SUVerifyUpdateBeforeExtraction`).
+
+**The EdDSA key is the root of trust for updates.** An archive with a valid EdDSA
+signature is installed even if the new app has a different Apple signature, or none
+(verified: an ad hoc build without a Team ID replaced a Team-signed one). Apple code
+signing is not a second, independent check here, and an app installed by Sparkle does not
+go through a Gatekeeper/notarization assessment. Release builds are signed, notarized
+and checked for the configured Team ID by the release workflow, and the privileged
+service still only accepts clients signed by its own Team, so a foreign app could not
+drive the VPN helper; but whoever holds the private key and can publish a release in
+this repository can ship code to every user. The public key ships in Info.plist
+(`SUPublicEDKey`); the private key lives only in the maintainer's Keychain and in the
+`SPARKLE_ED_PRIVATE_KEY` secret of the `release` environment (main branch only), and
+must be treated as the most sensitive secret of the project. If it leaks, rotate it in a
+release signed with the same Apple identity and revoke the old secret.
+
+Sparkle never checks on its own schedule, never installs silently and sends no system
+profile. Quitting for the installation goes through the normal Sair path (VPNs
+disconnected and cleaned up first; cancelling keeps them connected, and the downloaded
+update then installs on the next quit); the service registration is kept, as with
+`brew upgrade`.
 
 Passwords and SAML cookies use Keychain and authenticated XPC, then anonymous
 file descriptors. They are excluded from argv, environment, JSON and logs. TLS is

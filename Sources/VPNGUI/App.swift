@@ -88,7 +88,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         guard let model, model.manager.anyActive else { return .terminateNow }
         if awaitingTermination { return .terminateLater }
-        guard confirmTermination() else { return .terminateCancel }
+        guard confirmTermination() else {
+            menuBar?.installer.quitCancelled()
+            return .terminateCancel
+        }
         awaitingTermination = true
         model.manager.changed = { [weak self] in
             guard let self, self.awaitingTermination, !model.manager.anyActive else { return }
@@ -100,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             guard let self, self.awaitingTermination else { return }
             self.awaitingTermination = false
             model.error = "Encerramento e limpeza não confirmados em 30 s. O app permanece aberto; verifique o serviço antes de sair novamente."
+            self.menuBar?.installer.quitCancelled()
             self.replyToTermination(false)
         }
         return .terminateLater

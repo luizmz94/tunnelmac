@@ -425,11 +425,15 @@ struct UpdateSettings: View {
         }
         SettingsSection(title: "Como atualizar") {
             VStack(alignment: .leading, spacing: 12) {
-                if installer.available {
+                if installer.available && installer.awaitingQuit {
+                    Button { installer.install(offer) } label: { Label("Instalar e reabrir", systemImage: "arrow.clockwise.circle") }
+                        .adaptiveButtonStyle(prominent: true).controlSize(.small)
+                    Text("A versão \(offer.version) já foi baixada e conferida. Ela é instalada quando o TunnelMac é encerrado; as VPNs conectadas são desconectadas antes.")
+                        .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                } else if installer.available {
                     HStack(spacing: 10) {
                         Button { installer.install(offer) } label: { Label("Atualizar agora", systemImage: "arrow.down.circle") }
-                            .adaptiveButtonStyle(prominent: true).controlSize(.small)
-                            .disabled(installer.busy)
+                            .adaptiveButtonStyle(prominent: true).controlSize(.small) // Busy: brings Sparkle's window forward.
                         if installer.busy {
                             ProgressView().controlSize(.small).accessibilityLabel("Atualizando")
                             Text("Acompanhe na janela de atualização.").font(.caption).foregroundStyle(.secondary)

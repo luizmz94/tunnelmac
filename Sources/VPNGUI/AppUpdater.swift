@@ -38,6 +38,10 @@ final class AppUpdater: NSObject, ObservableObject {
     @Published private(set) var available = false
     /// A Sparkle session (check, download, install) is running.
     @Published private(set) var busy = false
+    /// "Instalar e Reabrir" was accepted but quitting was cancelled (VPNs kept). Sparkle's
+    /// installer waits for the app to quit: quitting again installs the update and reopens.
+    @Published private(set) var awaitingQuit = false
+    private var installing = false
 
     private weak var checker: UpdateChecker?
     private var controller: SPUStandardUpdaterController?
@@ -78,10 +82,24 @@ final class AppUpdater: NSObject, ObservableObject {
 
     /// "Atualizar agora": Sparkle shows the notes, downloads with progress and relaunches.
     func install(_ offer: UpdateOffer) {
-        if busy { return activate() } // Sparkle's window is already open.
-        guard let updater = controller?.updater, prepare(offer) else { return }
+        guard let updater = controller?.updater else { return }
+        if awaitingQuit { return NSApp.terminate(nil) } // Asks about active VPNs again.
+        if busy {
+            // A launch check's window may be waiting for the app to become active (Sparkle's
+            // gentle reminders); checking again brings that update into focus.
+            activate()
+            if updater.canCheckForUpdates { updater.checkForUpdates() }
+            return
+        }
+        guard prepare(offer) else { return }
         activate()
         updater.checkForUpdates()
+    }
+
+    /// The user cancelled quitting (or the VPNs did not stop in time) after choosing
+    /// "Instalar e Reabrir": the update stays ready and installs on the next quit.
+    func quitCancelled() {
+        if installing { awaitingQuit = true }
     }
 
     /// After the launch check: the same window, unless Sparkle has this version skipped.
@@ -131,8 +149,20 @@ extension AppUpdater: SPUUpdaterDelegate {
         }
     }
 
+    nonisolated func updater(_ updater: SPUUpdater, willInstallUpdate item: SUAppcastItem) {
+        MainActor.assumeIsolated { installing = true }
+    }
+
+    nonisolated func updaterWillRelaunchApplication(_ updater: SPUUpdater) {
+        MainActor.assumeIsolated { installing = true }
+    }
+
     nonisolated func updater(_ updater: SPUUpdater, didFinishUpdateCycleFor updateCheck: SPUUpdateCheck, error: Error?) {
-        MainActor.assumeIsolated { busy = false }
+        MainActor.assumeIsolated {
+            busy = false
+            installing = false
+            awaitingQuit = false
+        }
     }
 }
 

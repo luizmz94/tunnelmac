@@ -14,6 +14,13 @@ final class UpdaterTests: XCTestCase {
         XCTAssertTrue(utility.isAutomaticQuit(menuBarIcon: true, windowVisible: false, updaterBusy: true))
     }
 
+    @MainActor func testCancelledQuitWithoutInstallKeepsNormalState() {
+        let updater = AppUpdater(checker: nil, enabled: false)
+        updater.quitCancelled()
+        XCTAssertFalse(updater.awaitingQuit)
+        XCTAssertFalse(updater.busy)
+    }
+
     @MainActor func testFeedMustMatchOfferedArchive() throws {
         let version = "0.5.0-rc.6"
         let url = "https://github.com/luizmz94/tunnelmac/releases/download/v\(version)/TunnelMac-\(version)-\(AppUpdater.architecture).zip"
