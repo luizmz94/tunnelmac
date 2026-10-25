@@ -41,6 +41,9 @@ jobs:
           [[ -z "$xcode" ]] || sudo xcode-select -s "$xcode/Contents/Developer"
           swift --version
           xcrun --show-sdk-version
+          # The Intel image ships an older Homebrew; the cask sandbox check needs Homebrew 7.
+          brew update --quiet
+          brew --version
           brew install openfortivpn
       - name: Build and run the actual GUI, Keychain and XPC checks
         run: ./scripts/test.sh
