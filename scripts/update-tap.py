@@ -94,13 +94,13 @@ def cask(version, digest):
     name): remove its service first the same way, quit it, then
     brew uninstall --cask openfortidesk (if installed) before installing.
 
-    Release candidate: isolated root lifecycle integration is not yet validated.
+    %s
     Profiles, Keychain secrets and the protected runtime survive uninstall. Do not
     reopen the app during an upgrade. See SECURITY.md before removing managed root
     files.
   EOS
 end
-''' % (version, digest)
+''' % (version, digest, 'Release candidate: isolated root lifecycle integration is not yet validated.' if '-' in version else 'Stable release: see the release validation report for supported platforms.')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

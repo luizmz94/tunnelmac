@@ -2,8 +2,12 @@
 # Local checks in an isolated runner bundle. No VPN, privileges, network or service registration.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+export CLANG_MODULE_CACHE_PATH="$PWD/.build/clang-cache"
+export SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.build/module-cache"
 version=$(sed -n 's/.*static let version = "\(.*\)".*/\1/p' Sources/VPNHelperShared/Constants.swift)
 out="${OUTPUT_DIR:-$PWD/build/$version}"
+mkdir -p "$out"
+./scripts/test-regressions.sh 2>&1 | tee "$out/RegressionResults.txt"
 SIGNING_IDENTITY=- TEAM_ID= OUTPUT_DIR="$out" ./scripts/build.sh
 # Launch the test executable as a normal macOS app, so Keychain, loopback and XPC use the
 # same environment as the actual app, rather than a restricted shell. Always ad hoc.
@@ -14,7 +18,9 @@ if pgrep -f "$runner/Contents/MacOS/VPNGUI" >/dev/null 2>&1; then
 fi
 rm -rf "$runner"
 mkdir -p "$runner/Contents/MacOS"
-cp "$out/TunnelMac.app/Contents/MacOS/VPNGUI" "$runner/Contents/MacOS/VPNGUI"
+swift build --package-path IntegrationRunner --scratch-path "$PWD/.build/integration" --product VPNIntegrationRunner --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c debug
+bin_dir=$(swift build --package-path IntegrationRunner --scratch-path "$PWD/.build/integration" --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c debug --show-bin-path)
+cp "$bin_dir/VPNIntegrationRunner" "$runner/Contents/MacOS/VPNGUI"
 cp "$out/TunnelMac.app/Contents/MacOS/VPNSupervisor" "$runner/Contents/MacOS/VPNSupervisor"
 cp "$out/TunnelMac.app/Contents/Info.plist" "$runner/Contents/Info.plist"
 cp -R "$out/TunnelMac.app/Contents/Resources" "$runner/Contents/Resources"

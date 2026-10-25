@@ -30,7 +30,9 @@ fi
 
 arch="${ARCH:-$(uname -m)}"
 [[ "$arch" == arm64 || "$arch" == x86_64 ]] || { echo "Unsupported ARCH: $arch" >&2; exit 1; }
-swift build --arch "$arch" --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c release
+for product in VPNGUI VPNHelper VPNSupervisor; do
+    swift build --product "$product" --arch "$arch" --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c release
+done
 
 bin_dir=$(swift build --arch "$arch" --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c release --show-bin-path)
 rm -rf "$app"

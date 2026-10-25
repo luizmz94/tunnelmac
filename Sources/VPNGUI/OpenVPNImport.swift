@@ -75,7 +75,7 @@ enum OpenVPNImporter {
               (attributes[.size] as? Int ?? .max) <= OpenVPNConfigText.maximumSize else {
             throw AppFailure("O perfil precisa ser um arquivo de texto de até 256 KB.")
         }
-        let data = try Data(contentsOf: file)
+        let data = try BoundedFile.read(file, limit: OpenVPNConfigText.maximumSize)
         guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
             throw AppFailure("O perfil não está em texto legível.")
         }
@@ -217,6 +217,9 @@ enum OpenVPNImporter {
                 }
             default: break
             }
+            if ["tls-verify", "plugin"].contains(directive.name) {
+                throw AppFailure("\(directive.name) pode validar a identidade do servidor. Solicite um perfil com remote-cert-tls server e verify-x509-name, sem scripts ou plugins; a política não será removida automaticamente.")
+            }
             if let reason = OpenVPNRules.dropped[name] {
                 if droppedNames.insert(name).inserted { warnings.append("Diretiva \(name) removida: \(reason).") }
                 continue
@@ -226,6 +229,18 @@ enum OpenVPNImporter {
                 continue
             }
             directives.append(directive)
+        }
+        for directive in directives {
+            let arguments = directive.arguments.joined(separator: ":").uppercased()
+            if (directive.name == "auth" && ["MD4", "MD5", "SHA1"].contains(arguments)) ||
+               (["cipher", "data-ciphers", "data-ciphers-fallback", "tls-cipher"].contains(directive.name) &&
+                ["DES", "BF-CBC", "RC4", "RC2"].contains(where: arguments.contains)) ||
+               (directive.name == "tls-cert-profile" && arguments == "LEGACY") {
+                warnings.append("\(directive.name) usa uma política criptográfica antiga. Confirme a necessidade com o administrador; o app preservou o parâmetro.")
+            }
+            if ["compress", "comp-lzo"].contains(directive.name), !["NO", "STUB", "STUB-V2"].contains(arguments) {
+                warnings.append("Compressão do túnel pode expor informações do tráfego. Solicite um perfil sem compressão; o parâmetro foi preservado para compatibilidade.")
+            }
         }
         if !unsupported.isEmpty {
             throw AppFailure("O perfil usa diretivas que o app ainda não suporta: \(Array(Set(unsupported)).sorted().joined(separator: ", ")). Nada foi importado.")
@@ -274,7 +289,7 @@ enum OpenVPNImporter {
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= maximumReferencedFile else {
             throw AppFailure("Linha \(line): \(path) não é um arquivo regular de até 64 KB.")
         }
-        let data = FileHandle(fileDescriptor: fd, closeOnDealloc: false).readDataToEndOfFile()
+        let data = try BoundedFile.read(fd: fd, limit: maximumReferencedFile)
         guard let text = String(data: data, encoding: .utf8) else { throw AppFailure("Linha \(line): \(path) não está em texto (PEM).") }
         let content = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .newlines)
         return (content, info.st_mode & 0o077 != 0 && content.contains("PRIVATE KEY") || (info.st_mode & 0o077 != 0 && content.contains("Static key")))

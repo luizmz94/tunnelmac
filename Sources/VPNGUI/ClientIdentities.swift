@@ -60,7 +60,9 @@ enum ClientIdentities {
         guard status == errSecSuccess, let exported, let pem = String(data: exported as Data, encoding: .utf8) else {
             throw failure(status, "Não foi possível usar a chave do certificado \"\(reference.name)\"")
         }
-        let certificate = PEM.encode(SecCertificateCopyData(match.certificate) as Data, label: "CERTIFICATE")
+        let certificate = try certificateChain(match.certificate).map {
+            PEM.encode(SecCertificateCopyData($0) as Data, label: "CERTIFICATE")
+        }.joined()
         do { return try ClientCertificate(certificate: certificate, key: pem, passphrase: passphrase).validated() }
         catch let violation as RuleViolation { throw AppFailure(violation.message) }
     }
@@ -81,6 +83,19 @@ enum ClientIdentities {
         default:
             throw failure(status, "Não foi possível importar o arquivo")
         }
+        // Preserve intermediate certificates from PKCS#12 for later offline chain export.
+        for item in items as? [[String: Any]] ?? [] {
+            for certificate in item[kSecImportItemCertChain as String] as? [SecCertificate] ?? [] {
+                if let subject = SecCertificateCopyNormalizedSubjectSequence(certificate),
+                   let issuer = SecCertificateCopyNormalizedIssuerSequence(certificate), subject == issuer { continue }
+                var query: [String: Any] = [kSecClass as String: kSecClassCertificate, kSecValueRef as String: certificate]
+                if let keychain = searchList?.first { query[kSecUseKeychain as String] = keychain }
+                let result = SecItemAdd(query as CFDictionary, nil)
+                guard result == errSecSuccess || result == errSecDuplicateItem else {
+                    throw failure(result, "A identidade foi importada, mas não foi possível preservar um certificado intermediário")
+                }
+            }
+        }
         let identities = (items as? [[String: Any]] ?? []).compactMap { $0[kSecImportItemIdentity as String] }
         guard let first = identities.first else { throw AppFailure("O arquivo não contém certificado com chave privada.") }
         let identity = first as! SecIdentity
@@ -89,6 +104,22 @@ enum ClientIdentities {
             throw AppFailure("O arquivo não contém certificado com chave privada.")
         }
         return info(certificate)
+    }
+
+    /// Build from locally available certificates only; never fetch AIA URLs during export.
+    static func certificateChain(_ leaf: SecCertificate) throws -> [SecCertificate] {
+        var trust: SecTrust?
+        guard SecTrustCreateWithCertificates(leaf, SecPolicyCreateBasicX509(), &trust) == errSecSuccess,
+              let trust else { throw AppFailure("Não foi possível construir a cadeia do certificado.") }
+        SecTrustSetNetworkFetchAllowed(trust, false)
+        if let searchList { SecTrustSetKeychains(trust, searchList as CFArray) }
+        _ = SecTrustEvaluateWithError(trust, nil)
+        let chain = (SecTrustCopyCertificateChain(trust) as? [SecCertificate]) ?? [leaf]
+        return chain.enumerated().compactMap { index, certificate in
+            if index > 0, let subject = SecCertificateCopyNormalizedSubjectSequence(certificate),
+               let issuer = SecCertificateCopyNormalizedIssuerSequence(certificate), subject == issuer { return nil }
+            return certificate
+        }
     }
 
     // MARK: Internals

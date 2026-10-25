@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import Darwin
 import Security
@@ -773,6 +774,8 @@ enum HelperTests {
             model.connect(s) // Capture mode: one -v; the DEBUG cookie line is filtered in the helper.
             try require(spin(15) { saml.state == .connected }, "SAML captura não conectou")
             try require(!saml.logs.joined().contains("fixturecapture") && !saml.logs.contains { $0.hasPrefix("DEBUG") }, "DEBUG/cookie chegou aos logs")
+            // The capture is written to the Keychain on the persistence queue.
+            _ = spin(5) { if case .cookie = cookies.lookup(s) { return true }; return false }
             guard case .cookie(let saved) = cookies.lookup(s), saved == "SVPNCOOKIE=fixturecaptureZq9" else { throw TestSupport.Failure("Cookie capturado não foi para o Keychain") }
             model.manager.disconnect(s.id)
             try require(spin(15) { saml.state == .disconnected }, "SAML captura não desconectou")
@@ -803,7 +806,7 @@ enum HelperTests {
             let id = UUID()
             let first = try HelperFixture(root: fixtureRoot, listenerRequirement: ownRequirement, delegateRequirement: ownRequirement)
             try first.installFixtureRuntime()
-            SessionRegistry(path: first.store.registryPath).add(token: "old", uid: getuid(), connectionID: id, pid: previous.pid)
+            try SessionRegistry(path: first.store.registryPath).add(token: "old", uid: getuid(), connectionID: id, pid: previous.pid)
             first.tearDown(removeFiles: false)
             let restarted = try HelperFixture(root: fixtureRoot, listenerRequirement: ownRequirement, delegateRequirement: ownRequirement)
             defer { restarted.tearDown(removeFiles: false) }

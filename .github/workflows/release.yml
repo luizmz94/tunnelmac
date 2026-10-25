@@ -31,6 +31,7 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
+      actions: read
     env:
       TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
     steps:
@@ -43,16 +44,23 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Toolchain
         run: |
           swift --version
           xcrun --show-sdk-version
-          brew install openfortivpn
+          brew install openfortivpn gitleaks
 
       # The full graphical suite: hosted macOS runners have a logged-in session.
       - name: Full suite
         run: ./scripts/test.sh
+
+      - name: Shared publication preflight
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_REPORT: ${{ env.OUTPUT_DIR }}/TestResults.txt
+        run: ./scripts/publication-preflight.sh
 
       # Own keychain, outside the search list; passwords only reach security/notarytool.
       - name: Temporary keychain

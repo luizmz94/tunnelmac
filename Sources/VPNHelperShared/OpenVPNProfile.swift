@@ -165,6 +165,27 @@ public struct OpenVPNProfile: Equatable, Sendable {
         if let dev = directives.last(where: { $0.name == "dev" })?.arguments.first, !dev.hasPrefix("tun") && !dev.hasPrefix("utun") {
             throw RuleViolation("Somente interfaces tun são suportadas no macOS.")
         }
+        // Some check that a certificate of the same CA issued to a client cannot pass as the server.
+        let verifiesServer = directives.contains { directive in
+            switch directive.name {
+            case "remote-cert-tls", "ns-cert-type": return directive.arguments == ["server"]
+            case "verify-x509-name": return true
+            case "remote-cert-eku": return ["TLS Web Server Authentication", "serverAuth", "1.3.6.1.5.5.7.3.1"].contains(directive.arguments.first ?? "")
+            default: return false
+            }
+        }
+        guard verifiesServer else {
+            throw RuleViolation("O perfil não verifica a identidade do servidor (remote-cert-tls server ou verify-x509-name). Solicite um perfil atualizado ao administrador.")
+        }
+        for directive in directives {
+            if directive.name == "tls-cert-profile", directive.arguments.first == "insecure" {
+                throw RuleViolation("tls-cert-profile insecure não é aceito; solicite uma política TLS atualizada.")
+            }
+            if ["tls-version-min", "tls-version-max"].contains(directive.name),
+               ["1.0", "1.1"].contains(directive.arguments.first ?? "") {
+                throw RuleViolation("TLS anterior a 1.2 não é aceito; solicite um perfil atualizado.")
+            }
+        }
         guard seenBlocks.contains("ca") else { throw RuleViolation("O perfil não tem a autoridade certificadora (<ca>).") }
         if seenBlocks.contains("cert") != seenBlocks.contains("key") {
             throw RuleViolation("Certificado e chave do cliente precisam vir juntos.")

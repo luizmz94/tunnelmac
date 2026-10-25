@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import Darwin
 import CryptoKit
@@ -333,7 +334,7 @@ enum WireGuardTests {
             _ = raw.send(.stop(token: token))
             try require(spin(10) { raw.received.flatMap(\.events).contains { $0.isTerminal } }, "Parada não confirmada")
             try require(spin(3) { lines().contains { $0.contains("Shutting down") } }, "wireguard-go de teste não recebeu SIGTERM: \(lines().suffix(10))")
-            try require(host.commands.contains("route -q -n delete -inet 203.0.113.10"), "Rota do endpoint não removida")
+            try require(host.commands.contains("route -q -n delete -inet 203.0.113.10 -gateway 10.1.1.1"), "Rota do endpoint não removida")
             try require(TunnelServers.of(host.dns["SERVICE-A"]) == ["10.1.1.1"], "DNS não restaurado: \(String(describing: host.dns["SERVICE-A"]))")
             try require(!FileManager.default.fileExists(atPath: record), "Registro de limpeza ficou")
             try require(((try? FileManager.default.contentsOfDirectory(atPath: fixture.store.work)) ?? []).allSatisfy { !$0.hasPrefix("wg.") }, "Arquivo de interface ficou")
@@ -384,6 +385,7 @@ enum WireGuardTests {
                     throw TestSupport.Failure("Registro")
                 }
             }
+            _ = host.run(WireGuardTools.route, ["-q", "-n", "add", "-inet", "203.0.113.10", "-gateway", "192.168.18.1"])
             try record("AAAA", service: "SERVICE-A")
             try record("BBBB", service: "SERVICE-B")
             host.dns["SERVICE-A"] = ["ServerAddresses": ["1.1.1.1"]]
@@ -391,7 +393,7 @@ enum WireGuardTests {
             let second = try HelperFixture(root: rootPath, listenerRequirement: nil, delegateRequirement: nil, wireGuardHost: host)
             defer { second.tearDown(removeFiles: false) }
             try require(spin(5) { ((try? FileManager.default.contentsOfDirectory(atPath: second.store.wireGuardRecords)) ?? []).isEmpty }, "Registros ficaram")
-            try require(host.commands.filter { $0 == "route -q -n delete -inet 203.0.113.10" }.count == 2, "Rotas não removidas: \(host.commands)")
+            try require(host.commands.filter { $0 == "route -q -n delete -inet 203.0.113.10 -gateway 192.168.18.1" }.count == 1, "Rotas não removidas: \(host.commands)")
             try require(TunnelServers.of(host.dns["SERVICE-A"]) == ["192.168.18.1"], "DNS da sessão caída não restaurado")
             try require(TunnelServers.of(host.dns["SERVICE-B"]) == ["9.9.9.9"], "DNS de outro programa sobrescrito")
         }
@@ -471,6 +473,7 @@ final class RecordingWireGuardHost: WireGuardHost, @unchecked Sendable {
     private var _commands: [String] = []
     private var _uapi: [(interface: String, pid: pid_t, request: String)] = []
     private var _dns: [String: [String: Any]] = [:]
+    private var routes: [String: String] = [:]
     private var _gateway4 = "192.168.18.1"
     var failing: [String] = []
     var primary: String? = "SERVICE-A"
@@ -499,7 +502,25 @@ final class RecordingWireGuardHost: WireGuardHost, @unchecked Sendable {
         case "ifconfig" where arguments.count == 1:
             return CommandResult(status: 0, output: "\(arguments[0]): flags=8863<UP,BROADCAST,RUNNING> mtu 1500\n")
         case "route" where arguments.contains("get"):
+            let destination = arguments.last!
+            if let gateway = lock.withLock({ routes[destination] }) {
+                return CommandResult(status: 0, output: "destination: \(destination)\ngateway: \(gateway)\ninterface: en0\n")
+            }
             return CommandResult(status: 1, output: "route: route has not been found\n")
+        case "route" where arguments.contains("add") && arguments.contains("-gateway"):
+            let index = arguments.firstIndex(of: "-gateway")!
+            let destination = arguments[index - 1], gateway = arguments[index + 1]
+            return lock.withLock {
+                guard routes[destination] == nil else { return CommandResult(status: 1, output: "File exists") }
+                routes[destination] = gateway
+                return CommandResult(status: 0, output: "")
+            }
+        case "route" where arguments.contains("delete"):
+            let destination = arguments[4]
+            return lock.withLock {
+                guard routes.removeValue(forKey: destination) != nil else { return CommandResult(status: 1, output: "not found") }
+                return CommandResult(status: 0, output: "")
+            }
         default:
             return CommandResult(status: 0, output: "")
         }

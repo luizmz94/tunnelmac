@@ -322,15 +322,31 @@ final class VPNManager: ObservableObject {
             return
         }
         cookieAttempts.removeValue(forKey: connection.id)
+        if connection.authentication == .saml, harness == nil {
+            let generation = session.generation
+            let store = cookies
+            let refused = refusedCookies.contains(connection.id)
+            Task {
+                let lookup = (try? await PersistenceIO.run { refused ? SAMLCookieLookup.none : store.lookup(connection) }) ?? .none
+                guard session.generation == generation, session.state.active else { return }
+                if session.wantsDisconnect { end(session, exit: 0); return }
+                if case .cookie(let cookie) = lookup {
+                    reuseCookie(cookie, connection: connection, session: session)
+                } else { queueOrStart(session, connection: connection, password: password) }
+            }
+            return
+        }
         if connection.authentication == .saml, let cookie = savedCookie(for: connection, session: session) {
-            // One attempt without browser or callback port; the gate is not needed.
-            session.cookieMode = .reuse
-            cookieAttempts[connection.id] = connection
-            session.log("Tentando reaproveitar a sessão SAML recente, sem abrir o navegador. Se o gateway recusar, um único login SAML será iniciado.")
-            start(session, connection: connection, password: nil, cookie: cookie)
+            reuseCookie(cookie, connection: connection, session: session)
             return
         }
         queueOrStart(session, connection: connection, password: password)
+    }
+    private func reuseCookie(_ cookie: String, connection: Connection, session: Session) {
+        session.cookieMode = .reuse
+        cookieAttempts[connection.id] = connection
+        session.log("Tentando reaproveitar a sessão SAML recente. Se o gateway recusar, um único login SAML será iniciado.")
+        start(session, connection: connection, password: nil, cookie: cookie)
     }
     private func savedCookie(for connection: Connection, session: Session) -> String? {
         guard !refusedCookies.contains(connection.id) else { return nil }
@@ -406,7 +422,7 @@ final class VPNManager: ObservableObject {
         session.log("Usando o certificado do cliente \"\(reference.name)\" do Keychain. Se o macOS pedir, permita o acesso do TunnelMac à chave.")
         let generation = session.generation
         let exporter = certificateExporter
-        DispatchQueue.global(qos: .userInitiated).async {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let result = Result { try exporter(reference) }
             DispatchQueue.main.async { [weak self] in
                 guard let self, session.generation == generation, session.state.active else { return }
@@ -588,12 +604,18 @@ final class VPNManager: ObservableObject {
         case .capture:
             defer { session.cookieCandidate = nil }
             if let candidate = session.cookieCandidate, !session.cookieConflict {
-                do {
-                    try cookies.save(candidate, for: connection)
-                    refusedCookies.remove(connection.id)
-                    session.log("Sessão SAML guardada no Keychain por até 30 minutos para a próxima conexão. O gateway pode recusá-la antes disso.")
-                } catch {
-                    session.log("Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.")
+                if harness != nil { persistCookie(candidate, connection: connection, session: session) }
+                else {
+                    let generation = session.generation, store = cookies
+                    Task {
+                        guard session.generation == generation, running[session.id] != nil else { return }
+                        do {
+                            try await PersistenceIO.run { try store.save(candidate, for: connection) }
+                            guard session.generation == generation else { return }
+                            refusedCookies.remove(connection.id)
+                            session.log("Sessão SAML guardada no Keychain por até 30 minutos.")
+                        } catch { session.log("Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.") }
+                    }
                 }
             } else if session.cookieConflict {
                 session.log("A saída do openfortivpn informou sessões diferentes; nenhuma foi guardada.")
@@ -679,10 +701,23 @@ final class VPNManager: ObservableObject {
         }
         return nil
     }
+    private func persistCookie(_ candidate: String, connection: Connection, session: Session) {
+        do {
+            try cookies.save(candidate, for: connection)
+            refusedCookies.remove(connection.id)
+            session.log("Sessão SAML guardada no Keychain por até 30 minutos para a próxima conexão.")
+        } catch { session.log("Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.") }
+    }
     private func discardCookie(_ session: Session) {
-        do { try cookies.delete(session.id) } catch {
-            refusedCookies.insert(session.id)
-            session.log("Não foi possível apagar a sessão SAML recusada do Keychain; ela não será usada de novo enquanto o app estiver aberto. (\(error.localizedDescription))")
+        refusedCookies.insert(session.id) // Never offer a rejected cookie while deletion waits.
+        if harness != nil {
+            do { try cookies.delete(session.id) } catch { session.log("Não foi possível apagar a sessão SAML recusada do Keychain.") }
+            return
+        }
+        let store = cookies, id = session.id
+        Task {
+            do { try await PersistenceIO.run { try store.delete(id) } }
+            catch { session.log("Não foi possível apagar a sessão SAML recusada do Keychain; ela não será reutilizada nesta sessão do app.") }
         }
     }
     func retryFailed(_ id: UUID, message: String) {

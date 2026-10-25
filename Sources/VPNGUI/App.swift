@@ -2,195 +2,6 @@ import SwiftUI
 import AppKit
 import VPNHelperShared
 
-@MainActor
-final class AppModel: ObservableObject {
-    @Published var data = SavedData()
-    @Published var error: String?
-    @Published var ready = false
-    let manager = VPNManager()
-    /// Display order for the window and the menu bar: by name as Finder sorts it
-    /// (case, accents and numbers), then by server for equal names. Storage keeps its order.
-    var sortedConnections: [Connection] {
-        data.connections.sorted {
-            switch $0.name.localizedStandardCompare($1.name) {
-            case .orderedAscending: return true
-            case .orderedDescending: return false
-            case .orderedSame: return $0.endpoint.localizedStandardCompare($1.endpoint) == .orderedAscending
-            }
-        }
-    }
-    let passwords: PasswordStore
-    let cookies: SAMLCookieStore
-    /// Privileged service (SMAppService + authenticated XPC); the manager's transport.
-    let service: ServiceController
-    /// Called on a user Conectar (not on automatic reconnects). Must return at once:
-    /// the update check it triggers never delays or changes the connection.
-    var onUserConnect: (() -> Void)?
-    private var store: JSONStore?
-    /// Imported OpenVPN profiles, next to connections.json.
-    private(set) var profiles: ProfileStore?
-    /// Imported WireGuard profiles (with their private keys), next to connections.json.
-    private(set) var wireGuardProfiles: ProfileStore?
-    init(store suppliedStore: JSONStore? = nil, passwords: PasswordStore = PasswordStore(),
-         cookies: SAMLCookieStore = SAMLCookieStore(), service: ServiceController? = nil) {
-        self.passwords = passwords
-        self.cookies = cookies
-        self.service = service ?? .production()
-        manager.cookies = cookies
-        manager.transport = self.service
-        self.service.manager = manager
-        do {
-            let store = try suppliedStore ?? JSONStore()
-            self.store = store
-            profiles = .openVPN(store)
-            wireGuardProfiles = .wireGuard(store)
-            data = try store.load()
-            for connection in data.connections { _ = manager.session(connection.id) }
-            ready = true
-        } catch { self.error = "Falha ao ler os dados. O arquivo existente foi preservado. \(error.localizedDescription)" }
-        manager.retry = { [weak self] id in
-            guard let self, let connection = self.data.connections.first(where: { $0.id == id }) else { return }
-            self.connect(connection, retrying: true)
-        }
-    }
-    /// `openVPNProfile` is the normalized profile of a new import (or a replacement);
-    /// nil keeps the profile already saved for this connection. `wireGuardProfile` likewise.
-    func save(_ connection: Connection, password: String, openVPNProfile: String? = nil, wireGuardProfile: String? = nil) throws {
-        guard ready, let store else { throw AppFailure("Os dados não foram carregados; o arquivo foi preservado.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de editar.") }
-        let c = try connection.validated()
-        if c.usesPassword {
-            guard !password.isEmpty else { throw AppFailure("Informe a senha da VPN.") }
-            if c.isOpenVPN {
-                do { try OpenVPNRules.checkCredential(password, label: "Senha") }
-                catch let violation as RuleViolation { throw AppFailure(violation.message) }
-            } else { try Connection.checkConfigValue(password, label: "Senha") }
-        }
-        if c.isOpenVPN {
-            guard let profiles else { throw AppFailure("Pasta de perfis indisponível.") }
-            if let openVPNProfile {
-                // The helper applies exactly this check again before root reads it.
-                do { _ = try OpenVPNProfile.validated(openVPNProfile) }
-                catch let violation as RuleViolation { throw AppFailure(violation.message) }
-            } else { _ = try profiles.read(c.id) }
-        }
-        if c.isWireGuard {
-            guard let wireGuardProfiles else { throw AppFailure("Pasta de perfis indisponível.") }
-            if let wireGuardProfile {
-                do { _ = try WireGuardProfile.validated(wireGuardProfile) }
-                catch let violation as RuleViolation { throw AppFailure(violation.message) }
-            } else { _ = try wireGuardProfiles.read(c.id) }
-        }
-        let previousProfile = c.isOpenVPN && openVPNProfile != nil ? try? profiles?.read(c.id) : nil
-        let previousWireGuard = c.isWireGuard && wireGuardProfile != nil ? try? wireGuardProfiles?.read(c.id) : nil
-        let previous = try passwords.read(c.id)
-        // Any change to gateway, port, user, authentication or certificate drops the saved
-        // SAML session. Renaming keeps it; the identity check on read is a second barrier.
-        if let old = data.connections.first(where: { $0.id == c.id }),
-           SAMLCookieIdentity(old) != SAMLCookieIdentity(c) {
-            try? cookies.delete(c.id)
-        }
-        var updated = data
-        if let index = updated.connections.firstIndex(where: { $0.id == c.id }) { updated.connections[index] = c }
-        else { updated.connections.append(c) }
-        do {
-            if let openVPNProfile { try profiles?.write(openVPNProfile, id: c.id) }
-            if let wireGuardProfile { try wireGuardProfiles?.write(wireGuardProfile, id: c.id) }
-            if c.usesPassword { try passwords.write(password, id: c.id) }
-            else { try passwords.delete(c.id) }
-            try store.save(updated)
-        } catch {
-            if let previous { try? passwords.write(previous, id: c.id) }
-            else { try? passwords.delete(c.id) }
-            if openVPNProfile != nil {
-                if let previousProfile { try? profiles?.write(previousProfile, id: c.id) } else { try? profiles?.delete(c.id) }
-            }
-            if wireGuardProfile != nil {
-                if let previousWireGuard { try? wireGuardProfiles?.write(previousWireGuard, id: c.id) } else { try? wireGuardProfiles?.delete(c.id) }
-            }
-            throw error
-        }
-        data = updated
-        manager.session(c.id).authenticationRejected = false
-        manager.session(c.id).digestFix = nil
-    }
-    func delete(_ connection: Connection) throws {
-        guard ready, let store else { throw AppFailure("Os dados não foram carregados.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de excluir.") }
-        var updated = data
-        updated.connections.removeAll { $0.id == connection.id }
-        let previous = try passwords.read(connection.id)
-        do {
-            try passwords.delete(connection.id)
-            try store.save(updated)
-        } catch {
-            if let previous { try? passwords.write(previous, id: connection.id) }
-            throw error
-        }
-        try? cookies.delete(connection.id)
-        try? profiles?.delete(connection.id)
-        try? wireGuardProfiles?.delete(connection.id)
-        data = updated
-        manager.sessions.removeValue(forKey: connection.id)
-    }
-    func trustCertificate(_ connection: Connection, digest: String) throws {
-        let session = manager.session(connection.id)
-        guard ready, let store, !session.state.active, session.certificateValidationFailed,
-              session.suggestedCertificate == digest else { throw AppFailure("O certificado sugerido não está mais disponível.") }
-        guard let index = data.connections.firstIndex(where: { $0.id == connection.id }) else { throw AppFailure("Conexão não encontrada.") }
-        var updated = data
-        updated.connections[index].trustedCertificate = digest
-        _ = try updated.connections[index].validated()
-        try store.save(updated) // Password stays in Keychain, untouched by certificate approval.
-        try? cookies.delete(connection.id) // A new trusted certificate is a new gateway identity.
-        data = updated
-        session.suggestedCertificate = nil
-        connect(updated.connections[index])
-    }
-    /// Rewrites only `auth RSA-SHAx` → `auth SHAx` in the app's copy of the profile, after the
-    /// user confirmed it in the interface, then connects again. The original file is untouched.
-    func applyDigestFix(_ connection: Connection, _ fix: OpenVPNCompatibility.DigestFix) throws {
-        guard connection.isOpenVPN, let profiles, !manager.session(connection.id).state.active else {
-            throw AppFailure("Desconecte antes de corrigir o perfil.")
-        }
-        let profile: OpenVPNProfile
-        do { profile = try OpenVPNProfile.validated(try profiles.read(connection.id)) }
-        catch let violation as RuleViolation { throw AppFailure(violation.message) }
-        guard OpenVPNCompatibility.digestFix(for: profile) == fix else { throw AppFailure("A correção sugerida não se aplica mais a este perfil.") }
-        try profiles.write(OpenVPNCompatibility.apply(fix, to: profile).text, id: connection.id)
-        manager.session(connection.id).digestFix = nil
-        connect(connection)
-    }
-    func connect(_ connection: Connection, retrying: Bool = false) {
-        if !retrying { onUserConnect?() }
-        do {
-            guard !manager.session(connection.id).authenticationRejected else {
-                throw AppFailure("A última autenticação foi recusada. Edite a conexão e confirme as credenciais antes de tentar novamente, para evitar bloquear o usuário.")
-            }
-            let password = connection.usesPassword ? try passwords.read(connection.id) : nil
-            if connection.usesPassword && (password?.isEmpty ?? true) {
-                throw AppFailure("Senha não encontrada no Keychain. Edite a conexão e salve a senha novamente.")
-            }
-            var profile: String?
-            if connection.isOpenVPN {
-                guard let profiles else { throw AppFailure("Pasta de perfis indisponível.") }
-                profile = try profiles.read(connection.id)
-            }
-            if connection.isWireGuard {
-                guard let wireGuardProfiles else { throw AppFailure("Pasta de perfis indisponível.") }
-                profile = try wireGuardProfiles.read(connection.id)
-            }
-            // Fail locally instead of looping on a service that cannot run the session.
-            if service.blockNewSessions { throw AppFailure("O serviço está sendo removido ou atualizado; novas conexões aguardam.") }
-            if manager.harness == nil, let reason = service.unavailableReason(for: connection.kind.runtime) { throw AppFailure(reason) }
-            manager.connect(connection, password: password, retrying: retrying, profile: profile)
-        } catch {
-            if retrying { manager.retryFailed(connection.id, message: error.localizedDescription) }
-            self.error = error.localizedDescription
-        }
-    }
-}
-
 /// Who asked AppKit to quit, read from the quit Apple event being handled. Sair and ⌘Q
 /// call terminate directly and carry no event.
 struct QuitRequest: Equatable {
@@ -263,6 +74,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.replyToTermination(true)
         }
         model.manager.disconnectAll()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
+            guard let self, self.awaitingTermination else { return }
+            self.awaitingTermination = false
+            model.error = "Encerramento e limpeza não confirmados em 30 s. O app permanece aberto; verifique o serviço antes de sair novamente."
+            self.replyToTermination(false)
+        }
         return .terminateLater
     }
     private static func askToDisconnect() -> Bool {
@@ -283,21 +100,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 }
 
-@main
-struct VPNGUIApp: App {
+public struct VPNGUIApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
     @StateObject private var model: AppModel
     @StateObject private var menuBar: MenuBarCoordinator
     @StateObject private var preferences: AppPreferences
-    init() {
-        if CommandLine.arguments.contains("--release-checks") { exit(ReleaseTests.run()) }
+    public init() {
         if CommandLine.arguments.contains(where: [Maintenance.argument, Maintenance.legacyMigrationArgument].contains) {
             exit(Maintenance.run())
         }
         signal(SIGPIPE, SIG_IGN) // A closed control socket returns EPIPE instead of terminating the app.
-        if CommandLine.arguments.contains("--self-test") { exit(SelfTests.run()) }
         // One AppModel (and VPNManager) shared by the window and the menu bar.
-        let model = UIReviewFixture.enabled ? UIReviewFixture.makeModel() : AppModel()
+        let model = AppModel()
         model.service.refresh() // Read-only: registration status and authenticated handshake.
         let preferences = AppPreferences.forCurrentProcess()
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
@@ -307,7 +121,7 @@ struct VPNGUIApp: App {
         // NSApp does not exist yet inside App.init; with the menu bar icon off, applying the
         // Dock policy here crashed at launch (0.3.0-rc.4 to 0.5.0). Apply it once AppKit runs.
         DispatchQueue.main.async { menuBar.enforceVisibility() }
-        if !MenuBarCoordinator.isLocalChecks && !UIReviewFixture.enabled {
+        if !MenuBarCoordinator.isLocalChecks {
             model.onUserConnect = { [weak updates] in updates?.checkIfDue() }
             // After the interface is ready; the request runs in the background.
             DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak updates] in
@@ -319,16 +133,12 @@ struct VPNGUIApp: App {
         _menuBar = StateObject(wrappedValue: menuBar)
         _preferences = StateObject(wrappedValue: preferences)
     }
-    var body: some Scene {
+    public var body: some Scene {
         WindowGroup("TunnelMac · \(HelperConstants.version)", id: MenuBarCoordinator.sceneID) {
-            if MenuBarCoordinator.isLocalChecks {
-                LocalTestsView()
-            } else {
-                UIReviewContent(model: model, menuBar: menuBar)
+                MainView(model: model, menuBar: menuBar)
                     .frame(minWidth: 850, minHeight: 550)
                     .onAppear { delegate.attach(model: model, menuBar: menuBar) }
                     .background(WindowCloseGuard(delegate: delegate, menuBar: menuBar))
-            }
         }
         .commands {
             CommandGroup(replacing: .newItem) {}
@@ -479,34 +289,5 @@ final class MainWindowCloseDelegate: NSObject, NSWindowDelegate {
     override func forwardingTarget(for selector: Selector!) -> Any? {
         if original?.responds(to: selector) == true { return original }
         return super.forwardingTarget(for: selector)
-    }
-}
-
-struct LocalTestsView: View {
-    @State private var result: Int32?
-    @State private var started = false
-    var body: some View {
-        VStack(spacing: 16) {
-            Text(result == nil ? "Executando verificações locais…" : result == 0 ? "Verificações locais concluídas: 0 falhas" : "As verificações locais encontraram falhas")
-                .font(.headline)
-            Text("Resultado em TestResults.txt, ao lado deste executor. Nenhuma VPN é acessada.")
-            Button("Fechar") { NSApp.terminate(nil) }.disabled(result == nil)
-        }.padding(30).frame(width: 550)
-            .onAppear {
-                guard !started else { return }
-                started = true
-                // A run-loop block, not a main-queue block: the checks spin the run loop to
-                // receive XPC replies, and GCD does not drain the main queue re-entrantly.
-                RunLoop.main.perform(inModes: [.default]) {
-                    let report = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("TestResults.txt")
-                    freopen(report.path, "w", stdout)
-                    freopen(report.path + ".stderr", "w", stderr)
-                    MainActor.assumeIsolated {
-                        result = SelfTests.run()
-                        fflush(stdout)
-                        if CommandLine.arguments.contains("--headless") { NSApp.terminate(nil) }
-                    }
-                }
-            }
     }
 }

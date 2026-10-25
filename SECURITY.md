@@ -25,10 +25,11 @@ user's inspected openfortivpn installation after administrator authorization.
 The helper verifies its integrity before every start. Initial approval trusts the
 inspected local files; hashes alone do not establish upstream provenance.
 
-Besides the VPN tunnels, the app's only network connection is the update check: an
+Besides VPN/gateway/IdP traffic, automatic update checks use an
 anonymous HTTPS `GET` to the public GitHub releases API of luizmz94/tunnelmac
 (ephemeral session, no cookies, cache or token, no redirects, 1 MiB response limit).
-It sends no personal, machine or connection data and can be turned off in
+The service panel also queries the public Homebrew formula JSON endpoints for the
+three client versions (512 KiB limit). Both automatic checks can be turned off in
 Configurações → Atualizações. Only release pages of this repository are linked;
 release notes are shown as plain text. Nothing is downloaded, opened or executed:
 installation stays with `brew upgrade` while the app is closed.
@@ -70,3 +71,15 @@ before uninstall to request
 administrator-authorized runtime removal. Do not manually delete root state while
 it is in use. No broad zap stanza deletes credentials. Forks need their own identity
 and notarization. Do not run fork PR workflows with signing/notarization secrets.
+
+Recovery records are persisted before DNS and external endpoint-route mutations.
+Failed restoration keeps its record; recovery retries after restart. The interface
+reports pending cleanup, and maintenance refuses to discard unresolved records.
+This does not guarantee traffic blocking: TunnelMac does not implement a kill switch.
+
+The GUI, privileged core, integration runner and focused test target are separate
+modules. Distribution builds exclude integration fixtures and their command modes.
+Runtime replacements are refused while any session is active or ending. Approval
+shows the actual source path and mutable-file warnings; it does not authenticate
+upstream provenance. The full approved source inventory is compared in the background
+for drift, including libraries and the DNS script.

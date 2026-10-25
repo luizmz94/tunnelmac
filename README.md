@@ -10,10 +10,10 @@ or Homebrew libraries are bundled in the distributed app.
 Formerly **OpenFortiDesk**: renamed in 0.4.0 because the app is no longer
 Fortinet-only.
 
-**Status:** release candidate
-[`v0.3.0-rc.5`](https://github.com/luizmz94/tunnelmac/releases/tag/v0.3.0-rc.5),
-signed with Developer ID and notarized. Full Homebrew upgrade/uninstall lifecycle
-validation is still pending, so it is not yet declared stable.
+**Development:** 0.5.0-rc.2, preparing the 1.0.0 stabilization candidate.
+The commands below build the current source; the Homebrew tap may still offer an
+older published candidate. Check the release page before downloading. Stability,
+root lifecycle and the supported macOS matrix still require validation.
 
 ## Installation and first use
 
@@ -64,6 +64,10 @@ TLS failures and initial connection failures do not loop automatically.
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**
 in Configurações → Serviço privilegiado. The approval freezes the executable, its
 libraries and the `dns-updown` script that configures the tunnel's DNS.
+Profiles must contain `remote-cert-tls server`; custom `tls-verify` and plugins
+are refused rather than removed. TLS below 1.2 and `tls-cert-profile insecure`
+are refused. Ask the VPN administrator for a compatible profile; verification
+policy is never silently weakened.
 
 Use **+** (⌘N) → **OpenVPN** with a single `.ovpn`/`.conf` that carries its keys
 inline, a Viscosity `.visc` folder whose profile references `ca.crt`, `cert.crt`,
@@ -219,7 +223,8 @@ Use Xcode with macOS 26 SDK or newer. Preparation used Swift 6.4/macOS 27 SDK.
 brew install openfortivpn
 ./scripts/build.sh
 ./scripts/test.sh
-./build/0.3.0/TunnelMac.app/Contents/MacOS/VPNGUI --release-checks
+TUNNELMAC_REVIEW_APP="$PWD/build/0.5.0/TunnelMac.app" \
+  ./build/0.5.0/VPNGUILocalChecks-0.5.0.app/Contents/MacOS/VPNGUI --release-checks
 ```
 
 Build outputs are isolated under `build/<version>`; set OUTPUT_DIR to preserve other
@@ -239,3 +244,31 @@ published, verified release. No private key export or signing secret in CI is ne
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
 [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## Behavior while preparing 1.0.0
+
+Internet DNS defaults to **Do not change**. Existing explicit selections are
+preserved. Public DNS is applied only after choosing a provider in Settings;
+profile DNS takes precedence. A WireGuard profile requiring DNS fails visibly if
+it cannot own/apply it. Only one WireGuard may own system DNS at a time.
+Runtime approval shows the actual source and warnings before administrator consent;
+disconnect all sessions before replacing a runtime.
+
+A stop allows ten seconds for the client, then forces that child to exit and runs
+helper network cleanup. Cleanup failures retain recovery journals, report failure,
+and block further starts/maintenance until recovery succeeds. Quitting times out
+with the app still open if cleanup cannot be confirmed. This is **not a kill switch**:
+traffic may resume over the physical connection after a tunnel fails.
+
+OpenVPN/WireGuard private keys remain in 0600 profile files inside 0700 folders,
+including a pending transaction journal during interrupted edits. These are readable
+by the owning user and their backups. Passwords and SAML cookies remain in Keychain.
+Interrupted saves/deletes are completed on the next launch; failed cleanup keeps a
+recoverable operation and a visible error rather than silently forgetting secrets.
+
+Run `swift test` for focused regressions and `./scripts/test.sh` for the separate
+GUI/Keychain/XPC integration runner. Production GUI contains no fixtures or test modes.
+The runner uses a temporary bundle identifier and never registers the real service.
+Publication through either script or workflow requires the same preflight: clean
+commit, privacy/secret audit, full-suite attestation and successful CI for that commit.
+Historical audit findings remain a release blocker until individually reviewed.

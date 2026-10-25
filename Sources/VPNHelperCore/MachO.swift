@@ -56,6 +56,7 @@ public struct MachOImage {
             let raw = Self.u32(thin, offset), size = Int(Self.u32(thin, offset + 4))
             guard size >= 8, size % 8 == 0, offset + size <= 32 + total else { throw failure(.runtimeRejected, "Comando Mach-O inválido.") }
             if let command = Command(rawValue: raw) {
+                guard size >= 16 else { throw failure(.runtimeRejected, "Comando Mach-O curto.") }
                 let stringOffset = Int(Self.u32(thin, offset + 8))
                 guard stringOffset >= 12, stringOffset < size else { throw failure(.runtimeRejected, "Texto de comando Mach-O inválido.") }
                 let start = offset + stringOffset, end = offset + size
@@ -102,9 +103,9 @@ public struct MachOImage {
         for index in 0..<count {
             let base = 8 + index * entry
             guard be32(file, base) == hostCPU else { continue }
-            let offset = wide ? Int(be64(file, base + 8)) : Int(be32(file, base + 8))
-            let size = wide ? Int(be64(file, base + 16)) : Int(be32(file, base + 12))
-            guard offset > 0, size > 0, offset + size <= file.count else { throw failure(.runtimeRejected, "Fatia universal inválida.") }
+            guard let offset = Int(exactly: wide ? be64(file, base + 8) : UInt64(be32(file, base + 8))),
+                  let size = Int(exactly: wide ? be64(file, base + 16) : UInt64(be32(file, base + 12))),
+                  offset >= 8 + count * entry, size > 0, offset <= file.count, size <= file.count - offset else { throw failure(.runtimeRejected, "Fatia universal inválida.") }
             return file.subdata(in: (file.startIndex + offset)..<(file.startIndex + offset + size))
         }
         throw failure(.runtimeRejected, "O arquivo não contém a arquitetura deste Mac.")

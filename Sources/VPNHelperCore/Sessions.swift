@@ -96,11 +96,14 @@ public final class EventPump {
 /// reported the client PID, `clientEnded` after the supervisor was reaped and before the
 /// session's terminal event is queued, so cleanup is done when the app hears about the exit.
 protocol SessionObserver: AnyObject {
+    var cleanupFailure: String? { get }
     func clientStarted(pid: pid_t)
     /// Every output line of the client (already filtered), in order.
     func clientOutput(_ line: String)
     func clientEnded()
 }
+
+extension SessionObserver { var cleanupFailure: String? { nil } }
 
 /// Removes a session's client certificate files once its client has exited.
 final class CertificateCleanup: SessionObserver {
@@ -167,16 +170,28 @@ final class SessionRunner {
                 // After the started event is queued, so the observer's lines follow it.
                 if let startedPID { observer?.clientStarted(pid: startedPID) }
             }
+            var status: Int32 = 0
+            var reaped: pid_t = 0
+            var drainedAfterExit = 0
             while true {
+                if reaped <= 0 {
+                    reaped = waitpid(supervisorPID, &status, WNOHANG)
+                    if reaped < 0 && errno != EINTR { break }
+                }
+                var descriptor = pollfd(fd: control, events: Int16(POLLIN | POLLHUP), revents: 0)
+                let available = poll(&descriptor, 1, reaped == supervisorPID ? 0 : 200)
+                if reaped == supervisorPID && (available <= 0 || drainedAfterExit >= 1024 * 1024) { break }
+                if available <= 0 { continue }
                 let count = Darwin.read(control, &buffer, buffer.count)
+                if reaped == supervisorPID, count > 0 { drainedAfterExit += count }
                 if count < 0 && errno == EINTR { continue }
                 if count <= 0 { break }
                 forward(filter.feed(Data(buffer.prefix(count))))
             }
             forward(filter.finish())
-            var status: Int32 = 0
-            var reaped: pid_t
-            repeat { reaped = waitpid(supervisorPID, &status, 0) } while reaped < 0 && errno == EINTR
+            if reaped != supervisorPID {
+                repeat { reaped = waitpid(supervisorPID, &status, 0) } while reaped < 0 && errno == EINTR
+            }
             let code: Int
             if reaped == supervisorPID {
                 let low = status & 0x7f
@@ -187,7 +202,9 @@ final class SessionRunner {
                 // Closed on the queue that also writes STOP, so the number is never reused under it.
                 close(self.control)
                 self.finished = true
-                if code >= 0 { self.pump.enqueue(.exited(code: code)) }
+                if let failure = self.observer?.cleanupFailure { self.pump.enqueue(.failed(failure)) }
+                else if code == 137 { self.pump.enqueue(.failed("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar.")) }
+                else if code >= 0 { self.pump.enqueue(.exited(code: code)) }
                 else { self.pump.enqueue(.failed("O supervisor encerrou sem status confirmado.")) }
                 self.onFinish?(self)
             }
@@ -196,7 +213,7 @@ final class SessionRunner {
         thread.start()
     }
 
-    /// Idempotent normal stop. Never SIGKILL, never a PID chosen by the client.
+    /// Idempotent stop; the supervisor bounds graceful shutdown for its own child.
     func stop() {
         guard !finished, !stopRequested else { return }
         stopRequested = true
@@ -233,8 +250,12 @@ public final class SessionRegistry {
     public private(set) var entries: [Entry] = []
     public init(path: String?) {
         self.path = path
-        if let path, let (data, _) = try? SecureFile.read(path, limit: 1024 * 1024),
-           let saved = try? JSONDecoder().decode([Entry].self, from: data) { entries = saved }
+        if let path, FileManager.default.fileExists(atPath: path) {
+            do {
+                let (data, _) = try SecureFile.read(path, limit: 1024 * 1024)
+                entries = try JSONDecoder().decode([Entry].self, from: data)
+            } catch { persistenceFailure = "Registro de sessões ilegível; recuperação manual necessária: \(error.localizedDescription)" }
+        }
     }
     static func identity(of pid: pid_t) -> (UInt64, UInt64)? {
         var seconds: UInt64 = 0, micros: UInt64 = 0
@@ -244,10 +265,10 @@ public final class SessionRegistry {
         guard let (seconds, micros) = identity(of: entry.pid) else { return false }
         return seconds == entry.startSeconds && micros == entry.startMicroseconds
     }
-    public func add(token: String, uid: uid_t, connectionID: UUID, pid: pid_t) {
-        guard let (seconds, micros) = Self.identity(of: pid) else { return }
+    public func add(token: String, uid: uid_t, connectionID: UUID, pid: pid_t) throws {
+        guard let (seconds, micros) = Self.identity(of: pid) else { throw failure(.internalError, "Identidade do supervisor não pôde ser registrada.") }
         entries.append(Entry(token: token, uid: uid, connectionID: connectionID, pid: pid, startSeconds: seconds, startMicroseconds: micros))
-        save()
+        try persist()
     }
     func remove(token: String) {
         entries.removeAll { $0.token == token }
@@ -260,8 +281,13 @@ public final class SessionRegistry {
         if entries.count != before { save() }
         return entries.filter { !live.contains($0.token) }
     }
+    public private(set) var persistenceFailure: String?
     private func save() {
-        guard let path else { return }
-        if let data = try? JSONEncoder().encode(entries) { try? SecureFile.replace(path, data: data, mode: 0o600) }
+        do { try persist(); persistenceFailure = nil }
+        catch { persistenceFailure = error.localizedDescription } // Keep in-memory evidence; disk retains earlier entries.
+    }
+    private func persist() throws {
+        guard let path else { throw failure(.internalError, "Caminho do registro de sessões indisponível.") }
+        try SecureFile.replace(path, data: JSONEncoder().encode(entries), mode: 0o600)
     }
 }

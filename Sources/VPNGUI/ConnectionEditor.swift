@@ -51,6 +51,7 @@ struct ImportCleanup: Equatable {
 
 struct ConnectionEditor: View {
     @ObservedObject var model: AppModel
+    @State private var importGeneration = 0
     @State var connection: Connection
     /// A profile just read from disk (new import or replacement); saved only on Adicionar/Salvar.
     @State var pendingImport: OpenVPNImport?
@@ -121,7 +122,7 @@ struct ConnectionEditor: View {
             Spacer(minLength: 0)
             SheetFooter {
                 Spacer()
-                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
         .frame(width: 560, height: 520)
@@ -191,7 +192,7 @@ struct ConnectionEditor: View {
             SheetFooter {
                 Button("Voltar") { error = nil; step = .chooseKind }
                 Spacer()
-                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
         .frame(width: 560, height: 560)
@@ -218,8 +219,12 @@ struct ConnectionEditor: View {
 
     private func importFiles(_ urls: [URL]) {
         if connection.isWireGuard { importWireGuard(urls); return }
+        importGeneration += 1
+        let generation = importGeneration
+        Task {
         do {
-            let imported = try OpenVPNImporter.load(urls)
+            let imported = try await Task.detached { try OpenVPNImporter.load(urls) }.value
+            guard generation == importGeneration else { return }
             pendingImport = imported
             applyDigestFix = false
             connection.kind = .openvpn
@@ -232,12 +237,17 @@ struct ConnectionEditor: View {
             error = nil
             loaded = true
             step = .form
-        } catch { self.error = error.localizedDescription }
+        } catch { if generation == importGeneration { self.error = error.localizedDescription } }
+        }
     }
 
     private func importWireGuard(_ urls: [URL]) {
+        importGeneration += 1
+        let generation = importGeneration
+        Task {
         do {
-            let imported = try WireGuardImporter.load(urls)
+            let imported = try await Task.detached { try WireGuardImporter.load(urls) }.value
+            guard generation == importGeneration else { return }
             pendingWireGuard = imported
             connection.kind = .wireguard
             connection.wireGuard = imported.summary
@@ -245,7 +255,8 @@ struct ConnectionEditor: View {
             error = nil
             loaded = true
             step = .form
-        } catch { self.error = error.localizedDescription }
+        } catch { if generation == importGeneration { self.error = error.localizedDescription } }
+        }
     }
 
     // MARK: Step 3 — details
@@ -300,11 +311,11 @@ struct ConnectionEditor: View {
             }
             SheetFooter {
                 Spacer()
-                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction)
+                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
                 Button(isNew ? "Adicionar" : "Salvar") { save() }
                     .keyboardShortcut(.defaultAction)
                     .adaptiveButtonStyle(prominent: true)
-                    .disabled(!loaded)
+                    .disabled(!loaded || model.writing || !model.ready)
             }
         }
         .frame(width: 560, height: connection.usesProfile ? 640 : 600)
@@ -321,16 +332,27 @@ struct ConnectionEditor: View {
             } else if connection.isWireGuard {
                 loaded = true // No password: the key is in the saved profile.
             } else {
-                do { password = try model.passwords.read(connection.id) ?? ""; loaded = true }
-                catch { self.error = error.localizedDescription }
+                let store = model.passwords, id = connection.id
+                Task {
+                    do { password = try await Task.detached { try store.read(id) ?? "" }.value; loaded = true }
+                    catch { self.error = error.localizedDescription }
+                }
             }
             if isNew { focus = .name }
-            if !isNew, connection.isOpenVPN, pendingImport == nil,
-               let text = try? model.profiles?.read(connection.id), let profile = try? OpenVPNProfile.validated(text) {
-                savedProfile = profile
-                if let fix = editFix { applyDigestFix = OpenVPNCompatibility.isApplied(fix, in: profile) }
+            if !isNew, connection.isOpenVPN, pendingImport == nil {
+                let profiles = model.profiles, id = connection.id
+                Task {
+                    if let profile = try? await Task.detached(operation: {
+                        guard let profiles else { throw AppFailure("Perfis indisponíveis.") }
+                        return try OpenVPNProfile.validated(profiles.read(id))
+                    }).value {
+                        savedProfile = profile
+                        if let fix = editFix { applyDigestFix = OpenVPNCompatibility.isApplied(fix, in: profile) }
+                    }
+                }
             }
         }
+        .onDisappear { importGeneration += 1 }
         .onChange(of: connection.username) { _ in
             // A password belongs to an account; never reuse it silently for a different user.
             if loaded { password = "" }
@@ -384,7 +406,7 @@ struct ConnectionEditor: View {
             Text("Use o certificado do cliente quando o gateway pedir um (no FortiClient, \"Certificado do Cliente\"). Ele fica no Keychain; a cada conexão o macOS pode pedir para o TunnelMac usar a chave.")
                 .font(.caption).foregroundStyle(.secondary)
         }
-        .onAppear { identities = ClientIdentities.list() }
+        .task { identities = await Task.detached { ClientIdentities.list() }.value }
     }
 
     private var certificateSelection: Binding<String?> {
@@ -411,11 +433,6 @@ struct ConnectionEditor: View {
         panel.allowedContentTypes = [.pkcs12]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let data: Data
-        do {
-            data = try Data(contentsOf: url)
-            guard data.count <= 1024 * 1024 else { throw AppFailure("Arquivo grande demais para um certificado.") }
-        } catch { self.error = error.localizedDescription; return }
         let alert = NSAlert()
         alert.messageText = "Senha do certificado"
         alert.informativeText = "Digite a senha de \(url.lastPathComponent). Ela é usada só para importar o certificado e não é guardada."
@@ -425,15 +442,22 @@ struct ConnectionEditor: View {
         alert.addButton(withTitle: "Cancelar")
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        do {
-            let identity = try ClientIdentities.importPKCS12(data, password: field.stringValue)
-            field.stringValue = ""
-            identities = ClientIdentities.list()
-            connection.clientCertificate = identity.reference
-            error = nil
-        } catch {
-            field.stringValue = ""
-            self.error = error.localizedDescription
+        let passphrase = field.stringValue
+        field.stringValue = ""
+        importGeneration += 1
+        let generation = importGeneration
+        Task {
+            do {
+                let (identity, available) = try await Task.detached {
+                    let data = try BoundedFile.read(url, limit: 1024 * 1024)
+                    let identity = try ClientIdentities.importPKCS12(data, password: passphrase)
+                    return (identity, ClientIdentities.list())
+                }.value
+                guard generation == importGeneration else { return }
+                identities = available
+                connection.clientCertificate = identity.reference
+                error = nil
+            } catch { if generation == importGeneration { self.error = error.localizedDescription } }
         }
     }
 
@@ -558,34 +582,18 @@ struct ConnectionEditor: View {
     }
 
     private func replaceProfile() {
-        if connection.isWireGuard {
-            guard let urls = WireGuardImportPanel.choose() else { return }
-            do {
-                let imported = try WireGuardImporter.load(urls)
-                pendingWireGuard = imported
-                connection.wireGuard = imported.summary
-                error = nil
-            } catch { self.error = error.localizedDescription }
-            return
-        }
-        guard let urls = OpenVPNImportPanel.choose() else { return }
-        do {
-            let imported = try OpenVPNImporter.load(urls)
-            pendingImport = imported
-            applyDigestFix = false
-            connection.openVPN = imported.summary
-            if connection.username.isEmpty { connection.username = imported.username }
-            // After the username change has reset the field (see onChange below).
-            if !imported.password.isEmpty { DispatchQueue.main.async { password = imported.password } }
-            error = nil
-        } catch { self.error = error.localizedDescription }
+        let urls = connection.isWireGuard ? WireGuardImportPanel.choose() : OpenVPNImportPanel.choose()
+        if let urls { importFiles(urls) }
     }
 
     private func save() {
+        Task { await saveInBackground() }
+    }
+    private func saveInBackground() async {
         do {
             if connection.isWireGuard {
                 if let pendingWireGuard { connection.wireGuard = pendingWireGuard.summary }
-                try model.save(connection, password: "", wireGuardProfile: pendingWireGuard?.profile.text)
+                try await model.saveAsync(connection, password: "", wireGuardProfile: pendingWireGuard?.profile.text)
                 if let pendingWireGuard, !pendingWireGuard.sourceFiles.isEmpty {
                     cleanup = ImportCleanup(files: pendingWireGuard.sourceFiles, holdsPrivateKey: true)
                     return
@@ -600,7 +608,7 @@ struct ConnectionEditor: View {
                     profileText = changed.text
                 }
                 connection.openVPN?.compatibility = currentFix
-                try model.save(connection, password: summary?.requiresCredentials == true ? password : "",
+                try await model.saveAsync(connection, password: summary?.requiresCredentials == true ? password : "",
                                openVPNProfile: profileText)
                 if let pendingImport, !pendingImport.sourceFiles.isEmpty {
                     // The sheet closes after the answer.
@@ -612,7 +620,7 @@ struct ConnectionEditor: View {
                 connection.server = gateway.host
                 connection.port = gateway.port
                 connection.realm = gateway.realm
-                try model.save(connection, password: password)
+                try await model.saveAsync(connection, password: password)
             }
             saved(); dismiss()
         } catch { self.error = error.localizedDescription }

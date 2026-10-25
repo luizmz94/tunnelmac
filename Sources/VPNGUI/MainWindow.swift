@@ -91,8 +91,10 @@ struct MainView: View {
             Button("Cancelar", role: .cancel) { deleting = nil }
             Button("Excluir", role: .destructive) {
                 if let deleting {
-                    do { try model.delete(deleting); if selected == deleting.id { selected = nil } }
-                    catch { model.error = error.localizedDescription }
+                    Task {
+                        do { try await model.deleteAsync(deleting); if selected == deleting.id { selected = nil } }
+                        catch { model.error = error.localizedDescription }
+                    }
                 }
                 deleting = nil
             }
@@ -407,15 +409,19 @@ struct ConnectionDetail: View {
         .sheet(item: Binding(get: { certificateToTrust.map(CertificateDigest.init) },
                              set: { certificateToTrust = $0?.value })) { digest in
             CertificateTrustSheet(connection: connection, digest: digest.value) {
-                do { try model.trustCertificate(connection, digest: digest.value) }
-                catch { model.error = error.localizedDescription }
+                Task {
+                    do { try await model.trustCertificateAsync(connection, digest: digest.value) }
+                    catch { model.error = error.localizedDescription }
+                }
             }
         }
         .confirmationDialog(confirmingDigestFix.map { "Trocar auth \($0.from) por \($0.to)?" } ?? "",
                             isPresented: Binding(get: { confirmingDigestFix != nil }, set: { if !$0 { confirmingDigestFix = nil } })) {
             Button("Corrigir e reconectar") {
                 if let fix = confirmingDigestFix {
-                    do { try model.applyDigestFix(connection, fix) } catch { model.error = error.localizedDescription }
+                    Task {
+                        do { try await model.applyDigestFixAsync(connection, fix) } catch { model.error = error.localizedDescription }
+                    }
                 }
                 confirmingDigestFix = nil
             }

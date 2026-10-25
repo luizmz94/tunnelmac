@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <poll.h>
+#include <time.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
@@ -158,6 +159,7 @@ int main(int argc, char **argv) {
     pid_t child = fork();
     if (child < 0) { if (cookie >= 0) close(cookie); free(arguments); return fail("não foi possível criar o processo"); }
     if (child == 0) {
+        if (setpgid(0, 0) != 0) _exit(125);
         // A STOP can arrive before exec. Do not inherit the supervisor's handler:
         // it would consume SIGTERM and then start a client that never received it.
         signal(SIGTERM, SIG_DFL);
@@ -193,6 +195,7 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ERROR: Supervisor: não foi possível executar o cliente (%s).\n", strerror(errno));
         _exit(125);
     }
+    (void)setpgid(child, child); // Private client group; never signal the helper/supervisor group.
     close(CONFIG_FD);
     if (cookie >= 0) close(cookie);
     free(arguments);
@@ -200,6 +203,7 @@ int main(int argc, char **argv) {
     fflush(stdout);
 
     int status = 0, stopping = 0, channel_open = 1;
+    struct timespec stop_time = {0};
     char command[32];
     size_t length = 0;
     int oversized = 0;
@@ -208,7 +212,17 @@ int main(int argc, char **argv) {
         if (exited == child) break;
         if (exited < 0 && errno != EINTR) return fail("não foi possível aguardar a limpeza");
         // Until waitpid returns this child, its PID cannot be reused by another process.
-        if (interrupted && !stopping) { kill(child, SIGTERM); stopping = 1; }
+        if (interrupted && !stopping) {
+            kill(child, SIGTERM); stopping = 1;
+            clock_gettime(CLOCK_MONOTONIC, &stop_time);
+        }
+        if (stopping == 1) {
+            struct timespec now; clock_gettime(CLOCK_MONOTONIC, &now);
+            if (now.tv_sec - stop_time.tv_sec >= 10) {
+                fprintf(stderr, "ERROR: Cliente não encerrou em 10 s; encerramento forçado, confira a recuperação da rede.\n");
+                kill(-child, SIGKILL); stopping = 2;
+            }
+        }
         struct pollfd descriptor = { .fd = channel_open ? STDIN_FILENO : -1, .events = POLLIN | POLLHUP };
         int available = poll(&descriptor, 1, 200);
         if (available < 0) {

@@ -80,7 +80,7 @@ public struct ActiveRuntime {
     public var environment: [String: String] { RuntimeEnvironment.variables(root: root) }
     public var summary: RuntimeSummary {
         RuntimeSummary(id: manifest.id, version: manifest.version, approvedAt: manifest.approvedAt,
-                       capabilities: manifest.capabilities, sourcePath: manifest.sourcePath, sourceSHA256: manifest.sourceSHA256)
+                       capabilities: manifest.capabilities, sourcePath: manifest.sourcePath, sourceSHA256: manifest.sourceSHA256, sources: manifest.sources, inventoryDigest: manifest.inventoryDigest)
     }
 }
 
@@ -152,9 +152,16 @@ public final class RuntimeStore {
         try SecureFile.makeDirectory(wireGuardRecords, mode: 0o700)
         try SecureFile.makeDirectory(clientCertificates, mode: 0o700)
         try ownership.verifyChain(work)
-        // Leftovers of a crash between create and unlink. Only the helper's own names.
-        for entry in (try? FileManager.default.contentsOfDirectory(atPath: work)) ?? [] where entry.hasPrefix("cfg.") || entry.hasPrefix("wg.") {
-            unlink(work + "/" + entry)
+    }
+
+    /// Explicit recovery only; directory preparation never removes live session files.
+    func sweepWork(keeping live: Set<String>) {
+        for entry in (try? FileManager.default.contentsOfDirectory(atPath: work)) ?? [] {
+            if entry.hasPrefix("cfg.") { unlink(work + "/" + entry) }
+            else if entry.hasPrefix("wg."), entry.hasSuffix(".name") {
+                let token = String(entry.dropFirst(3).dropLast(5))
+                if !live.contains(token) { unlink(work + "/" + entry) }
+            }
         }
     }
 

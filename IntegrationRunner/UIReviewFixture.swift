@@ -1,3 +1,4 @@
+@testable import VPNApp
 import SwiftUI
 import VPNHelperShared
 

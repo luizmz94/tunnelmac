@@ -30,7 +30,7 @@ struct ServiceStatusRow: View {
 
 /// Service management (the Serviço privilegiado tab): status, the VPN clients in plain
 /// language (approve, approve again, update) and the service actions. Logic stays in
-/// ServiceController and ClientVersionChecker; no inventory is shown for the user to judge.
+/// ServiceController and ClientVersionChecker; runtime consent presents the source and inspection warnings.
 struct ServicePanel: View {
     @ObservedObject var model: AppModel
     @ObservedObject private var service: ServiceController
@@ -41,7 +41,7 @@ struct ServicePanel: View {
     init(model: AppModel, versions: ClientVersionChecker? = nil) {
         _model = ObservedObject(wrappedValue: model)
         _service = ObservedObject(wrappedValue: model.service)
-        _versions = StateObject(wrappedValue: versions ?? .production())
+        _versions = StateObject(wrappedValue: versions ?? .production(helper: model.service.client))
     }
 
     private var showsClients: Bool {
@@ -106,7 +106,7 @@ struct ServicePanel: View {
                 }
             }
             .contentPanel()
-            Text("Aprovar faz uma cópia protegida do cliente instalado pelo Homebrew e pede a senha de administrador uma vez. O serviço só executa essa cópia: atualizar o Homebrew não muda nada até você aprovar de novo.")
+            Text("Aprovar faz uma cópia protegida do cliente encontrado no caminho informado e pede a senha de administrador uma vez. O serviço só executa essa cópia: atualizar o Homebrew não muda nada até você aprovar de novo.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -191,7 +191,7 @@ struct ServicePanel: View {
                                 command: "brew upgrade \(formula)")
         case .approvalOutdated(let approved, let installed):
             return Presentation(symbol: "arrow.triangle.2.circlepath", tone: .warning,
-                                text: "O app usa a cópia aprovada \(approved), mas o Homebrew agora tem \(installed ?? "outra versão"). Aprove de novo para usar a nova.",
+                                text: "O app usa a cópia aprovada \(approved), mas a instalação local agora tem \(installed ?? "outra versão"). Aprove de novo para usar a nova.",
                                 command: nil)
         case .upToDate(let version):
             return Presentation(symbol: "checkmark.seal", tone: .success, text: "Versão \(version), aprovada e atualizada.", command: nil)

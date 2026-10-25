@@ -200,6 +200,8 @@ final class WireGuardTunnel: SessionObserver {
         var dns: DNSChange?
     }
 
+    var cleanupFailure: String? { record.dns != nil || !record.routes.isEmpty ? "Limpeza de rede pendente; registro de recuperação preservado." : nil }
+
     let token: String
     let profile: WireGuardProfile
     let host: WireGuardHost
@@ -228,10 +230,15 @@ final class WireGuardTunnel: SessionObserver {
     private var warnedNoHandshake = false
     private var endpoints: [(ip: String, ipv6: Bool)] = []
     private var lastDesired: [Record.Route]?
+    private var networkSnapshot: String?
+    private var resolving = false
 
     /// One tunnel at a time may own the system DNS.
     private static let dnsLock = NSLock()
     private static var dnsOwner: String?
+    private static let routeLock = NSLock()
+    private static var routeUsers: [String: Set<String>] = [:]
+    private static func routeKey(_ route: Record.Route) -> String { "\(route.ipv6):\(route.destination):\(route.gateway ?? "")" }
     /// A WireGuard profile currently owns the system DNS (see InternetDNS).
     static var dnsOwned: Bool { dnsLock.withLock { dnsOwner != nil } }
 
@@ -292,12 +299,14 @@ final class WireGuardTunnel: SessionObserver {
         try command(WireGuardTools.ifconfig, [interface, "mtu", String(profile.mtu ?? automaticMTU())])
         try command(WireGuardTools.ifconfig, [interface, "up"])
         if profile.table == .auto {
+            try refreshEndpointRoutes(initial: true)
             for ip in profile.allowedIPs.sorted(by: { $0.prefix > $1.prefix }) { try addRoute(ip, interface) }
-            if profile.routesAllIPv4 || profile.routesAllIPv6 { refreshEndpointRoutes() }
+
         }
-        applyDNS()
+        try applyDNS()
         guard !isEnded else { return }
         configuredAt = Date()
+        networkSnapshot = networkSignature()
         emit("\(WireGuardMarkers.ready) em \(interface).")
         ready()
         startMonitor(interface)
@@ -403,39 +412,70 @@ final class WireGuardTunnel: SessionObserver {
 
     /// Keeps a host route to every endpoint through the current physical gateway, so the
     /// tunnel's own packets never enter the tunnel (wg-quick's set_endpoint_direct_route).
-    private func refreshEndpointRoutes() {
-        let gateway4 = profile.routesAllIPv4 ? WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet"]).output)?.gateway : nil
-        let gateway6 = profile.routesAllIPv6 ? WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet6"]).output)?.gateway : nil
+    /// `initial` (bring-up) requires a physical gateway; later ticks keep the current routes
+    /// while the Mac has no default route (sleep, Wi-Fi roaming) and move them once it is back.
+    private func refreshEndpointRoutes(initial: Bool = false) throws {
+        let gateway4 = WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet"]).output)?.gateway
+        let gateway6 = WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet6"]).output)?.gateway
         var desired: [Record.Route] = []
-        for endpoint in endpoints where endpoint.ipv6 ? profile.routesAllIPv6 : profile.routesAllIPv4 {
-            desired.append(Record.Route(destination: endpoint.ip, ipv6: endpoint.ipv6, gateway: endpoint.ipv6 ? gateway6 : gateway4))
+        for endpoint in endpoints where profile.allowedIPs.contains(where: { $0.contains(endpoint.ip) }) {
+            guard let gateway = endpoint.ipv6 ? gateway6 : gateway4 else {
+                if initial { throw RuleViolation("Sem gateway externo para o endpoint \(endpoint.ip); túnel não configurado.") }
+                return
+            }
+            desired.append(Record.Route(destination: endpoint.ip, ipv6: endpoint.ipv6, gateway: gateway))
         }
-        // Only when something changed: a refused route is not retried on every tick.
-        guard desired != lastDesired else { return }
-        lastDesired = desired
-        for route in record.routes where !desired.contains(route) { deleteRoute(route) }
-        record.routes.removeAll { !desired.contains($0) }
-        for route in desired where !record.routes.contains(route) {
-            let family = route.ipv6 ? "-inet6" : "-inet"
-            // Without a gateway, a blackhole prevents a routing loop through the tunnel.
-            let target = route.gateway.map { ["-gateway", $0] } ?? [route.ipv6 ? "::1" : "127.0.0.1", "-blackhole"]
-            let result = try? command(WireGuardTools.route, ["-q", "-n", "add", family, route.destination] + target, required: false)
-            if result?.status == 0 {
-                record.routes.append(route)
-                try? saveRecord()
+        for route in record.routes where !desired.contains(route) {
+            guard Self.removeOwnedRoute(route, host: host, token: token) else { throw RuleViolation("Limpeza da rota externa pendente.") }
+            record.routes.removeAll { $0 == route }
+            try saveRecord()
+        }
+        for route in desired {
+            try Self.routeLock.withLock {
+                let key = Self.routeKey(route)
+                let matches = Self.routeMatches(route, host: host)
+                let managed = Self.routeUsers[key]?.isEmpty == false || record.routes.contains(route)
+                if matches && !managed { return } // External route: never claim ownership.
+                if !record.routes.contains(route) { record.routes.append(route) }
+                try saveRecord() // Durable intent BEFORE the kernel mutation/reference.
+                if !matches {
+                    let family = route.ipv6 ? "-inet6" : "-inet"
+                    try command(WireGuardTools.route, ["-q", "-n", "add", family, route.destination, "-gateway", route.gateway!])
+                    guard Self.routeMatches(route, host: host) else { throw RuleViolation("A rota externa do endpoint não foi confirmada.") }
+                }
+                Self.routeUsers[key, default: []].insert(token)
             }
         }
+        lastDesired = desired
     }
 
-    private func deleteRoute(_ route: Record.Route) {
-        let arguments = ["-q", "-n", "delete", route.ipv6 ? "-inet6" : "-inet", route.destination]
-        emit("[#] route \(arguments.joined(separator: " "))")
-        _ = host.run(WireGuardTools.route, arguments)
+    private static func routeMatches(_ route: Record.Route, host: WireGuardHost) -> Bool {
+        let result = host.run(WireGuardTools.route, ["-n", "get", route.ipv6 ? "-inet6" : "-inet", route.destination])
+        guard result.status == 0, let gateway = route.gateway else { return false }
+        let fields = result.output.split(separator: "\n").map { $0.split(whereSeparator: { $0.isWhitespace }).map(String.init) }
+        return fields.contains(["destination:", route.destination]) && fields.contains(["gateway:", gateway])
+    }
+
+    /// Never delete a route somebody else replaced; retain evidence on tool failure.
+    private static func removeOwnedRoute(_ route: Record.Route, host: WireGuardHost, token: String? = nil) -> Bool {
+        routeLock.withLock {
+            let key = routeKey(route)
+            if let token {
+                routeUsers[key]?.remove(token)
+                if routeUsers[key]?.isEmpty == false { return true } // Another live session retains it.
+            } else if routeUsers[key]?.isEmpty == false { return false }
+            let current = host.run(WireGuardTools.route, ["-n", "get", route.ipv6 ? "-inet6" : "-inet", route.destination])
+            if current.status != 0 { return current.status == 1 }
+            guard routeMatches(route, host: host) else { return true }
+            let removed = host.run(WireGuardTools.route, ["-q", "-n", "delete", route.ipv6 ? "-inet6" : "-inet", route.destination, "-gateway", route.gateway!]).status == 0
+            if removed { routeUsers.removeValue(forKey: key) }
+            return removed
+        }
     }
 
     // MARK: DNS
 
-    private func applyDNS() {
+    private func applyDNS() throws {
         guard !profile.dnsServers.isEmpty, !isEnded else { return }
         let claimed = Self.dnsLock.withLock { () -> Bool in
             guard Self.dnsOwner == nil || Self.dnsOwner == token else { return false }
@@ -443,22 +483,20 @@ final class WireGuardTunnel: SessionObserver {
             return true
         }
         guard claimed else {
-            emit("[!] Outro túnel WireGuard já controla o DNS do sistema; o DNS deste perfil não foi aplicado.")
-            return
+            throw RuleViolation("Outro túnel WireGuard controla o DNS; desconecte-o antes de usar o DNS deste perfil.")
         }
         guard let service = host.primaryService(), Self.validService(service) else {
-            emit("[!] Nenhum serviço de rede principal; o DNS do perfil não foi aplicado.")
             releaseDNS()
-            return
+            throw RuleViolation("Nenhum serviço de rede principal; DNS obrigatório do perfil indisponível.")
         }
-        setDNS(on: service, backup: host.dnsSetup(service: service))
+        try setDNS(on: service, backup: host.dnsSetup(service: service))
     }
 
-    private func setDNS(on service: String, backup: [String: Any]?) {
+    private func setDNS(on service: String, backup: [String: Any]?) throws {
         let original = backup.flatMap { try? PropertyListSerialization.data(fromPropertyList: $0, format: .binary, options: 0) }
         record.dns = Record.DNSChange(service: service, original: original, servers: profile.dnsServers)
         // Recorded before the change: a crash right after it is still undone.
-        try? saveRecord()
+        try saveRecord()
         var value: [String: Any] = ["ServerAddresses": profile.dnsServers]
         if !profile.dnsSearch.isEmpty { value["SearchDomains"] = profile.dnsSearch }
         let search = profile.dnsSearch.isEmpty ? "" : ", busca \(profile.dnsSearch.joined(separator: " "))"
@@ -466,10 +504,7 @@ final class WireGuardTunnel: SessionObserver {
         if host.setDNSSetup(service: service, value: value) {
             flushDNS()
         } else {
-            emit("[!] Não foi possível aplicar o DNS do perfil; o túnel segue com o DNS atual.")
-            record.dns = nil
-            try? saveRecord()
-            releaseDNS()
+            throw RuleViolation("Não foi possível aplicar o DNS obrigatório do perfil.")
         }
     }
 
@@ -481,7 +516,7 @@ final class WireGuardTunnel: SessionObserver {
 
     /// Restores the backup only while the service still has this tunnel's servers.
     static func restore(_ change: Record.DNSChange, host: WireGuardHost) -> Bool {
-        guard servers(host.dnsSetup(service: change.service)) == change.servers else { return false }
+        guard servers(host.dnsSetup(service: change.service)) == change.servers else { return true }
         let original = change.original.flatMap { try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any] }
         return host.setDNSSetup(service: change.service, value: original)
     }
@@ -490,17 +525,73 @@ final class WireGuardTunnel: SessionObserver {
 
     /// After a network change (other primary service, or configd rewrote its Setup: keys)
     /// the tunnel's DNS is moved or applied again, like wg-quick's route monitor does.
-    private func checkDNS() {
+    private func checkDNS() throws {
         guard let change = record.dns else { return }
         let primary = host.primaryService()
         if let primary, Self.validService(primary), primary != change.service {
-            if Self.restore(change, host: host) { emit("[+] Rede principal mudou; DNS restaurado no serviço anterior.") }
-            setDNS(on: primary, backup: host.dnsSetup(service: primary))
+            guard Self.restore(change, host: host) else { throw RuleViolation("Restauração do DNS anterior pendente.") }
+            try setDNS(on: primary, backup: host.dnsSetup(service: primary))
         } else if primary == change.service {
             let current = host.dnsSetup(service: change.service)
             if Self.servers(current) != change.servers {
                 emit("[+] As configurações de rede mudaram; aplicando o DNS do túnel de novo.")
-                setDNS(on: change.service, backup: current)
+                try setDNS(on: change.service, backup: current)
+            }
+        }
+    }
+
+    /// A physical network change may make a DNS-named endpoint move. Resolve off this
+    /// session queue, one request at a time; preserve all peer keys/AllowedIPs/handshakes.
+    private func networkSignature() -> String {
+        ["inet", "inet6"].map { family in
+            let route = WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", family]).output)
+            return (route?.gateway ?? "") + ":" + (route?.interface ?? "")
+        }.joined(separator: "|")
+    }
+    private func checkEndpointResolution() {
+        let signature = networkSignature()
+        guard signature != networkSnapshot, !resolving else { return }
+        networkSnapshot = signature
+        let named = profile.peers.enumerated().compactMap { index, peer -> (Int, WireGuardEndpoint)? in
+            guard let endpoint = peer.endpoint, WireGuardAddress.canonical(endpoint.host) == nil else { return nil }
+            return (index, endpoint)
+        }
+        guard !named.isEmpty else { return }
+        resolving = true
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let resolved = named.compactMap { index, endpoint -> (Int, String, Int)? in
+                let addresses = self.host.resolve(endpoint.host, port: endpoint.port)
+                guard let ip = addresses.first(where: { !$0.contains(":") }) ?? addresses.first else { return nil }
+                return (index, ip, endpoint.port)
+            }
+            self.queue.async {
+                self.resolving = false
+                guard !self.isEnded else { return }
+                guard resolved.count == named.count else {
+                    self.networkSnapshot = nil // Retry on a later tick without resetting a working peer.
+                    self.emit("[!] Resolução do endpoint após mudança de rede pendente.")
+                    return
+                }
+                do {
+                    let old = self.endpoints
+                    self.endpoints = old.filter { candidate in !resolved.contains { $0.1 == candidate.ip } }
+                    for (_, ip, _) in resolved where !self.endpoints.contains(where: { $0.ip == ip }) {
+                        self.endpoints.append((ip, ip.contains(":")))
+                    }
+                    if self.profile.table == .auto { try self.refreshEndpointRoutes() }
+                    guard let interface = self.record.interface else { return }
+                    var request = "set=1\n"
+                    for (index, ip, port) in resolved {
+                        let key = Data(base64Encoded: self.profile.peers[index].publicKey)!.map { String(format: "%02x", $0) }.joined()
+                        request += "public_key=\(key)\nendpoint=\(ip.contains(":") ? "[" + ip + "]" : ip):\(port)\n"
+                    }
+                    try self.checkErrno(self.host.uapi(interface: interface, pid: self.pid, request: request + "\n"), "atualizar o endpoint após mudança de rede")
+                    self.emit("[+] Endpoints atualizados após mudança de rede.")
+                } catch {
+                    self.emit("\(WireGuardMarkers.failure) \(error.localizedDescription)")
+                    self.fail()
+                }
             }
         }
     }
@@ -517,21 +608,37 @@ final class WireGuardTunnel: SessionObserver {
 
     private func tick(_ interface: String) {
         guard !isEnded else { return }
-        if !handshakeSeen, let reply = try? host.uapi(interface: interface, pid: pid, request: "get=1\n\n") {
+        checkEndpointResolution()
+        if let reply = try? host.uapi(interface: interface, pid: pid, request: "get=1\n\n") {
             let handshakes = reply.split(separator: "\n").compactMap { line -> Int? in
                 line.hasPrefix("last_handshake_time_sec=") ? Int(line.dropFirst("last_handshake_time_sec=".count)) : nil
             }
-            if handshakes.contains(where: { $0 > 0 }) {
+            let liveEndpoints = reply.split(separator: "\n").compactMap { line -> WireGuardEndpoint? in
+                guard line.hasPrefix("endpoint=") else { return nil }
+                return try? WireGuardEndpoint.parse(String(line.dropFirst(9)))
+            }
+            if !liveEndpoints.isEmpty {
+                endpoints = liveEndpoints.compactMap { endpoint in
+                    guard let (ip, v6) = WireGuardAddress.canonical(endpoint.host) else { return nil }
+                    return (ip, v6)
+                }
+            }
+            if !handshakeSeen, handshakes.contains(where: { $0 > 0 }) {
                 handshakeSeen = true
                 let server = profile.peers.compactMap(\.endpoint).first?.display ?? "o peer"
                 emit("\(WireGuardMarkers.handshake) com \(server).")
-            } else if !warnedNoHandshake, let configuredAt, Date().timeIntervalSince(configuredAt) >= handshakeWarning {
+            } else if !handshakeSeen, !warnedNoHandshake, let configuredAt, Date().timeIntervalSince(configuredAt) >= handshakeWarning {
                 warnedNoHandshake = true
                 emit("[!] Nenhum handshake com o servidor após \(Int(handshakeWarning)) s. Confira o endpoint e se o servidor conhece a chave pública deste perfil.")
             }
         }
-        if profile.table == .auto, profile.routesAllIPv4 || profile.routesAllIPv6 { refreshEndpointRoutes() }
-        checkDNS()
+        do {
+            if profile.table == .auto { try refreshEndpointRoutes() }
+            try checkDNS()
+        } catch {
+            emit("\(WireGuardMarkers.failure) \(error.localizedDescription)")
+            fail()
+        }
     }
 
     // MARK: Teardown
@@ -539,17 +646,21 @@ final class WireGuardTunnel: SessionObserver {
     private func teardown() {
         timer?.cancel()
         timer = nil
-        for route in record.routes { deleteRoute(route) }
-        record.routes = []
+        record.routes = record.routes.filter { !Self.removeOwnedRoute($0, host: host, token: token) }
         if let change = record.dns {
-            if Self.restore(change, host: host) { emit("[#] DNS do serviço de rede principal restaurado") }
-            else { emit("[!] O DNS do serviço de rede mudou durante o túnel; ele foi mantido como está.") }
-            flushDNS()
-            record.dns = nil
+            if Self.restore(change, host: host) {
+                emit("[#] DNS do serviço de rede principal restaurado")
+                flushDNS()
+                record.dns = nil
+            } else { emit("[!] Restauração do DNS pendente; registro preservado para recuperação.") }
         }
-        releaseDNS()
+        if record.dns == nil { releaseDNS() } // Pending restoration retains DNS ownership.
         unlink(nameFile)
-        unlink(recordPath)
+        if record.routes.isEmpty && record.dns == nil { unlink(recordPath) }
+        else {
+            do { try saveRecord() } catch { emit("[!] Falha ao atualizar o registro de recuperação: \(error.localizedDescription)") }
+            emit("\(WireGuardMarkers.failure) Limpeza de rede pendente; reinicie o serviço para tentar recuperar.")
+        }
     }
 
     private func saveRecord() throws {
@@ -566,15 +677,17 @@ final class WireGuardTunnel: SessionObserver {
             guard !live.contains(token) else { continue }
             let path = directory + "/" + entry
             if let (data, _) = try? SecureFile.read(path, limit: 256 * 1024),
-               let record = try? JSONDecoder().decode(Record.self, from: data), record.token == token {
-                for route in record.routes {
-                    _ = host.run(WireGuardTools.route, ["-q", "-n", "delete", route.ipv6 ? "-inet6" : "-inet", route.destination])
-                }
+               var record = try? JSONDecoder().decode(Record.self, from: data), record.token == token {
+                record.routes = record.routes.filter { !removeOwnedRoute($0, host: host) }
                 if let change = record.dns, restore(change, host: host) {
+                    record.dns = nil
+                    dnsLock.withLock { if dnsOwner == record.token { dnsOwner = nil } }
                     _ = host.run(WireGuardTools.dscacheutil, ["-flushcache"])
                 }
+                if record.routes.isEmpty && record.dns == nil { unlink(path) }
+                else if let data = try? JSONEncoder().encode(record) { try? SecureFile.replace(path, data: data, mode: 0o600) }
             }
-            unlink(path)
+            // Unreadable records are evidence, never silently discarded.
         }
     }
 }

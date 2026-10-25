@@ -81,6 +81,7 @@ int vpn_run_probe(const char *path, char *const arguments[], char *const environ
     pid_t child = fork();
     if (child < 0) { int saved = errno; close(channel[0]); close(channel[1]); close(null_input); errno = saved; return -1; }
     if (child == 0) {
+        if (setpgid(0, 0) != 0) _exit(126);
         sigset_t empty;
         sigemptyset(&empty);
         sigprocmask(SIG_SETMASK, &empty, NULL);
@@ -95,6 +96,7 @@ int vpn_run_probe(const char *path, char *const arguments[], char *const environ
         execve(path, arguments, environment);
         _exit(127);
     }
+    (void)setpgid(child, child);
     close(channel[1]);
     close(null_input);
     struct timespec start;
@@ -104,8 +106,8 @@ int vpn_run_probe(const char *path, char *const arguments[], char *const environ
         struct timespec now;
         clock_gettime(CLOCK_MONOTONIC, &now);
         long elapsed = (long)((now.tv_sec - start.tv_sec) * 1000 + (now.tv_nsec - start.tv_nsec) / 1000000);
-        if (!terminated && elapsed >= timeout_ms) { kill(child, SIGTERM); terminated = 1; }
-        if (terminated && !killed && elapsed >= timeout_ms + 1000) { kill(child, SIGKILL); killed = 1; }
+        if (!terminated && elapsed >= timeout_ms) { kill(-child, SIGTERM); terminated = 1; }
+        if (terminated && !killed && elapsed >= timeout_ms + 1000) { kill(-child, SIGKILL); killed = 1; open_channel = 0; }
         if (!open_channel) {
             pid_t done = waitpid(child, status, WNOHANG);
             if (done == child) break;
@@ -128,6 +130,7 @@ int vpn_run_probe(const char *path, char *const arguments[], char *const environ
         *length += copy;
     }
     close(channel[0]);
+    if (terminated) { errno = ETIMEDOUT; return -1; }
     return 0;
 }
 

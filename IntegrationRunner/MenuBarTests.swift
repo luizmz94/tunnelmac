@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import AppKit
 import Combine
@@ -120,7 +121,8 @@ enum MenuBarTests {
             let menuBar = MenuBarCoordinator(model: model)
             menuBar.perform(connections[0]) // No Keychain password: fails locally, before any process.
             let session = model.manager.session(connections[0].id)
-            try require(model.error?.contains("Keychain") == true && !session.state.active && session.pid == nil,
+            // Credentials are read off the main thread; the error arrives on a later run-loop turn.
+            try require(TestSupport.spin(5) { model.error != nil } && model.error?.contains("Keychain") == true && !session.state.active && session.pid == nil,
                         "Erro local do modelo não ficou visível")
             try require(menuBar.summary == .attention, "Erro não sinalizado no ícone")
         }

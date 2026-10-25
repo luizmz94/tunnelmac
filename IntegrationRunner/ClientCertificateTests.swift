@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import Security
 import VPNHelperShared

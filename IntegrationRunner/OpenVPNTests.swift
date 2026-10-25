@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import Darwin
 import VPNHelperCore
@@ -233,7 +234,6 @@ enum OpenVPNTests {
             script-security 3
             up /tmp/evil.sh
             down "/bin/sh -c id"
-            plugin /tmp/evil.so
             setenv BASH_ENV /tmp/evil
             management 127.0.0.1 7505
             log /etc/sudoers
@@ -249,8 +249,8 @@ enum OpenVPNTests {
                 try require(!text.contains(word), "\(word) chegou ao perfil normalizado")
             }
             try require(text.contains("verb \"3\""), "verb não foi limitado a 3")
-            try require(imported.warnings.filter { $0.contains("removida") }.count >= 9, "Avisos: \(imported.warnings)")
-            for unsupported in ["http-proxy proxy.invalid 3128", "frobnicate yes", "pkcs12 cert.p12", "config other.conf", "askpass pass.txt"] {
+            try require(imported.warnings.filter { $0.contains("removida") }.count >= 8, "Avisos: \(imported.warnings)")
+            for unsupported in ["tls-verify check.sh", "plugin /tmp/evil.so", "http-proxy proxy.invalid 3128", "frobnicate yes", "pkcs12 cert.p12", "config other.conf", "askpass pass.txt"] {
                 let text = singleFile.replacingOccurrences(of: "client\n", with: "client\n\(unsupported)\n")
                 _ = try expectFailure(unsupported) { _ = try OpenVPNImporter.importText(text, baseDirectory: root, suggestedName: "x", source: "") }
             }

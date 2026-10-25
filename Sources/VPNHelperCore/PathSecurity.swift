@@ -80,6 +80,7 @@ enum SecureFile {
         guard fd >= 0 else { throw failure(.internalError, "Não foi possível criar \(path) (\(String(cString: strerror(errno))))") }
         defer { close(fd) }
         try writeAll(fd, data, path: path)
+        guard fsync(fd) == 0 else { throw failure(.internalError, "Não foi possível persistir \(path)") }
         guard fchmod(fd, mode) == 0 else { throw failure(.internalError, "Não foi possível ajustar permissões de \(path)") }
     }
 

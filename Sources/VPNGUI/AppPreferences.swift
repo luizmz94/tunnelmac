@@ -5,7 +5,7 @@ import ServiceManagement
 import VPNHelperShared
 
 /// App preferences in the app's own UserDefaults. Nothing sensitive is stored here:
-/// passwords and SAML cookies stay in the Keychain. Defaults keep the previous behavior.
+/// passwords and SAML cookies stay in the Keychain. Absent DNS preferences leave system DNS unchanged.
 @MainActor
 final class AppPreferences: ObservableObject {
     enum Key {
@@ -59,10 +59,10 @@ final class AppPreferences: ObservableObject {
     var internetDNSOptions: [InternetDNSOption] { InternetDNSOption.presets + customInternetDNS }
 
     /// Servers sent with each connection; nil when the user chose not to change the DNS.
-    /// A selection that no longer exists falls back to the default (Cloudflare).
+    /// An unknown selection leaves the system DNS unchanged.
     var internetDNSServers: [String]? {
         guard internetDNSSelection != InternetDNSOption.offID else { return nil }
-        return (internetDNSOptions.first { $0.id == internetDNSSelection } ?? .cloudflare).servers
+        return internetDNSOptions.first { $0.id == internetDNSSelection }?.servers
     }
 
     func addCustomDNS(_ option: InternetDNSOption) {
@@ -81,7 +81,7 @@ final class AppPreferences: ObservableObject {
 
     /// Real preferences in the app; an isolated, disposable suite in the local checks runner.
     static func forCurrentProcess() -> AppPreferences {
-        if MenuBarCoordinator.isLocalChecks || UIReviewFixture.enabled { return disposable() }
+        if MenuBarCoordinator.isLocalChecks { return disposable() }
         return AppPreferences(defaults: .standard)
     }
 
@@ -152,7 +152,7 @@ final class LoginItemController: ObservableObject {
     }
 
     static func production() -> LoginItemController {
-        if MenuBarCoordinator.isLocalChecks || UIReviewFixture.enabled {
+        if MenuBarCoordinator.isLocalChecks {
             return LoginItemController(service: nil, unavailableReason: "Desativado no executor de verificações e na revisão visual.")
         }
         if case .unavailable = CodeTrust.localPolicy() {

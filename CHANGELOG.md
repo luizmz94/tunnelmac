@@ -1,6 +1,25 @@
 # Changelog
 
-## 0.5.0-rc.1 — unreleased
+## 0.5.0-rc.2
+
+- Address parser, authentication, runtime consent, timeout and network recovery findings.
+- Runtime approval shows the source path and inspection warnings before asking for the
+  administrator password; approving is refused while VPNs are connected.
+- OpenVPN profiles must verify the server (`remote-cert-tls server`, `verify-x509-name`,
+  `ns-cert-type server` or a server-auth `remote-cert-eku`); `tls-verify`, plugins,
+  TLS below 1.2 and `tls-cert-profile insecure` are refused.
+- WireGuard: profile DNS and the endpoint route are required before reporting connected;
+  the endpoint route follows the current gateway, roaming and re-resolution, and the
+  tunnel survives a temporary loss of the default route (sleep, Wi-Fi roaming).
+- A client that ignores SIGTERM is killed after 10 s; Sair gives up after 30 s.
+- Homebrew version queries follow the automatic update preference.
+- Helper protocol 7.
+- Recover interrupted connection mutations; run imports and persistence in background.
+- Separate production GUI, integration runner and focused regression tests.
+- Share publication preflight and classify stable/prerelease from the version.
+- Preserve explicit DNS selections; new installations leave system DNS unchanged.
+
+## 0.5.0-rc.1
 
 - **DNS da internet** (Configurações › Geral › Rede): 1.1.1.1 - Cloudflare (default),
   8.8.8.8 - Google, 94.140.14.14 - AdGuard, entries of your own (**Adicionar mais…**, a

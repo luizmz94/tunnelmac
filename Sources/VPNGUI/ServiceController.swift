@@ -160,16 +160,6 @@ final class ServiceController: ObservableObject, SessionTransport {
             "O app está em \(path). Para uso real, instale-o em /Applications antes de ativar o serviço (o registro aponta para este bundle)."
     }
 
-    /// Homebrew changed since approval: informational, the protected copy keeps running.
-    var sourceDrift: String? { sourceDrift(.openfortivpn) }
-    func sourceDrift(_ kind: RuntimeKind) -> String? {
-        guard let runtime = status?.runtime(kind),
-              let data = FileManager.default.contents(atPath: runtime.sourcePath) else { return nil }
-        let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-        return digest == runtime.sourceSHA256 ? nil :
-            "O \(kind.title) em \(runtime.sourcePath) mudou desde a aprovação. A cópia aprovada (\(runtime.version)) continua em uso; aprove novamente para atualizar."
-    }
-
     // MARK: Status
 
     func refresh() {
@@ -263,7 +253,15 @@ final class ServiceController: ObservableObject, SessionTransport {
             switch result {
             case .success(.inspection(let inspection)):
                 self.inspection = inspection
-                if thenApprove { self.approve() }
+                if thenApprove {
+                    let alert = NSAlert()
+                    alert.messageText = "Aprovar código para execução como administrador?"
+                    alert.informativeText = "Origem: \(inspection.candidatePath)\n\n" + inspection.warnings.joined(separator: "\n") + "\n\nA cópia protegida não comprova a procedência do programa. Aprove somente uma instalação em que você confia."
+                    alert.addButton(withTitle: "Aprovar")
+                    alert.addButton(withTitle: "Cancelar")
+                    if alert.runModal() == .alertFirstButtonReturn { self.approve() }
+                    else { self.inspection = nil; self.approvingKind = nil }
+                }
             case .success(.failure(let failure)), .failure(let failure): self.message = failure.message; self.approvingKind = nil
             case .success: self.message = "Resposta inesperada do serviço."; self.approvingKind = nil
             }

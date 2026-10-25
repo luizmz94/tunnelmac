@@ -24,6 +24,7 @@ public final class InternetDNS {
     private let queue = DispatchQueue(label: "com.luiz.vpngui.helper.internet-dns")
     private var holders: [(token: String, servers: [String])] = []
     private var record: Record?
+    private var unreadableRecovery = false
     private var timer: DispatchSourceTimer?
     public var interval: TimeInterval = 3
     /// True while another component (a WireGuard profile with DNS) owns the system DNS.
@@ -36,6 +37,7 @@ public final class InternetDNS {
         queue.sync {
             holders.removeAll { $0.token == token }
             holders.append((token, servers))
+            startMonitor()
             if otherOwner() {
                 return "[!] Um perfil WireGuard com DNS próprio controla o DNS do sistema; o DNS da internet do TunnelMac fica para depois."
             }
@@ -61,8 +63,9 @@ public final class InternetDNS {
             // A WireGuard profile still owns the DNS: it restores our value when it ends, so
             // ours is undone afterwards by the monitor.
             if otherOwner() && record != nil { return nil }
-            stopMonitor()
-            return restore() ? "[#] DNS da internet anterior restaurado." : nil
+            let restored = restore()
+            if record == nil { stopMonitor() }
+            return restored ? "[#] DNS da internet anterior restaurado." : nil
         }
     }
 
@@ -70,19 +73,28 @@ public final class InternetDNS {
     public func recover() {
         queue.sync {
             guard let (data, _) = try? SecureFile.read(recordPath, limit: 256 * 1024),
-                  let saved = try? JSONDecoder().decode(Record.self, from: data) else { unlink(recordPath); return }
+                  let saved = try? JSONDecoder().decode(Record.self, from: data) else {
+                unreadableRecovery = FileManager.default.fileExists(atPath: recordPath)
+                return
+            }
+            unreadableRecovery = false
             record = saved
             _ = restore()
+            if record != nil { startMonitor() }
         }
     }
 
     public var active: Bool { queue.sync { record != nil } }
+    public var cleanupPending: Bool { queue.sync { unreadableRecovery || (holders.isEmpty && record != nil && !otherOwner()) } }
 
     // MARK: Internals (on `queue`)
 
     private func apply(_ servers: [String]) -> Bool {
         guard let service = host.primaryService(), WireGuardTunnel.validService(service) else { return false }
-        if let record, record.service != service { _ = restore() }
+        if let record, record.service != service {
+            _ = restore()
+            guard self.record == nil else { return false }
+        }
         let current = host.dnsSetup(service: service)
         // The backup is what was there before the TunnelMac changed it, never our own value.
         let original: Data?
@@ -90,12 +102,12 @@ public final class InternetDNS {
         else { original = current.flatMap { try? PropertyListSerialization.data(fromPropertyList: $0, format: .binary, options: 0) } }
         var value = current ?? [:]
         value["ServerAddresses"] = servers
+        let previous = record
         record = Record(service: service, original: original, servers: servers)
-        // Recorded before the change: a crash right after it is still undone.
-        try? save()
+        // Fail closed before touching the network if the durable journal cannot be saved.
+        do { try save() } catch { record = previous; return false }
         guard host.setDNSSetup(service: service, value: value) else {
-            record = nil
-            unlink(recordPath)
+            // Keep the original backup; the monitor/recovery can retry safely.
             return false
         }
         flush()
@@ -106,12 +118,14 @@ public final class InternetDNS {
     /// changed the DNS meanwhile, their value is kept.
     private func restore() -> Bool {
         guard let change = record else { return false }
-        record = nil
-        defer { unlink(recordPath) }
-        guard WireGuardTunnel.servers(host.dnsSetup(service: change.service)) == change.servers else { return false }
+        guard WireGuardTunnel.servers(host.dnsSetup(service: change.service)) == change.servers else {
+            record = nil; unlink(recordPath); return true // Externally replaced, no longer ours.
+        }
         let original = change.original.flatMap { try? PropertyListSerialization.propertyList(from: $0, format: nil) as? [String: Any] }
         guard host.setDNSSetup(service: change.service, value: original) else { return false }
         flush()
+        record = nil
+        unlink(recordPath)
         return true
     }
 
@@ -138,8 +152,8 @@ public final class InternetDNS {
     private func tick() {
         guard !otherOwner() else { return }
         guard let wanted = holders.last?.servers else {
-            stopMonitor()
             _ = restore()
+            if record == nil { stopMonitor() }
             return
         }
         let primary = host.primaryService()
@@ -155,6 +169,7 @@ final class InternetDNSHold: SessionObserver {
     private let servers: [String]
     private let controller: InternetDNS
     private let trigger: String?
+    var cleanupFailure: String? { !held && controller.cleanupPending ? "Restauração do DNS da internet pendente." : nil }
     private var held = false
     var emit: (String) -> Void = { _ in }
 

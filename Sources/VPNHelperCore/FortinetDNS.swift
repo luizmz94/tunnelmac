@@ -140,6 +140,7 @@ public final class FortinetDNS: SessionObserver {
 
 /// Several observers on one session, called in order.
 final class SessionObservers: SessionObserver {
+    var cleanupFailure: String? { observers.compactMap(\.cleanupFailure).first }
     private let observers: [SessionObserver]
     init(_ observers: [SessionObserver]) { self.observers = observers }
     func clientStarted(pid: pid_t) { observers.forEach { $0.clientStarted(pid: pid) } }

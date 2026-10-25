@@ -68,7 +68,7 @@ public final class HelperCore {
                              probeIdentity: configuration.probeIdentity)
         try? store.prepareDirectories()
         internetDNS = InternetDNS(host: configuration.wireGuardHost, recordPath: store.internetDNSRecord)
-        registry = SessionRegistry(path: (try? configuration.ownership.verifyChain(configuration.stateDirectory)) != nil ? store.registryPath : nil)
+        registry = SessionRegistry(path: store.registryPath)
         queue.async {
             self.recoverWireGuard()
             self.internetDNS.recover()
@@ -174,6 +174,11 @@ public final class HelperCore {
                     respond(.failure(HelperFailure(.busy, "Há sessões ou supervisores pendentes; manutenção cancelada.")))
                     return
                 }
+                self.recoverWireGuard()
+                guard !self.networkCleanupPending, self.registry.persistenceFailure == nil else {
+                    respond(.failure(HelperFailure(.busy, "Restauração da rede ou persistência pendente; serviço preservado para recuperação.")))
+                    return
+                }
                 self.maintenanceOwner = client.id
                 respond(.done)
             case .cancelMaintenance:
@@ -230,6 +235,10 @@ public final class HelperCore {
 
     /// Checks shared by every client kind, before anything is prepared.
     private func admit(_ connectionID: UUID, for client: Client) -> HelperFailure? {
+        recoverWireGuard()
+        guard !networkCleanupPending, registry.persistenceFailure == nil else {
+            return HelperFailure(.busy, "Recuperação de rede ou registro pendente. Reinicie o serviço antes de conectar novamente.")
+        }
         guard maintenanceOwner == nil else { return HelperFailure(.busy, "Serviço em manutenção.") }
         guard client.uid != 0 else { return HelperFailure(.userNotAuthorized, "O app não deve rodar como root.") }
         guard (try? store.loadState().authorizedUsers.contains(client.uid)) == true else {
@@ -253,6 +262,9 @@ public final class HelperCore {
         if let refusal = admit(request.connectionID, for: client) { return .failure(refusal) }
         let runtime: ActiveRuntime
         do { runtime = try store.loadActive(.openvpn) } catch { return .failure(Self.wrap(error)) }
+        guard runtime.dnsScript != nil else {
+            return .failure(HelperFailure(.runtimeRejected, "O runtime OpenVPN não possui dns-updown protegido; reinstale o cliente e aprove novamente para garantir o DNS da VPN."))
+        }
         var content: Data
         do {
             content = Data(try OpenVPNConfigRenderer.render(profile: request.profile, username: request.username,
@@ -267,9 +279,16 @@ public final class HelperCore {
 
     /// Undoes routes and DNS left by WireGuard sessions of an earlier helper process.
     /// Sessions of this process and supervisors still alive keep their records.
+    private var networkCleanupPending: Bool {
+        let live = Set(sessions.keys)
+        let records = (try? FileManager.default.contentsOfDirectory(atPath: store.wireGuardRecords)) ?? []
+        return internetDNS.cleanupPending || records.contains { $0.hasSuffix(".json") && !live.contains(String($0.dropLast(5))) }
+    }
+
     private func recoverWireGuard() {
         let live = Set(sessions.keys).union(registry.stale(excluding: Set(sessions.keys)).map(\.token))
         WireGuardTunnel.recover(directory: store.wireGuardRecords, host: configuration.wireGuardHost, live: live)
+        store.sweepWork(keeping: live)
     }
 
     private func startWireGuard(_ request: WireGuardRequest, for client: Client) -> HelperResponse {
@@ -404,7 +423,12 @@ public final class HelperCore {
             if runner.pump.sink == nil || runner.pump.isDrained { finish() } else { runner.pump.onIdle = finish }
         }
         sessions[token] = runner
-        registry.add(token: token, uid: client.uid, connectionID: connectionID, pid: pid)
+        do { try registry.add(token: token, uid: client.uid, connectionID: connectionID, pid: pid) }
+        catch {
+            runner.stop()
+            runner.startReading(captureCookie: false, secrets: secrets)
+            return .failure(Self.wrap(error))
+        }
         runner.startReading(captureCookie: plan.mode == .capture, secrets: secrets)
         return .started(token: token, plan: plan)
     }
@@ -435,7 +459,12 @@ public final class HelperCore {
                 // runtime in use: a new directory is created and the previous one is kept.
                 var outcome: Result<Void, Error> = .success(())
                 self.queue.sync {
-                    do { try self.store.install(inventory, approvedBy: uid) } catch { outcome = .failure(error) }
+                    do {
+                        guard self.sessions.isEmpty, self.registry.stale(excluding: []).isEmpty, !self.networkCleanupPending else {
+                            throw HelperFailure(.busy, "Desconecte todas as VPNs e aguarde a limpeza antes de aprovar outro runtime.")
+                        }
+                        try self.store.install(inventory, approvedBy: uid)
+                    } catch { outcome = .failure(error) }
                 }
                 try outcome.get()
                 self.queue.async { respond(.status(self.status(for: client))) }
@@ -444,7 +473,7 @@ public final class HelperCore {
     }
 
     private func removeManagedFiles(authorization: Data, client: Client, respond: @escaping (HelperResponse) -> Void) {
-        guard sessions.isEmpty, registry.stale(excluding: []).isEmpty else {
+        guard sessions.isEmpty, registry.stale(excluding: []).isEmpty, !networkCleanupPending else {
             respond(.failure(HelperFailure(.busy, "Há sessões ativas ou encerrando; desconecte antes de remover os arquivos do serviço."))); return
         }
         work.async {

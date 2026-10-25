@@ -308,7 +308,7 @@ final class UpdateChecker: ObservableObject {
     }
 
     static func production(preferences: AppPreferences) -> UpdateChecker {
-        let offline = MenuBarCoordinator.isLocalChecks || UIReviewFixture.enabled
+        let offline = MenuBarCoordinator.isLocalChecks
         return UpdateChecker(preferences: preferences,
                              transport: offline ? DisabledUpdateTransport() : URLSessionUpdateTransport())
     }

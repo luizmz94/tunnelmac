@@ -162,9 +162,11 @@ public struct RuntimeSummary: Codable, Equatable, Sendable {
     public var capabilities: RuntimeCapabilities
     public var sourcePath: String
     public var sourceSHA256: String
-    public init(id: String, version: String, approvedAt: Date, capabilities: RuntimeCapabilities, sourcePath: String, sourceSHA256: String) {
+    public var sources: [InventoryItem]?
+    public var inventoryDigest: String?
+    public init(id: String, version: String, approvedAt: Date, capabilities: RuntimeCapabilities, sourcePath: String, sourceSHA256: String, sources: [InventoryItem]? = nil, inventoryDigest: String? = nil) {
         self.id = id; self.version = version; self.approvedAt = approvedAt; self.capabilities = capabilities
-        self.sourcePath = sourcePath; self.sourceSHA256 = sourceSHA256
+        self.sourcePath = sourcePath; self.sourceSHA256 = sourceSHA256; self.sources = sources; self.inventoryDigest = inventoryDigest
     }
 }
 

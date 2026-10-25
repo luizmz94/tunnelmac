@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 import VPNHelperCore
 import VPNHelperShared
@@ -13,7 +14,9 @@ enum ReleaseTests {
             catch { failures += 1; print("FAIL: \(name): \(error.localizedDescription)") }
         }
         test("Bundle name, preserved identifiers, version, icon and all three binaries") {
-            let app = Bundle.main
+            guard let path = ProcessInfo.processInfo.environment["TUNNELMAC_REVIEW_APP"], let app = Bundle(path: path) else {
+                throw TestSupport.Failure("Set TUNNELMAC_REVIEW_APP to the production bundle under test")
+            }
             try TestSupport.require(app.bundleURL.lastPathComponent == "TunnelMac.app", "Wrong bundle name")
             try TestSupport.require(app.bundleIdentifier == "com.luiz.vpngui", "App identity changed")
             try TestSupport.require(app.object(forInfoDictionaryKey: "CFBundleName") as? String == "TunnelMac", "Product name")

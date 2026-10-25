@@ -1,3 +1,4 @@
+@testable import VPNApp
 import Foundation
 
 /// Local checks only: the Seatbelt profile Homebrew 7 applies to cask `run` steps,

@@ -45,7 +45,7 @@ enum WireGuardImporter {
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= WireGuardProfile.maximumSize else {
             throw AppFailure("Escolha o arquivo .conf do WireGuard (um arquivo de texto de até 64 KB), não uma pasta.")
         }
-        let data = FileHandle(fileDescriptor: fd, closeOnDealloc: false).readDataToEndOfFile()
+        let data = try BoundedFile.read(fd: fd, limit: WireGuardProfile.maximumSize)
         guard let text = String(data: data, encoding: .utf8) else { throw AppFailure("O arquivo não está em texto UTF-8.") }
         let source = url.path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~")
         var imported = try importText(text, suggestedName: url.deletingPathExtension().lastPathComponent, source: source)

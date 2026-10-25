@@ -363,7 +363,7 @@ struct UpdateSettings: View {
             }
         }
         if let offer = updates.offer { offerSection(offer) }
-        SettingsSection(title: "Verificação", footer: "Só consulta a lista pública de versões do projeto no GitHub, sem enviar dados seus ou das conexões. Nada é baixado nem executado pelo app.") {
+        SettingsSection(title: "Verificação", footer: "Consulta as versões públicas do app no GitHub e dos clientes VPN no Homebrew. Sem credenciais ou dados das conexões. Desativar bloqueia ambas as consultas automáticas; a verificação manual continua disponível.") {
             SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: "Verificar automaticamente",
                         subtitle: "Ao abrir o app e ao conectar, no máximo a cada 4 horas.") {
                 Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch("Verificar automaticamente")

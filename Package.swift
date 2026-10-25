@@ -5,7 +5,11 @@ let package = Package(
     platforms: [.macOS(.v13)],
     products: [.executable(name: "VPNGUI", targets: ["VPNGUI"]),
                .executable(name: "VPNHelper", targets: ["VPNHelper"]),
-               .executable(name: "VPNSupervisor", targets: ["VPNSupervisor"])],
+               .executable(name: "VPNSupervisor", targets: ["VPNSupervisor"]),
+               .library(name: "VPNApp", targets: ["VPNApp"]),
+               .library(name: "VPNHelperCore", targets: ["VPNHelperCore"]),
+               .library(name: "VPNHelperShared", targets: ["VPNHelperShared"]),
+               .library(name: "ProcessBridge", targets: ["ProcessBridge"])],
     targets: [
         // Per-connection C supervisor (fd-only inputs), executed by the helper.
         .executableTarget(name: "VPNSupervisor"),
@@ -18,10 +22,10 @@ let package = Package(
                 linkerSettings: [.linkedFramework("Security"), .linkedFramework("SystemConfiguration")]),
         // LaunchDaemon registered with SMAppService.daemon(plistName:).
         .executableTarget(name: "VPNHelper", dependencies: ["VPNHelperCore", "VPNHelperShared"]),
-        // The app links VPNHelperCore only to run the local checks against real helper code
-        // over anonymous XPC listeners; production connects to the Mach service.
-        .executableTarget(name: "VPNGUI", dependencies: ["VPNHelperShared", "VPNHelperCore", "ProcessBridge"],
-                          linkerSettings: [.linkedFramework("Security"), .linkedFramework("AppKit"),
-                                           .linkedFramework("ServiceManagement")])
+        .target(name: "VPNApp", dependencies: ["VPNHelperShared", "ProcessBridge"], path: "Sources/VPNGUI",
+                linkerSettings: [.linkedFramework("Security"), .linkedFramework("AppKit"),
+                                 .linkedFramework("ServiceManagement")]),
+        .executableTarget(name: "VPNGUI", dependencies: ["VPNApp"], path: "Sources/VPNGUIEntry"),
+        .testTarget(name: "ReviewTests", dependencies: ["VPNApp", "VPNHelperCore", "VPNHelperShared", "ProcessBridge"])
     ]
 )

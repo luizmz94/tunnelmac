@@ -14,6 +14,20 @@ public struct WireGuardCIDR: Codable, Equatable, Hashable, Sendable {
         self.address = address; self.prefix = prefix; self.isIPv6 = isIPv6
     }
 
+    /// True for any prefix covering a literal endpoint, including split defaults.
+    public func contains(_ literal: String) -> Bool {
+        guard let (_, v6) = WireGuardAddress.canonical(literal), v6 == isIPv6 else { return false }
+        var network = [UInt8](repeating: 0, count: isIPv6 ? 16 : 4)
+        var candidate = network
+        guard inet_pton(isIPv6 ? AF_INET6 : AF_INET, address, &network) == 1,
+              inet_pton(isIPv6 ? AF_INET6 : AF_INET, literal, &candidate) == 1 else { return false }
+        for bit in 0..<prefix {
+            let mask = UInt8(1 << (7 - bit % 8))
+            if network[bit / 8] & mask != candidate[bit / 8] & mask { return false }
+        }
+        return true
+    }
+
     /// "10.8.0.3/32", "fd00::3/128" or a bare address (full-length prefix).
     public static func parse(_ value: String) throws -> WireGuardCIDR {
         let parts = value.split(separator: "/", omittingEmptySubsequences: false).map(String.init)

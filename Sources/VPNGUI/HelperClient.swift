@@ -121,7 +121,20 @@ final class HelperClient {
             DispatchQueue.main.async { once.call(.failure(HelperFailure(.transport, "Sem resposta do serviço: \(error.localizedDescription)"))) }
         } as? VPNHelperXPC
         guard let proxy else { once.call(.failure(HelperFailure(.transport, "Interface do serviço indisponível."))); return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
+            guard once.pending else { return }
+            // Invalidating ownership makes the helper abandon even a queued/late start.
+            // Keep late tokens below as a second barrier if a reply won the XPC race.
+            switch request {
+            case .start, .startOpenVPN, .startWireGuard, .stop, .stopAll:
+                connection.invalidate()
+                if self?.connection === connection {
+                    self?.connection = nil
+                    self?.handshaken = false
+                    self?.onLost?()
+                }
+            default: break // A read-only timeout must not disconnect healthy sessions.
+            }
             once.call(.failure(HelperFailure(.timeout, "O serviço não respondeu a tempo.")))
         }
         proxy.perform(MessageCodec.encode(request)) { data in
@@ -130,12 +143,18 @@ final class HelperClient {
                 let response = try MessageCodec.decode(HelperResponse.self, from: data, limit: HelperConstants.maximumBatchSize)
                 decoded = .success(response)
             } catch { decoded = .failure(HelperFailure(.invalidRequest, "Resposta malformada do serviço.")) }
-            DispatchQueue.main.async { once.call(decoded) }
+            DispatchQueue.main.async {
+                if !once.pending, case .success(.started(let token, _)) = decoded {
+                    proxy.perform(MessageCodec.encode(HelperRequest.stop(token: token))) { _ in }
+                }
+                once.call(decoded)
+            }
         }
     }
 
     private final class Once {
         private var completion: ((Result<HelperResponse, HelperFailure>) -> Void)?
+        var pending: Bool { completion != nil }
         init(_ completion: @escaping (Result<HelperResponse, HelperFailure>) -> Void) { self.completion = completion }
         func call(_ result: Result<HelperResponse, HelperFailure>) {
             guard let completion else { return }

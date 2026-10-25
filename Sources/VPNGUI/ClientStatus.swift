@@ -72,13 +72,19 @@ final class ClientVersionChecker: ObservableObject {
     @Published private(set) var local: [RuntimeKind: Local] = [:]
     @Published private(set) var checking = false
     private let transport: UpdateTransport
+    private let helper: HelperClient?
+    private let automaticUpdates: () -> Bool
     private var lastCheck: Date?
+    private var localGeneration = 0
 
-    init(transport: UpdateTransport) { self.transport = transport }
+    init(transport: UpdateTransport, helper: HelperClient? = nil,
+         automaticUpdates: @escaping () -> Bool = { UserDefaults.standard.object(forKey: AppPreferences.Key.checkForUpdates) as? Bool != false }) {
+        self.transport = transport; self.helper = helper; self.automaticUpdates = automaticUpdates
+    }
 
-    static func production() -> ClientVersionChecker {
-        let offline = MenuBarCoordinator.isLocalChecks || UIReviewFixture.enabled
-        return ClientVersionChecker(transport: offline ? DisabledUpdateTransport() : URLSessionUpdateTransport())
+    static func production(helper: HelperClient? = nil) -> ClientVersionChecker {
+        let offline = MenuBarCoordinator.isLocalChecks
+        return ClientVersionChecker(transport: offline ? DisabledUpdateTransport() : URLSessionUpdateTransport(), helper: helper)
     }
 
     func formulaURL(_ kind: RuntimeKind) -> URL {
@@ -87,17 +93,43 @@ final class ClientVersionChecker: ObservableObject {
 
     /// Reads the installations and, at most every 10 minutes unless forced, asks Homebrew.
     func refresh(status: HelperStatus?, force: Bool = false) {
-        for kind in RuntimeKind.allCases {
-            let path = BinaryLocator.defaultPath(for: kind)
-            let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-            let exists = FileManager.default.isExecutableFile(atPath: path)
-            var changed = false
-            if let runtime = status?.runtime(kind), let data = FileManager.default.contents(atPath: runtime.sourcePath) {
-                changed = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() != runtime.sourceSHA256
+        localGeneration += 1
+        let generation = localGeneration
+        Task {
+            let facts = await Task.detached(priority: .utility) {
+                RuntimeKind.allCases.map { kind -> (RuntimeKind, Local) in
+                    let path = BinaryLocator.defaultPath(for: kind)
+                    let resolved = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+                    let exists = FileManager.default.isExecutableFile(atPath: path)
+                    let changed = status?.runtime(kind).map { RuntimeSourceCheck.changed($0) } ?? false
+                    return (kind, Local(path: path, exists: exists,
+                                        version: exists ? ClientVersion.homebrewVersion(of: resolved) : nil, sourceChanged: changed))
+                }
+            }.value
+            guard generation == self.localGeneration else { return }
+            self.local = Dictionary(uniqueKeysWithValues: facts)
+            // Re-inspect the CURRENT installation, resolving opt/keg symlinks afresh.
+            // Hashing old resolved source files alone misses a newly installed dependency.
+            if let helper = self.helper {
+                for (kind, fact) in facts {
+                    guard let expected = status?.runtime(kind)?.inventoryDigest else { continue }
+                    let request: HelperRequest
+                    switch kind {
+                    case .openfortivpn: request = .inspectRuntime(path: fact.path)
+                    case .openvpn: request = .inspectOpenVPNRuntime(path: fact.path)
+                    case .wireguard: request = .inspectWireGuardRuntime(path: fact.path)
+                    }
+                    helper.request(request, timeout: 60) { [weak self] result in
+                        guard let self, generation == self.localGeneration else { return }
+                        if case .success(.inspection(let inspection)) = result {
+                            self.local[kind]?.sourceChanged = inspection.digest != expected
+                        } else { self.local[kind]?.sourceChanged = true }
+                    }
+                }
             }
-            local[kind] = Local(path: path, exists: exists, version: exists ? ClientVersion.homebrewVersion(of: resolved) : nil,
-                                sourceChanged: changed)
         }
+        guard force || automaticUpdates() else { return }
+        guard !checking else { return }
         if !force, let lastCheck, Date().timeIntervalSince(lastCheck) < 600 { return }
         lastCheck = Date()
         checking = true

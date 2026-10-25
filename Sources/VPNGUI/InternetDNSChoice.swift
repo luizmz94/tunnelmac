@@ -15,7 +15,7 @@ struct InternetDNSOption: Codable, Identifiable, Equatable {
     static let presets = [cloudflare, google, adguard]
     /// Selection that leaves the system DNS alone.
     static let offID = "off"
-    static let defaultID = cloudflare.id
+    static let defaultID = offID
 
     /// A custom entry typed by the user: a name and 1 to 4 addresses separated by commas or spaces.
     static func custom(name: String, servers text: String) throws -> InternetDNSOption {
