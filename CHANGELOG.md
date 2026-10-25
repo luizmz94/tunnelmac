@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Shorter README with screenshots and a connect GIF; protocol details moved to docs/GUIDE.md.
+- `scripts/showcase.sh` opens the interface with fictitious connections (local checks
+  runner only) and regenerates the README images with `--capture`.
+- CONTRIBUTING.md: local setup, project map and contribution workflow.
+
 ## 0.5.0-rc.2
 
 - Address parser, authentication, runtime consent, timeout and network recovery findings.
