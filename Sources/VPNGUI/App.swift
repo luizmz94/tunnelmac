@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Security
 import VPNHelperShared
 
 /// Who asked AppKit to quit, read from the quit Apple event being handled. Sair and ⌘Q
@@ -7,6 +8,8 @@ import VPNHelperShared
 struct QuitRequest: Equatable {
     /// Bundle id of the sending app; nil for command-line tools (osascript, brew).
     var senderBundleID: String?
+    /// True only for a Sparkle updater process signed by our Apple team.
+    var isTrustedUpdater = false
     /// Logout, restart or shutdown.
     var hasSystemReason: Bool
 
@@ -16,7 +19,8 @@ struct QuitRequest: Equatable {
 
     /// A quit sent by another app while only the menu bar icon is left: that is a
     /// window-based auto quit, not the user leaving TunnelMac.
-    func isAutomaticQuit(menuBarIcon: Bool, windowVisible: Bool) -> Bool {
+    func isAutomaticQuit(menuBarIcon: Bool, windowVisible: Bool, updaterBusy: Bool = false) -> Bool {
+        if isTrustedUpdater && updaterBusy { return false }
         guard menuBarIcon, !windowVisible, !hasSystemReason, let senderBundleID else { return false }
         return !Self.trustedSenders.contains(senderBundleID)
     }
@@ -26,8 +30,25 @@ struct QuitRequest: Equatable {
               event.eventClass == AEEventClass(kCoreEventClass), event.eventID == AEEventID(kAEQuitApplication),
               let pid = event.attributeDescriptor(forKeyword: AEKeyword(keySenderPIDAttr))?.int32Value,
               pid != ProcessInfo.processInfo.processIdentifier else { return nil }
-        return QuitRequest(senderBundleID: NSRunningApplication(processIdentifier: pid)?.bundleIdentifier,
+        let sender = NSRunningApplication(processIdentifier: pid)
+        return QuitRequest(senderBundleID: sender?.bundleIdentifier,
+                           isTrustedUpdater: sender?.bundleIdentifier == "org.sparkle-project.Sparkle.Updater"
+                               && trustedUpdater(pid: pid),
                            hasSystemReason: event.paramDescriptor(forKeyword: AEKeyword(kAEQuitReason)) != nil)
+    }
+    /// Sparkle copies Updater.app to its cache before launching it. Authenticate the
+    /// running sender, not its path or self-reported bundle ID. Ad hoc builds fail closed.
+    private static func trustedUpdater(pid: pid_t) -> Bool {
+        guard case .trusted(let team) = CodeTrust.localPolicy() else { return false }
+        var code: SecCode?
+        let attributes = [kSecGuestAttributePid as String: NSNumber(value: pid)] as CFDictionary
+        guard SecCodeCopyGuestWithAttributes(nil, attributes, [], &code) == errSecSuccess,
+              let code else { return false }
+        var requirement: SecRequirement?
+        let text = CodeTrust.requirement(identifier: "org.sparkle-project.Sparkle.Updater", team: team)
+        guard SecRequirementCreateWithString(text as CFString, [], &requirement) == errSecSuccess,
+              let requirement else { return false }
+        return SecCodeCheckValidity(code, [], requirement) == errSecSuccess
     }
 }
 
@@ -61,7 +82,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // Utilities that quit apps without windows (e.g. Vorssaint's auto quit) would take
         // the menu bar icon with them; the user quits with Sair, ⌘Q, the Dock or a script.
         if let request, let menuBar, request.isAutomaticQuit(menuBarIcon: menuBar.preferences.showMenuBarIcon,
-                                                              windowVisible: menuBar.mainWindow?.isVisible == true) {
+                                                              windowVisible: menuBar.mainWindow?.isVisible == true,
+                                                              updaterBusy: menuBar.installer.busy) {
             return .terminateCancel
         }
         guard let model, model.manager.anyActive else { return .terminateNow }

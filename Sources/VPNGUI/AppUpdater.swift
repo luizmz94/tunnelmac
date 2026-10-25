@@ -6,12 +6,12 @@ import VPNHelperShared
 // schedules checks of its own (SUEnableAutomaticChecks is off): its feed is the appcast
 // attached to the offered GitHub release, so the version it installs is always the one the
 // app announced. Sparkle verifies the archive's EdDSA signature (SUPublicEDKey, also the
-// signed feed) and that the new bundle carries the same Developer ID before replacing it;
+// signed feed) and the new bundle’s code signature before replacing it (Sparkle permits identity rotation);
 // quitting goes through applicationShouldTerminate, which disconnects the VPNs first.
 
 @MainActor
 final class AppUpdater: NSObject, ObservableObject {
-    /// Release asset with the appcast of one architecture (scripts/appcast.sh).
+    /// Release asset with the appcast of one architecture (scripts/appcast.py).
     static var architecture: String {
         #if arch(arm64)
         "arm64"
@@ -23,6 +23,14 @@ final class AppUpdater: NSObject, ObservableObject {
     static func feedURL(for version: String) -> URL? {
         guard let release = ReleaseVersion(version) else { return nil }
         return URL(string: UpdateFeed.releasePagePrefix + "download/v\(release)/appcast-\(architecture).xml")
+    }
+
+    /// Bind even a validly signed feed to the release and architecture the user accepted.
+    static func matchesOffer(_ item: SUAppcastItem, version: String?) -> Bool {
+        guard let version, let release = ReleaseVersion(version) else { return false }
+        let expected = UpdateFeed.releasePagePrefix + "download/v\(release)/TunnelMac-\(release)-\(architecture).zip"
+        return item.fileURL?.absoluteString == expected && item.installationType == "application"
+            && item.displayVersionString == "\(release.major).\(release.minor).\(release.patch)"
     }
 
     /// False in the local checks runner and when Sparkle refused to start (bundle without
@@ -98,10 +106,22 @@ extension AppUpdater: SPUUpdaterDelegate {
         MainActor.assumeIsolated { feedVersion.flatMap(Self.feedURL(for:))?.absoluteString }
     }
 
+    nonisolated func updater(_ updater: SPUUpdater, shouldProceedWithUpdate updateItem: SUAppcastItem,
+                             updateCheck: SPUUpdateCheck) throws {
+        try MainActor.assumeIsolated {
+            guard Self.matchesOffer(updateItem, version: feedVersion) else {
+                throw NSError(domain: "TunnelMac.Updater", code: 1,
+                              userInfo: [NSLocalizedDescriptionKey: "A atualização não corresponde à versão oferecida. Tente verificar novamente."])
+            }
+        }
+    }
+
     /// Our own choices mirror Sparkle's buttons: skip and "later" act on the card too.
     nonisolated func updater(_ updater: SPUUpdater, userDidMake choice: SPUUserUpdateChoice,
                              forUpdate updateItem: SUAppcastItem, state: SPUUserUpdateState) {
         MainActor.assumeIsolated {
+            // A periodic check may have replaced the card while Sparkle was open.
+            guard checker?.offer?.version == feedVersion else { return }
             switch choice {
             case .skip: checker?.skipOffer()
             case .dismiss: checker?.postpone()

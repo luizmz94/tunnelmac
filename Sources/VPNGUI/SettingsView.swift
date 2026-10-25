@@ -440,7 +440,7 @@ struct UpdateSettings: View {
                     if installedByHomebrew {
                         DisclosureGroup("Prefiro atualizar pelo Homebrew", isExpanded: $showsHomebrew) {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("As duas formas funcionam: o cask está marcado como auto_updates, então o Homebrew não tenta desfazer a atualização feita pelo app.")
+                                Text("As duas formas funcionam. O Homebrew normalmente ignora apps que se atualizam sozinhos; use o comando abaixo para pedir a atualização deste app.")
                                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                                 homebrewSteps
                             }

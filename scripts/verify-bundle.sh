@@ -28,4 +28,8 @@ for component in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.a
 done
 [[ -n $(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist") ]]
 [[ $(/usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' "$app/Contents/Info.plist") == false ]]
+for flag in SURequireSignedFeed SUVerifyUpdateBeforeExtraction; do
+    [[ $(/usr/libexec/PlistBuddy -c "Print :$flag" "$app/Contents/Info.plist") == true ]]
+done
+[[ $(/usr/libexec/PlistBuddy -c 'Print :SUSignedFeedFailureExpirationInterval' "$app/Contents/Info.plist") == 0 ]]
 plutil -lint "$app/Contents/Info.plist" "$app/Contents/Library/LaunchDaemons/com.luiz.vpngui.helper.plist"

@@ -77,6 +77,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>SUAllowsAutomaticUpdates</key><false/>
 <key>SUEnableSystemProfiling</key><false/>
 <key>SURequireSignedFeed</key><true/>
+<key>SUSignedFeedFailureExpirationInterval</key><integer>0</integer>
 <key>SUVerifyUpdateBeforeExtraction</key><true/>
 </dict></plist>
 PLIST

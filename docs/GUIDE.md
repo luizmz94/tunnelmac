@@ -181,7 +181,8 @@ version also shows a small card in the main window (**Atualizar**, **Depois**,
 release, checks its signatures, asks to disconnect active VPNs if there are any,
 replaces the app and opens it again. Profiles, passwords, preferences and the
 privileged service are kept. This works the same for Homebrew installations: the cask
-is marked `auto_updates`, so Homebrew does not undo it. Installing in the app needs a
+is marked `auto_updates`, so ordinary bulk upgrades skip it. An explicit
+`brew upgrade --cask luizmz94/tunnelmac/tunnelmac` still uses the version in the tap. Installing in the app needs a
 version that already includes it; the first one is installed with brew.
 
 To update with Homebrew instead, quit with **Sair** (this disconnects the VPNs),

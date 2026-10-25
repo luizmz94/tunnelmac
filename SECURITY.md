@@ -37,9 +37,12 @@ Installing an offered version happens only when the user clicks **Atualizar agor
 the install button of the update window shown at launch), through Sparkle 2
 (sparkle-project.org). Sparkle reads the appcast attached to that exact GitHub release
 (`releases/download/v<version>/appcast-<arch>.xml`), which must carry a valid EdDSA
-signature (`SURequireSignedFeed`), downloads the archive listed there, verifies its
-EdDSA signature before extracting it (`SUVerifyUpdateBeforeExtraction`) and accepts the
-new bundle only if it is signed by the same Developer ID as the running app. The public
+signature (`SURequireSignedFeed`, with failure expiration disabled), downloads the archive listed there, verifies its
+EdDSA signature before extracting it (`SUVerifyUpdateBeforeExtraction`) and validates the
+new bundle’s code signature. Sparkle permits Apple signing identity rotation when the
+archive is authenticated by the trusted EdDSA key; these are not two independent
+same-identity requirements. Release builds separately enforce the configured Apple Team ID.
+The app also rejects feeds pointing to an archive outside the offered release/architecture. The public
 key ships in Info.plist (`SUPublicEDKey`); the private key lives only in the
 maintainer's Keychain and in the release environment's secrets. Sparkle never checks on
 its own schedule, never installs silently and sends no system profile. Quitting for the
