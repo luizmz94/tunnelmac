@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Intel (x86_64): the managed OpenVPN copy fits library names into the shorter
+  /usr/local load commands, and the default client paths use the Intel Homebrew prefix.
+  Local checks pass on Intel; releases remain arm64 only.
 - WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
 - Automatic releases: a push to main that passes the checks is released (version picked
   or bumped by `scripts/next-version.py`) and the Homebrew tap is updated.

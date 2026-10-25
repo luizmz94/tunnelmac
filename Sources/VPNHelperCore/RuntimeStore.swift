@@ -230,6 +230,38 @@ public final class RuntimeStore {
         return ActiveRuntime(root: base, executable: base + "/" + executable, manifest: manifest)
     }
 
+    /// File name of each library in the managed copy: the Cellar file name, or, when the new
+    /// path with that name does not fit a load command naming the library, the leaf of its
+    /// install name. Intel Homebrew needs this: /usr/local/opt/… leaves less room in the
+    /// commands than /opt/homebrew/opt/…, e.g. liblz4.1.10.0.dylib vs liblz4.1.dylib.
+    static func managedLeaves(_ images: [InspectedImage]) -> [String: String] {
+        let dependencyCommands: Set<MachOImage.Command> = [.loadDylib, .loadWeakDylib, .reexportDylib, .lazyLoadDylib, .loadUpwardDylib]
+        var leaves: [String: String] = [:]
+        for library in images.dropFirst() { leaves[library.resolvedPath] = (library.resolvedPath as NSString).lastPathComponent }
+        var used = Set(leaves.values)
+        for library in images.dropFirst() {
+            func fits(_ leaf: String) -> Bool {
+                let replacement = "@executable_path/../lib/" + leaf
+                let referrers = images.allSatisfy { image in
+                    image.resolvedDependencies.allSatisfy { name, target in
+                        target != library.resolvedPath || image.image.fits(replacement, for: name, commands: dependencyCommands)
+                    }
+                }
+                let own = library.image.installName.map { library.image.fits(replacement, for: $0, commands: [.idDylib]) } ?? true
+                return referrers && own
+            }
+            let current = leaves[library.resolvedPath]!
+            guard !fits(current), let installName = library.image.installName else { continue }
+            let alternative = (installName as NSString).lastPathComponent
+            guard alternative.range(of: #"^[A-Za-z0-9._+-]+\.dylib$"#, options: .regularExpression) != nil,
+                  !used.contains(alternative), fits(alternative) else { continue }
+            used.remove(current)
+            used.insert(alternative)
+            leaves[library.resolvedPath] = alternative
+        }
+        return leaves
+    }
+
     static func validID(_ id: String) -> Bool { id.range(of: #"^[0-9a-f]{24}$"#, options: .regularExpression) != nil }
 
     // MARK: Installation (admin-approved only)
@@ -253,8 +285,7 @@ public final class RuntimeStore {
                 + (inventory.scripts.isEmpty ? [] : [staging + "/libexec"]) {
                 try SecureFile.makeDirectory(directory, mode: 0o755)
             }
-            var leafByPath: [String: String] = [:]
-            for library in inventory.images.dropFirst() { leafByPath[library.resolvedPath] = (library.resolvedPath as NSString).lastPathComponent }
+            let leafByPath = Self.managedLeaves(inventory.images)
             var files: [ManagedFile] = []
             for image in inventory.images {
                 var patched = image.image

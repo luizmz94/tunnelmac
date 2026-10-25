@@ -48,6 +48,34 @@ final class ReviewTests: XCTestCase {
         }
         XCTAssertThrowsError(try MachOImage(file: bytes))
     }
+    /// Thin Mach-O of this host with dylib-style string commands, each sized exactly like ld does.
+    func machO(fileType: UInt32, _ commands: [(MachOImage.Command, String)]) throws -> MachOImage {
+        var body = Data()
+        func append32(_ n: UInt32, _ data: inout Data) { var n = n.littleEndian; withUnsafeBytes(of: &n) { data.append(contentsOf: $0) } }
+        for (command, value) in commands {
+            let size = (24 + value.utf8.count + 1 + 7) / 8 * 8
+            append32(command.rawValue, &body); append32(UInt32(size), &body); append32(24, &body)
+            for _ in 0..<3 { append32(0, &body) }
+            body.append(contentsOf: Array(value.utf8)); body.append(contentsOf: [UInt8](repeating: 0, count: size - 24 - value.utf8.count))
+        }
+        var bytes = Data()
+        for word in [0xfeedfacf, MachOImage.hostCPU, 0, fileType, UInt32(commands.count), UInt32(body.count), 0, 0] { append32(word, &bytes) }
+        return try MachOImage(file: bytes + body)
+    }
+    func managedLeaf(prefix: String) throws -> String? {
+        let name = prefix + "/opt/lz4/lib/liblz4.1.dylib", target = prefix + "/Cellar/lz4/1.10.0/lib/liblz4.1.10.0.dylib"
+        var executable = InspectedImage(role: .executable, resolvedPath: prefix + "/Cellar/openvpn/2.7.8_1/sbin/openvpn", original: Data(),
+                                        image: try machO(fileType: MachOImage.executable, [(.loadDylib, name)]), sha256: "", ownerUID: 0, mutableLocation: false)
+        executable.resolvedDependencies = [name: target]
+        let library = InspectedImage(role: .library, resolvedPath: target, original: Data(),
+                                     image: try machO(fileType: MachOImage.dylib, [(.idDylib, name)]), sha256: "", ownerUID: 0, mutableLocation: false)
+        return RuntimeStore.managedLeaves([executable, library])[target]
+    }
+    func testManagedLibraryNameFitsIntelAndKeepsAppleSiliconLayout() throws {
+        // /opt/homebrew leaves room for the Cellar file name; /usr/local only for the install name.
+        XCTAssertEqual(try managedLeaf(prefix: "/opt/homebrew"), "liblz4.1.10.0.dylib")
+        XCTAssertEqual(try managedLeaf(prefix: "/usr/local"), "liblz4.1.dylib")
+    }
     func testDNSJournalWriteFailureDoesNotChangeDNS() throws {
         let host = DNSHost(), root = try temporary()
         let dns = InternetDNS(host: host, recordPath: root.appendingPathComponent("missing/journal").path)

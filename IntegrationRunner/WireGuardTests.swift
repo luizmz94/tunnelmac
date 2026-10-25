@@ -136,7 +136,7 @@ enum WireGuardTests {
 
         test("Chave pública derivada da privada (RFC 7748) e igual à do wg, quando instalado") {
             try require(WireGuardImporter.publicKey(of: privateKey) == publicKey, "X25519 diferente do vetor da RFC 7748")
-            let wg = "/opt/homebrew/bin/wg"
+            let wg = BinaryLocator.homebrewPrefix + "/bin/wg"
             guard FileManager.default.isExecutableFile(atPath: wg) else { print("NOTE: wg não instalado; comparação pulada."); return }
             let generated = Curve25519.KeyAgreement.PrivateKey().rawRepresentation.base64EncodedString()
             let process = Process()
