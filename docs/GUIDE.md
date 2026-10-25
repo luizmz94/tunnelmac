@@ -12,15 +12,23 @@ app stores and where, updates, migration and removal.
 
 ## Installation details
 
-For a manual install, download `TunnelMac-<version>-arm64.zip` and `SHA256SUMS`
+For a manual install, download `TunnelMac-<version>-arm64.zip` (Apple Silicon) or
+`TunnelMac-<version>-x86_64.zip` (Intel) and `SHA256SUMS`
 from [Releases](https://github.com/luizmz94/tunnelmac/releases), check the
-checksum with `shasum -a 256 -c SHA256SUMS`, unzip and move the app to
+checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`, unzip and move the app to
 `/Applications`, and install openfortivpn with `brew install openfortivpn`.
 
-The initial candidate targets **Apple Silicon (arm64)**. The code targets macOS 13+
+Releases are built for **Apple Silicon (arm64)** and **Intel (x86_64)**, as separate
+archives; the Homebrew cask picks the one for your Mac. Both run the full local suite
+in CI (the Intel one on an Intel runner) before a release. The code targets macOS 13+
 with standard material fallbacks before macOS 26; the new Liquid Glass APIs require
-macOS 26+. Only the host OS/architecture actually checked appears in the release
-report. Intel is not offered until tested; Rosetta cannot run arm64 code on Intel.
+macOS 26+.
+
+On Intel, Homebrew installs into `/usr/local` (Apple Silicon: `/opt/homebrew`) and
+TunnelMac looks for the clients there. Homebrew no longer builds Intel bottles for
+every formula, so installing OpenVPN in particular may compile it and its
+dependencies from source. If a source build fails, run the same `brew install` again
+before reporting it. Approve the clients only after they are installed.
 
 Install the signed/notarized app in `/Applications/TunnelMac.app`. Open
 **Configurações… → Serviço privilegiado → Ativar serviço** (the **Gerenciar…** button

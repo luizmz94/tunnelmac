@@ -23,8 +23,9 @@ for component in "$app" "$app/Contents/MacOS/VPNHelper" "$app/Contents/MacOS/VPN
     [[ -z "$arch" || "$arch" == "$current_arch" ]] || { echo 'Architecture mismatch' >&2; exit 1; }
     arch="$current_arch"
 done
-# Initial release is arm64 only. Cross-compilation is not an Intel execution test.
-[[ "$arch" == arm64 ]] || { echo 'Only validated arm64 releases are supported by this packaging script.' >&2; exit 1; }
+# One archive per architecture. The x86_64 build is cross-compiled; checks.yml runs the
+# full suite on an Intel runner for the same commit before a release is made.
+[[ "$arch" == arm64 || "$arch" == x86_64 ]] || { echo "Unsupported release architecture: $arch" >&2; exit 1; }
 xcrun stapler validate "$app"
 spctl --assess --type execute --verbose=2 "$app"
 [[ $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist") == "$version" ]]
@@ -33,5 +34,6 @@ mkdir -p "$out"
 zip="$out/TunnelMac-$release-$arch.zip"
 [[ ! -e "$zip" ]] || { echo 'Release archive already exists; refusing overwrite.' >&2; exit 1; }
 ditto -c -k --keepParent "$app" "$zip"
-(cd "$out" && shasum -a 256 "$(basename "$zip")" > SHA256SUMS)
+# SHA256SUMS lists every archive of this release (both architectures once both are packaged).
+(cd "$out" && shasum -a 256 TunnelMac-"$release"-*.zip > SHA256SUMS)
 echo "$zip"

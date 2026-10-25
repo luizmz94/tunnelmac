@@ -6,9 +6,11 @@ real VPN.
 
 ## Set up in five minutes
 
-**You need:** a Mac with Apple Silicon, [Homebrew](https://brew.sh) and Xcode with the
+**You need:** a Mac (Apple Silicon or Intel), [Homebrew](https://brew.sh) and Xcode with the
 macOS 26 SDK or newer (the project was prepared with Swift 6.4 and the macOS 27 SDK).
-The deployment target is macOS 13, so newer APIs need fallbacks.
+The deployment target is macOS 13, so newer APIs need fallbacks. Select Xcode itself
+(`sudo xcode-select -s /Applications/Xcode.app/Contents/Developer`): the Command Line
+Tools alone have no XCTest, and `scripts/test.sh` stops with `no such module 'XCTest'`.
 
 ```sh
 git clone https://github.com/luizmz94/tunnelmac.git
@@ -48,7 +50,7 @@ An ad hoc build opens and renders, but the privileged service stays disabled (it
 closed without a verified Apple Team), so it cannot connect. To try real connections,
 sign with your own identity, see [Signing your own build](#signing-your-own-build).
 Use `OUTPUT_DIR` to keep another build untouched and `ARCH=arm64` or `ARCH=x86_64` to
-choose the slice (compiling a slice does not prove it runs).
+choose the slice (compiling a slice does not prove it runs; CI runs the suite on both).
 
 ## Project map
 
@@ -110,7 +112,8 @@ NOTARY_PROFILE=your-keychain-profile ./scripts/notarize.sh
 
 App, helper and supervisor must share one verified Team. Install the signed app in
 `/Applications` before enabling the service. `package-release.sh` accepts only Developer ID
-signed, timestamped, hardened, notarized arm64 bundles. `publish-release.sh` requires a
+signed, timestamped, hardened, notarized arm64 or x86_64 bundles (one archive each;
+`SHA256SUMS` lists all of them). `publish-release.sh` takes one app per architecture and requires a
 clean default branch, a full test report, the publication audit and successful CI.
 
 ## How releases happen

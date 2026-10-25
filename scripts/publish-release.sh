@@ -12,18 +12,19 @@ default=$(gh repo view "$repo" --json defaultBranchRef --jq .defaultBranchRef.na
 [[ $(git branch --show-current) == "$default" ]]
 [[ $(git rev-parse HEAD) == $(git ls-remote origin "refs/heads/$default" | cut -f1) ]]
 version=$(sed -n 's/.*static let releaseVersion = "\(.*\)".*/\1/p' Sources/VPNHelperShared/Constants.swift)
-app="${1:?Pass the signed and stapled TunnelMac.app}"
+# One stapled TunnelMac.app per architecture (arm64 and/or x86_64).
+(( $# > 0 )) || { echo 'Pass the signed and stapled TunnelMac.app of each architecture' >&2; exit 1; }
 report="${TEST_REPORT:?Set TEST_REPORT to the full graphical suite output for the validated commit}"
 grep -q '^OK: 0 falha(s)' "$report"
 sha=$(git rev-parse HEAD)
 if gh release view "v$version" --repo "$repo" >/dev/null 2>&1; then echo 'Release exists; refusing replacement.' >&2; exit 1; fi
 if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then echo 'Tag exists; refusing reuse.' >&2; exit 1; fi
-./scripts/package-release.sh "$app"
 out="$PWD/build/releases/$version"
+for app in "$@"; do ./scripts/package-release.sh "$app"; done
 notes=packaging/release-notes.md
 prerelease=()
 [[ "$version" != *-* ]] || prerelease=(--prerelease)
 gh release create "v$version" --repo "$repo" --target "$sha" --draft ${prerelease[@]+"${prerelease[@]}"} \
   --title "TunnelMac $version" --notes-file "$notes" \
-  "$out/TunnelMac-$version-arm64.zip" "$out/SHA256SUMS"
+  "$out"/TunnelMac-"$version"-*.zip "$out/SHA256SUMS"
 echo 'Draft uploaded. Verify artifacts and lifecycle checks before publishing the draft.'

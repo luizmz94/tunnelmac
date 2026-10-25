@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/luizmz94/tunnelmac/releases"><img src="https://img.shields.io/github/v/release/luizmz94/tunnelmac?include_prereleases&label=release" alt="Release"></a>
   <img src="https://img.shields.io/badge/macOS-13%2B-black?logo=apple" alt="macOS 13+">
-  <img src="https://img.shields.io/badge/Apple%20Silicon-arm64-black" alt="Apple Silicon">
+  <img src="https://img.shields.io/badge/Apple%20Silicon%20%7C%20Intel-arm64%20%7C%20x86__64-black" alt="Apple Silicon and Intel">
   <a href="https://github.com/luizmz94/tunnelmac/actions/workflows/checks.yml"><img src="https://github.com/luizmz94/tunnelmac/actions/workflows/checks.yml/badge.svg" alt="Checks"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
@@ -56,9 +56,11 @@ allow TunnelMac in System Settings → General → Login Items, then approve eac
 with an administrator account. You only do this once per macOS user.
 
 > [!NOTE]
-> TunnelMac is a release candidate on the way to 1.0. It targets Apple Silicon; Intel builds
-> are not offered until tested. See [Releases](https://github.com/luizmz94/tunnelmac/releases)
-> for manual downloads and checksums.
+> TunnelMac is a release candidate on the way to 1.0. It runs on Apple Silicon and Intel
+> Macs; Homebrew picks the right build. On Intel, Homebrew no longer ships prebuilt
+> packages for every client, so `brew install` may compile them (OpenVPN takes a while).
+> See [Releases](https://github.com/luizmz94/tunnelmac/releases) for manual downloads
+> and checksums.
 
 ## Screenshots
 
