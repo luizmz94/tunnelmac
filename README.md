@@ -64,8 +64,9 @@ TLS failures and initial connection failures do not loop automatically.
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**
 in Configurações → Serviço privilegiado. The approval freezes the executable, its
 libraries and the `dns-updown` script that configures the tunnel's DNS.
-Profiles must contain `remote-cert-tls server`; custom `tls-verify` and plugins
-are refused rather than removed. TLS below 1.2 and `tls-cert-profile insecure`
+Profiles must verify the server identity: `remote-cert-tls server`,
+`verify-x509-name`, `ns-cert-type server` or a server-auth `remote-cert-eku`.
+Custom `tls-verify` and plugins are refused rather than removed. TLS below 1.2 and `tls-cert-profile insecure`
 are refused. Ask the VPN administrator for a compatible profile; verification
 policy is never silently weakened.
 

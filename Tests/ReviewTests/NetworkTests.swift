@@ -15,6 +15,8 @@ final class NetworkHost: WireGuardHost {
     var journal: String?
     var observedIntent = false
     var defaultGateway: String? = "192.0.2.1"
+    var resolved = "203.0.113.10"
+    var endpointSets: [String] = []
     func run(_ tool: String, _ args: [String]) -> CommandResult {
         commands.append(args)
         if tool == WireGuardTools.netstat { return .init(status: 0, output: defaultGateway.map { "default \($0) UGScg en0\n" } ?? "") }
@@ -41,9 +43,14 @@ final class NetworkHost: WireGuardHost {
         }
         return .init(status: 0, output: "")
     }
-    func resolve(_ host: String, port: Int) -> [String] { ["203.0.113.10"] }
+    func resolve(_ host: String, port: Int) -> [String] { [resolved] }
     func uapi(interface: String, pid: pid_t, request: String) throws -> String {
-        request.hasPrefix("get=") ? "endpoint=\(endpoint)\nlast_handshake_time_sec=1\nerrno=0\n\n" : "errno=0\n\n"
+        if request.hasPrefix("get=") { return "endpoint=\(endpoint)\nlast_handshake_time_sec=1\nerrno=0\n\n" }
+        if let line = request.split(separator: "\n").last(where: { $0.hasPrefix("endpoint=") }) {
+            endpoint = String(line.dropFirst("endpoint=".count))
+            endpointSets.append(endpoint)
+        }
+        return "errno=0\n\n"
     }
     func primaryService() -> String? { "primary" }
     func dnsSetup(service: String) -> [String: Any]? { dns }
@@ -53,7 +60,8 @@ final class NetworkHost: WireGuardHost {
 }
 
 extension ReviewTests {
-    func tunnel(_ root: URL, _ host: NetworkHost, token: String = UUID().uuidString, dns: Bool = true) throws -> WireGuardTunnel {
+    func tunnel(_ root: URL, _ host: NetworkHost, token: String = UUID().uuidString, dns: Bool = true,
+                endpoint: String = "203.0.113.10") throws -> WireGuardTunnel {
         let key = Data(repeating: 1, count: 32).base64EncodedString()
         let profile = try WireGuardProfile.validated("""
         [Interface]
@@ -63,7 +71,7 @@ extension ReviewTests {
         \(dns ? "DNS = 10.0.0.1" : "")
         [Peer]
         PublicKey = \(Data(repeating: 2, count: 32).base64EncodedString())
-        Endpoint = 203.0.113.10:51820
+        Endpoint = \(endpoint):51820
         AllowedIPs = 0.0.0.0/1, 128.0.0.0/1
         """)
         let name = root.appendingPathComponent(token + ".name")
@@ -138,6 +146,33 @@ extension ReviewTests {
         let moved = Date().addingTimeInterval(2)
         while host.routes["203.0.113.10"] != "192.0.2.254" && Date() < moved { RunLoop.current.run(until: Date().addingTimeInterval(0.05)) }
         XCTAssertEqual(host.routes["203.0.113.10"], "192.0.2.254")
+        XCTAssertFalse(failed)
+        tunnel.clientEnded()
+        XCTAssertTrue(host.routes.isEmpty)
+    }
+    func testRenamedEndpointMovesOnlyAfterItsBypassExists() throws {
+        let root = try temporary(), host = NetworkHost()
+        let tunnel = try tunnel(root, host, dns: false, endpoint: "vpn.example.invalid")
+        let ready = expectation(description: "ready")
+        var failed = false
+        tunnel.interval = 0.05
+        tunnel.ready = { ready.fulfill() }; tunnel.fail = { failed = true }
+        tunnel.clientStarted(pid: getpid())
+        wait(for: [ready], timeout: 2)
+        host.endpointSets.removeAll()
+        // The name now points elsewhere while the Mac has no physical default route.
+        host.resolved = "203.0.113.20"
+        host.defaultGateway = nil
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        XCTAssertFalse(host.endpointSets.contains { $0.hasPrefix("203.0.113.20") })
+        XCTAssertNil(host.routes["203.0.113.20"])
+        host.defaultGateway = "192.0.2.254"
+        let moved = Date().addingTimeInterval(2)
+        while !host.endpointSets.contains(where: { $0.hasPrefix("203.0.113.20") }) && Date() < moved {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertTrue(host.endpointSets.contains { $0.hasPrefix("203.0.113.20") })
+        XCTAssertEqual(host.routes["203.0.113.20"], "192.0.2.254")
         XCTAssertFalse(failed)
         tunnel.clientEnded()
         XCTAssertTrue(host.routes.isEmpty)

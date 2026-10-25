@@ -414,14 +414,16 @@ final class WireGuardTunnel: SessionObserver {
     /// tunnel's own packets never enter the tunnel (wg-quick's set_endpoint_direct_route).
     /// `initial` (bring-up) requires a physical gateway; later ticks keep the current routes
     /// while the Mac has no default route (sleep, Wi-Fi roaming) and move them once it is back.
-    private func refreshEndpointRoutes(initial: Bool = false) throws {
+    /// Returns false when that wait left some endpoint without its route.
+    @discardableResult
+    private func refreshEndpointRoutes(initial: Bool = false) throws -> Bool {
         let gateway4 = WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet"]).output)?.gateway
         let gateway6 = WireGuardTools.defaultRoute(host.run(WireGuardTools.netstat, ["-nr", "-f", "inet6"]).output)?.gateway
         var desired: [Record.Route] = []
         for endpoint in endpoints where profile.allowedIPs.contains(where: { $0.contains(endpoint.ip) }) {
             guard let gateway = endpoint.ipv6 ? gateway6 : gateway4 else {
                 if initial { throw RuleViolation("Sem gateway externo para o endpoint \(endpoint.ip); túnel não configurado.") }
-                return
+                return false
             }
             desired.append(Record.Route(destination: endpoint.ip, ipv6: endpoint.ipv6, gateway: gateway))
         }
@@ -447,6 +449,7 @@ final class WireGuardTunnel: SessionObserver {
             }
         }
         lastDesired = desired
+        return true
     }
 
     private static func routeMatches(_ route: Record.Route, host: WireGuardHost) -> Bool {
@@ -579,7 +582,12 @@ final class WireGuardTunnel: SessionObserver {
                     for (_, ip, _) in resolved where !self.endpoints.contains(where: { $0.ip == ip }) {
                         self.endpoints.append((ip, ip.contains(":")))
                     }
-                    if self.profile.table == .auto { try self.refreshEndpointRoutes() }
+                    // The peer moves only once the new address has its route outside the tunnel.
+                    if self.profile.table == .auto, try !self.refreshEndpointRoutes() {
+                        self.endpoints = old
+                        self.networkSnapshot = nil // Resolved again on a later tick, with a gateway.
+                        return
+                    }
                     guard let interface = self.record.interface else { return }
                     var request = "set=1\n"
                     for (index, ip, port) in resolved {
