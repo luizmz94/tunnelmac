@@ -31,8 +31,20 @@ anonymous HTTPS `GET` to the public GitHub releases API of luizmz94/tunnelmac
 The service panel also queries the public Homebrew formula JSON endpoints for the
 three client versions (512 KiB limit). Both automatic checks can be turned off in
 Configurações → Atualizações. Only release pages of this repository are linked;
-release notes are shown as plain text. Nothing is downloaded, opened or executed:
-installation stays with `brew upgrade` while the app is closed.
+release notes are shown as plain text. The check itself downloads nothing.
+
+Installing an offered version happens only when the user clicks **Atualizar agora** (or
+the install button of the update window shown at launch), through Sparkle 2
+(sparkle-project.org). Sparkle reads the appcast attached to that exact GitHub release
+(`releases/download/v<version>/appcast-<arch>.xml`), which must carry a valid EdDSA
+signature (`SURequireSignedFeed`), downloads the archive listed there, verifies its
+EdDSA signature before extracting it (`SUVerifyUpdateBeforeExtraction`) and accepts the
+new bundle only if it is signed by the same Developer ID as the running app. The public
+key ships in Info.plist (`SUPublicEDKey`); the private key lives only in the
+maintainer's Keychain and in the release environment's secrets. Sparkle never checks on
+its own schedule, never installs silently and sends no system profile. Quitting for the
+installation goes through the normal Sair path (VPNs disconnected and cleaned up first);
+the service registration is kept, as with `brew upgrade`.
 
 Passwords and SAML cookies use Keychain and authenticated XPC, then anonymous
 file descriptors. They are excluded from argv, environment, JSON and logs. TLS is

@@ -1,5 +1,6 @@
 # Releases main automatically: after "macOS checks" passes on a push to main, this builds,
-# signs, notarizes, publishes the GitHub release and updates the Homebrew tap. The version
+# signs, notarizes, publishes the GitHub release (with the Sparkle appcasts used by the
+# in-app update) and updates the Homebrew tap. The version
 # comes from scripts/next-version.py (Constants.swift by hand, or the next rc/patch, committed
 # back to main). Limited to main by the `release` environment: pull requests never reach these
 # secrets. A manual run with dry_run builds, signs and notarizes without publishing anything.
@@ -156,6 +157,33 @@ jobs:
             ./scripts/package-release.sh "$out/TunnelMac.app"
           done
 
+      # Sparkle feeds of this release, one per architecture, signed (feed and archive) with
+      # the EdDSA key. They embed the same notes as the GitHub release. Same Sparkle version
+      # as Package.swift; the distribution is pinned by its SHA-256.
+      - name: Release notes and appcasts
+        if: steps.plan.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          set +x -eu
+          [[ -n "$SPARKLE_ED_PRIVATE_KEY" ]] || { echo '::error::Set the SPARKLE_ED_PRIVATE_KEY secret of the release environment.'; exit 1; }
+          curl -fsSL -o "$RUNNER_TEMP/sparkle.tar.xz" https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-2.9.6.tar.xz
+          echo "52bf9e88cdd972fc0c81501377a880e90d47031bd8ca5462488f843e2609e192  $RUNNER_TEMP/sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
+          notes="$RUNNER_TEMP/release-notes.md"
+          # Hand-written notes only when they describe this version; otherwise GitHub's
+          # generated list of changes since the previous release.
+          if grep -qF "Changes in $RELEASE:" packaging/release-notes.md; then
+            cp packaging/release-notes.md "$notes"
+          else
+            { printf 'Automatic release from main. Details in CHANGELOG.md.\n\n'
+              gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="v$RELEASE" \
+                -f target_commitish="$(git rev-parse origin/main)" --jq .body; } > "$notes"
+          fi
+          python3 -I scripts/appcast.py "$RELEASE" --dir "$RELEASE_DIR" --notes "$notes" --tools "$RUNNER_TEMP/sparkle/bin"
+
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: steps.plan.outputs.skip != 'true'
         with:
@@ -183,14 +211,11 @@ jobs:
           fi
           prerelease=()
           [[ "$RELEASE" != *-* ]] || prerelease=(--prerelease)
-          notes=(--notes-file packaging/release-notes.md)
-          # Hand-written notes only when they describe this version; otherwise GitHub's
-          # generated list of changes since the previous release.
-          grep -qF "Changes in $RELEASE:" packaging/release-notes.md ||
-            notes=(--generate-notes --notes "Automatic release from main. Details in CHANGELOG.md.")
+          # Archives and appcasts in one call: the app never sees the release without its feed.
           gh release create "v$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" ${prerelease[@]+"${prerelease[@]}"} \
-            --title "TunnelMac $RELEASE" "${notes[@]}" \
-            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/TunnelMac-$RELEASE-x86_64.zip" "$RELEASE_DIR/SHA256SUMS"
+            --title "TunnelMac $RELEASE" --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/TunnelMac-$RELEASE-x86_64.zip" "$RELEASE_DIR/SHA256SUMS" \
+            "$RELEASE_DIR/appcast-arm64.xml" "$RELEASE_DIR/appcast-x86_64.xml"
 
       # Deploy key with write access to the tap only, pinned GitHub host key.
       - name: Update the Homebrew tap

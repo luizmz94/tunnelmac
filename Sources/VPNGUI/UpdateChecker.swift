@@ -4,7 +4,7 @@ import VPNHelperShared
 
 // Update check: reads the public GitHub releases list and tells the user. It never
 // downloads, opens or runs a release asset, never runs brew, a shell or AppleScript.
-// Installation stays with Homebrew (`brew upgrade` with the app closed).
+// Installation is AppUpdater's (Sparkle, on the user's click) or Homebrew's.
 
 /// `MAJOR.MINOR.PATCH` with an optional `-rc.N`. A release candidate sorts before its
 /// final version: 0.3.0-rc.3 < 0.3.0-rc.4 < 0.3.0 < 0.3.1-rc.1 < 0.3.1.
@@ -288,6 +288,9 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var outcome: Outcome = .none
     /// "Depois": hides the card until the next launch or a newer version is found.
     @Published private(set) var deferred = false
+    /// Called once when the launch check finds an offer that was not postponed.
+    var onLaunchOffer: ((UpdateOffer) -> Void)?
+    private var launchCheck = false
 
     let preferences: AppPreferences
     let current: ReleaseVersion
@@ -332,7 +335,8 @@ final class UpdateChecker: ObservableObject {
 
     /// A few seconds after launch.
     func checkOnLaunch() {
-        guard preferences.checkForUpdates else { return }
+        guard preferences.checkForUpdates, !checking else { return }
+        launchCheck = true
         check()
     }
 
@@ -383,6 +387,8 @@ final class UpdateChecker: ObservableObject {
     }
 
     private func finish(_ result: Result<(Int, Data), Error>) {
+        let launch = launchCheck
+        launchCheck = false
         defer { checking = false }
         guard case .success((let status, let data)) = result, status == 200, data.count <= UpdateFeed.maximumResponseSize,
               let releases = try? UpdateFeed.decode(data) else {
@@ -394,6 +400,7 @@ final class UpdateChecker: ObservableObject {
                                       skipped: preferences.skippedVersion)
         set(found)
         outcome = found == nil ? .upToDate : .available
+        if launch, let found, !deferred { onLaunchOffer?(found) }
     }
 
     private func set(_ found: UpdateOffer?) {

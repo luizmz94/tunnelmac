@@ -65,7 +65,7 @@ struct MainView: View {
         } detail: {
             VStack(spacing: 0) {
                 if updates.showsCard, let offer = updates.offer {
-                    UpdateCard(offer: offer, update: { menuBar.showSettings(.updates) },
+                    UpdateCard(offer: offer, update: { menuBar.installUpdate() },
                                later: { updates.postpone() })
                         .padding(.horizontal, 20).padding(.top, 14).padding(.bottom, 2)
                         .transition(reduceMotion ? .opacity : .move(edge: .top).combined(with: .opacity))

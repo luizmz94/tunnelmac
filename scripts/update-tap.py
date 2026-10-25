@@ -43,6 +43,9 @@ def cask(version, digests):
     end
   end
 
+  # Updates itself in the app (Sparkle); brew upgrade stays possible.
+  auto_updates true
+
   depends_on formula: "openfortivpn"
   depends_on macos: :ventura
 
@@ -87,8 +90,10 @@ def cask(version, digests):
     Settings and approve the protected openfortivpn, OpenVPN and/or
     wireguard-go runtime.
 
-    Before brew upgrade: quit TunnelMac with Sair (this disconnects its
-    VPNs). The service registration is kept for the upgraded app.
+    Updates: TunnelMac offers new versions and installs them itself
+    (Atualizar agora). To use brew upgrade instead, quit TunnelMac with Sair
+    first (this disconnects its VPNs). The service registration is kept for
+    the upgraded app either way.
 
     Before brew uninstall: open the app, use Configurações… > Serviço
     privilegiado > Remover serviço, then quit with Sair. Homebrew's sandbox does

@@ -94,8 +94,8 @@ struct SettingsDetail: View {
                 }
                 switch tab {
                 case .general: GeneralSettings(menuBar: menuBar, preferences: menuBar.preferences, loginItem: menuBar.loginItem)
-                case .updates: UpdateSettings(updates: menuBar.updates, preferences: menuBar.preferences,
-                                              installedByHomebrew: installedByHomebrew)
+                case .updates: UpdateSettings(updates: menuBar.updates, installer: menuBar.installer,
+                                              preferences: menuBar.preferences, installedByHomebrew: installedByHomebrew)
                 case .service: ServiceSettings(model: menuBar.model)
                 case .backup: BackupSettings(model: menuBar.model, preferences: menuBar.preferences)
                 case .about: AboutSettings()
@@ -334,9 +334,11 @@ struct AddInternetDNSSheet: View {
 
 struct UpdateSettings: View {
     @ObservedObject var updates: UpdateChecker
+    @ObservedObject var installer: AppUpdater
     @ObservedObject var preferences: AppPreferences
     let installedByHomebrew: Bool
     @State private var copied = false
+    @State private var showsHomebrew = false
 
     var body: some View {
         SettingsSection(title: "Versão instalada") {
@@ -423,29 +425,31 @@ struct UpdateSettings: View {
         }
         SettingsSection(title: "Como atualizar") {
             VStack(alignment: .leading, spacing: 12) {
-                if installedByHomebrew {
-                    VStack(alignment: .leading, spacing: 4) {
-                        step(1, "Saia do TunnelMac com Sair (isso desconecta as VPNs).")
-                        step(2, "Cole o comando no Terminal.")
-                        step(3, "Abra o app de novo.")
+                if installer.available {
+                    HStack(spacing: 10) {
+                        Button { installer.install(offer) } label: { Label("Atualizar agora", systemImage: "arrow.down.circle") }
+                            .adaptiveButtonStyle(prominent: true).controlSize(.small)
+                            .disabled(installer.busy)
+                        if installer.busy {
+                            ProgressView().controlSize(.small).accessibilityLabel("Atualizando")
+                            Text("Acompanhe na janela de atualização.").font(.caption).foregroundStyle(.secondary)
+                        }
                     }
-                    Text(HomebrewInstall.upgradeCommand)
-                        .font(.system(.callout, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(10)
-                        .contentPanel(cornerRadius: 8)
-                        .accessibilityLabel("Comando: \(HomebrewInstall.upgradeCommand)")
-                    HStack(spacing: 8) {
-                        Button {
-                            HomebrewInstall.copyCommand()
-                            copied = true
-                        } label: { Label(copied ? "Copiado" : "Copiar comando", systemImage: copied ? "checkmark" : "doc.on.doc") }
-                            .adaptiveButtonStyle(prominent: true)
-                        Button { HomebrewInstall.openTerminal() } label: { Label("Abrir Terminal", systemImage: "terminal") }
-                            .adaptiveButtonStyle()
+                    Text("O TunnelMac baixa a versão \(offer.version), confere a assinatura e reinicia sozinho. VPNs conectadas são desconectadas antes da instalação; perfis, senhas e o serviço privilegiado são mantidos.")
+                        .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    if installedByHomebrew {
+                        DisclosureGroup("Prefiro atualizar pelo Homebrew", isExpanded: $showsHomebrew) {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("As duas formas funcionam: o cask está marcado como auto_updates, então o Homebrew não tenta desfazer a atualização feita pelo app.")
+                                    .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                                homebrewSteps
+                            }
+                            .padding(.top, 8)
+                        }
+                        .font(.callout)
                     }
-                    .controlSize(.small)
+                } else if installedByHomebrew {
+                    homebrewSteps
                 } else {
                     Text("Este app não foi instalado pelo Homebrew. Baixe a nova versão na página do GitHub e substitua o app com o TunnelMac fechado.")
                         .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -455,6 +459,32 @@ struct UpdateSettings: View {
             }
             .padding(14)
         }
+    }
+
+    /// Quit, run the command, reopen: Homebrew refuses to upgrade while the app runs.
+    @ViewBuilder private var homebrewSteps: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            step(1, "Saia do TunnelMac com Sair (isso desconecta as VPNs).")
+            step(2, "Cole o comando no Terminal.")
+            step(3, "Abra o app de novo.")
+        }
+        Text(HomebrewInstall.upgradeCommand)
+            .font(.system(.callout, design: .monospaced))
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .contentPanel(cornerRadius: 8)
+            .accessibilityLabel("Comando: \(HomebrewInstall.upgradeCommand)")
+        HStack(spacing: 8) {
+            Button {
+                HomebrewInstall.copyCommand()
+                copied = true
+            } label: { Label(copied ? "Copiado" : "Copiar comando", systemImage: copied ? "checkmark" : "doc.on.doc") }
+                .adaptiveButtonStyle(prominent: !installer.available)
+            Button { HomebrewInstall.openTerminal() } label: { Label("Abrir Terminal", systemImage: "terminal") }
+                .adaptiveButtonStyle()
+        }
+        .controlSize(.small)
     }
 
     private func step(_ number: Int, _ text: String) -> some View {
@@ -573,7 +603,7 @@ struct UpdateCard: View {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 34, height: 34).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("TunnelMac \(offer.version) disponível").font(.callout.weight(.semibold))
-                Text(summary.isEmpty ? "Uma nova versão está disponível pelo Homebrew." : summary)
+                Text(summary.isEmpty ? "Uma nova versão está disponível." : summary)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -588,7 +618,7 @@ struct UpdateCard: View {
                     Button("Depois", action: later).adaptiveButtonStyle()
                         .help("Esconder até a próxima abertura do app")
                     Button("Atualizar", action: update).adaptiveButtonStyle(prominent: true)
-                        .help("Mostrar como atualizar")
+                        .help("Baixar, instalar e reiniciar o TunnelMac")
                 }
                 .controlSize(.small)
             }

@@ -7,6 +7,12 @@
   wireguard-go. docs/GUIDE.md describes the setup guide.
 - `scripts/showcase.sh --capture` also captures the setup guide (fictitious Homebrew
   state) and Configurações › Backup.
+- Updates install from the app (Sparkle 2): the update window opens at launch when a
+  new version exists, and **Atualizar** / **Atualizar agora** download it, verify the
+  EdDSA signatures and the Developer ID, disconnect the VPNs through the normal Sair path,
+  replace the app and reopen it. Each release carries signed appcasts (one per
+  architecture) for exactly that version; Sparkle never checks on its own. The Homebrew
+  cask is marked `auto_updates`; `brew upgrade` keeps working.
 
 ## 0.5.0-rc.5 — 2026-10-25
 

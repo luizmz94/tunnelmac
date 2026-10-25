@@ -116,8 +116,10 @@ public struct VPNGUIApp: App {
         let preferences = AppPreferences.forCurrentProcess()
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
         let updates = UpdateChecker.production(preferences: preferences)
+        let installer = AppUpdater.production(checker: updates) { NSApplication.shared.activate(ignoringOtherApps: true) }
+        updates.onLaunchOffer = { [weak installer] in installer?.present($0) }
         let menuBar = MenuBarCoordinator(model: model, preferences: preferences, updates: updates,
-                                         loginItem: .production())
+                                         installer: installer, loginItem: .production())
         // NSApp does not exist yet inside App.init; with the menu bar icon off, applying the
         // Dock policy here crashed at launch (0.3.0-rc.4 to 0.5.0). Apply it once AppKit runs.
         DispatchQueue.main.async { menuBar.enforceVisibility() }

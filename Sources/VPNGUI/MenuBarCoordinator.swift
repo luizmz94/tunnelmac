@@ -56,7 +56,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var subtitle: String {
         switch self {
         case .general: return "Barra de menus, Dock e abertura ao iniciar sessão"
-        case .updates: return "Verificação de novas versões no GitHub; a instalação é pelo Homebrew"
+        case .updates: return "Novas versões do GitHub, instaladas pelo próprio app ou pelo Homebrew"
         case .service: return "O componente do sistema que inicia o openfortivpn, o OpenVPN e o WireGuard por você"
         case .backup: return "Exporte as conexões para outro Mac ou guarde uma cópia, protegida por senha"
         case .about: return "Versão, licença e links do projeto"
@@ -84,6 +84,7 @@ final class MenuBarCoordinator: ObservableObject {
     let model: AppModel
     let preferences: AppPreferences
     let updates: UpdateChecker
+    let installer: AppUpdater
     let loginItem: LoginItemController
     @Published var pendingSelection: UUID?
     /// Tab shown by the Configurações window (also when it is reopened).
@@ -102,11 +103,13 @@ final class MenuBarCoordinator: ObservableObject {
     private var settingsCloseObserver: NSObjectProtocol?
 
     init(model: AppModel, preferences: AppPreferences? = nil, updates: UpdateChecker? = nil,
-         loginItem: LoginItemController? = nil) {
+         installer: AppUpdater? = nil, loginItem: LoginItemController? = nil) {
         let preferences = preferences ?? updates?.preferences ?? .disposable()
         self.model = model
         self.preferences = preferences
-        self.updates = updates ?? UpdateChecker(preferences: preferences, transport: DisabledUpdateTransport())
+        let updates = updates ?? UpdateChecker(preferences: preferences, transport: DisabledUpdateTransport())
+        self.updates = updates
+        self.installer = installer ?? AppUpdater(checker: updates, enabled: false)
         self.loginItem = loginItem ?? LoginItemController(service: nil, unavailableReason: "Indisponível neste contexto.")
         connectAction = { [unowned model] in model.connect($0) }
         disconnectAction = { [unowned model] in model.manager.disconnect($0) }
@@ -114,6 +117,7 @@ final class MenuBarCoordinator: ObservableObject {
         model.service.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         preferences.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.updates.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
+        self.installer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.loginItem.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         // Turning the menu bar icon off must never leave the app without a Dock icon.
         preferences.$showMenuBarIcon.dropFirst().sink { [weak self] shown in
@@ -190,6 +194,12 @@ final class MenuBarCoordinator: ObservableObject {
     func checkForUpdates() {
         updates.checkNow()
         showSettings(.updates)
+    }
+
+    /// "Atualizar": installs in the app when Sparkle is available, else shows how to update.
+    func installUpdate() {
+        guard let offer = updates.offer, installer.available else { return showSettings(.updates) }
+        installer.install(offer)
     }
 
     /// Launch: a hidden menu bar icon with saved preferences keeps the Dock icon.

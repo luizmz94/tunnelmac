@@ -10,6 +10,8 @@ let package = Package(
                .library(name: "VPNHelperCore", targets: ["VPNHelperCore"]),
                .library(name: "VPNHelperShared", targets: ["VPNHelperShared"]),
                .library(name: "ProcessBridge", targets: ["ProcessBridge"])],
+    // In-app updates of the app bundle only (EdDSA-signed archives from the GitHub releases).
+    dependencies: [.package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6")],
     targets: [
         // Per-connection C supervisor (fd-only inputs), executed by the helper.
         .executableTarget(name: "VPNSupervisor"),
@@ -22,7 +24,8 @@ let package = Package(
                 linkerSettings: [.linkedFramework("Security"), .linkedFramework("SystemConfiguration")]),
         // LaunchDaemon registered with SMAppService.daemon(plistName:).
         .executableTarget(name: "VPNHelper", dependencies: ["VPNHelperCore", "VPNHelperShared"]),
-        .target(name: "VPNApp", dependencies: ["VPNHelperShared", "ProcessBridge"], path: "Sources/VPNGUI",
+        .target(name: "VPNApp", dependencies: ["VPNHelperShared", "ProcessBridge",
+                                              .product(name: "Sparkle", package: "Sparkle")], path: "Sources/VPNGUI",
                 linkerSettings: [.linkedFramework("Security"), .linkedFramework("AppKit"),
                                  .linkedFramework("ServiceManagement")]),
         .executableTarget(name: "VPNGUI", dependencies: ["VPNApp"], path: "Sources/VPNGUIEntry"),

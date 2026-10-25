@@ -4,6 +4,7 @@ import AppKit
 import SwiftUI
 import ServiceManagement
 import VPNHelperShared
+import Sparkle
 
 /// Canned update transport: records requests and answers synchronously, or never.
 final class FakeUpdateTransport: UpdateTransport {
@@ -267,6 +268,53 @@ enum SettingsTests {
             try require(checker.offer?.version == "0.3.0", "Canal estável não ofereceu a estável")
         }
 
+        test("Atualização pelo app: feed da versão oferecida, aviso só na abertura e versões exibidas") {
+            let arch = AppUpdater.architecture
+            try require(["arm64", "x86_64"].contains(arch), "Arquitetura: \(arch)")
+            try require(AppUpdater.feedURL(for: "0.5.0-rc.6")?.absoluteString
+                        == "https://github.com/luizmz94/tunnelmac/releases/download/v0.5.0-rc.6/appcast-\(arch).xml", "Feed da rc")
+            try require(AppUpdater.feedURL(for: "1.0.0")?.absoluteString
+                        == "https://github.com/luizmz94/tunnelmac/releases/download/v1.0.0/appcast-\(arch).xml", "Feed da estável")
+            for bad in ["", "v0.5.0", "0.5", "0.5.0/../x", "0.5.0-beta.1", "0.5.0 "] {
+                try require(AppUpdater.feedURL(for: bad) == nil, "Feed aceito para \(bad.debugDescription)")
+            }
+            let preferences = AppPreferences.disposable(currentVersion: "0.3.0-rc.4")
+            let transport = FakeUpdateTransport()
+            transport.reply = .success((200, json(fixture)))
+            let checker = UpdateChecker(preferences: preferences, transport: transport, current: rc4)
+            var offered: [String] = []
+            checker.onLaunchOffer = { offered.append($0.version) }
+            checker.checkNow(); checker.checkIfDue()
+            try require(offered.isEmpty && checker.pending, "Verificação manual ou periódica abriu a janela de atualização")
+            checker.checkOnLaunch()
+            try require(offered == [checker.offer?.version ?? "-"], "Abertura não ofereceu a atualização: \(offered)")
+            checker.checkNow()
+            try require(offered.count == 1, "Aviso repetido fora da abertura")
+            checker.postpone()
+            checker.checkOnLaunch()
+            try require(offered.count == 1, "Depois não segurou o aviso")
+            transport.reply = .success((200, json([])))
+            let fresh = UpdateChecker(preferences: AppPreferences.disposable(currentVersion: "0.3.0-rc.4"), transport: transport, current: rc4)
+            fresh.onLaunchOffer = { offered.append($0.version) }
+            fresh.checkOnLaunch()
+            try require(offered.count == 1 && fresh.outcome == .upToDate, "Aviso sem versão nova")
+            // Off by default outside the app; never starts Sparkle in the runner.
+            let disabled = AppUpdater(checker: checker, enabled: false)
+            try require(!disabled.available && !disabled.canInstall, "Instalador ativo sem Sparkle")
+            if let offer = checker.offer { disabled.install(offer); disabled.present(offer) }
+            try require(!disabled.busy, "Instalador desativado iniciou uma sessão")
+            try require(AppUpdater.production(checker: checker, activate: {}).available == false, "Executor de verificações iniciaria o Sparkle")
+            // Sparkle shows CFBundleShortVersionString (no -rc): the release versions are shown instead.
+            let display = ReleaseVersionDisplay(update: "0.5.0-rc.6", installed: "0.5.0-rc.5")
+            var bundle: NSString = "0.5.0"
+            let shown = withUnsafeMutablePointer(to: &bundle) { pointer in
+                display.formatUpdateVersion(fromUpdate: SUAppcastItem.empty(), andBundleDisplayVersion: AutoreleasingUnsafeMutablePointer(pointer),
+                                            withBundleVersion: "29")
+            }
+            try require(shown == "0.5.0-rc.6" && bundle == "0.5.0-rc.5", "Versões exibidas: \(shown) / \(bundle)")
+            try require(display.formatBundleDisplayVersion("0.5.0", withBundleVersion: "29", matchingUpdate: nil) == "0.5.0-rc.5", "Versão instalada exibida")
+        }
+
         test("Erros: 403, 429, timeout, rede, JSON inválido e corpo acima do limite não lançam nem oferecem") {
             let failures: [Result<(Int, Data), Error>] = [
                 .success((403, Data("{\"message\":\"API rate limit exceeded\"}".utf8))),
@@ -455,6 +503,9 @@ enum SettingsTests {
             try require(opened == 1 && menuBar.settingsTab == .service && window.isVisible, "Reabrir criou outra janela")
             menuBar.checkForUpdates()
             try require(transport.requests.count == 1 && menuBar.settingsTab == .updates, "Verificar atualizações… não verificou nem abriu a aba")
+            menuBar.settingsTab = .about
+            menuBar.installUpdate()
+            try require(menuBar.settingsTab == .updates && !menuBar.installer.available, "Atualizar sem Sparkle não mostrou como atualizar")
             window.orderOut(nil)
             try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape", "arrow.triangle.2.circlepath", "lock.shield", "archivebox", "info.circle"], "Ícones das abas")
             for symbol in SettingsTab.allCases.map(\.symbol) + ["menubar.rectangle", "dock.rectangle", "power", "rectangle.portrait.and.arrow.right",
@@ -530,6 +581,11 @@ enum SettingsTests {
                         menuBar.settingsTab = .updates
                         try UIPreviewTests.snapshot(SettingsView(menuBar: menuBar, installedByHomebrew: false), size: NSSize(width: 760, height: 620),
                                                     appearance: appearance, to: output.appendingPathComponent("settings-updates-github-\(suffix).png"))
+                        let inApp = MenuBarCoordinator(model: model, updates: menuBar.updates, installer: .preview(checker: menuBar.updates),
+                                                       loginItem: LoginItemController(service: nil, unavailableReason: "Desativado na revisão visual."))
+                        inApp.settingsTab = .updates
+                        try UIPreviewTests.snapshot(SettingsView(menuBar: inApp, installedByHomebrew: true), size: NSSize(width: 760, height: 620),
+                                                    appearance: appearance, to: output.appendingPathComponent("settings-updates-inapp-\(suffix).png"))
                         try UIPreviewTests.snapshot(MainView(model: model, menuBar: menuBar), size: NSSize(width: 980, height: 640),
                                                     appearance: appearance, to: output.appendingPathComponent("main-update-card-\(suffix).png"))
                         try UIPreviewTests.snapshot(MenuBarView(menuBar: menuBar), size: NSSize(width: 360, height: 300),
@@ -539,7 +595,7 @@ enum SettingsTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 26, "Renders esperados: 26, gerados: \(files.count)")
+            try require(files.count == 28, "Renders esperados: 28, gerados: \(files.count)")
         }
         return failures
     }

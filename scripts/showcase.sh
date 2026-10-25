@@ -24,6 +24,10 @@ bin_dir=$(swift build --package-path IntegrationRunner --scratch-path "$PWD/.bui
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$bin_dir/VPNIntegrationRunner" "$app/Contents/MacOS/VPNGUI"
+# The app links Sparkle (never started here: the showcase is a local-checks bundle).
+mkdir -p "$app/Contents/Frameworks"
+ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
+install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/VPNGUI"
 cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp Resources/Brand/*.png "$app/Contents/Resources/"
 cat > "$app/Contents/Info.plist" <<PLIST

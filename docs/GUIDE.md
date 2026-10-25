@@ -162,8 +162,8 @@ connection uses it as before; the import summary lists any that are missing.
 
 ## Update check
 
-The app only checks for and announces new versions; it never downloads, opens or
-runs anything, and never calls `brew`. It sends one anonymous `GET` to
+The check only looks for and announces new versions; it never calls `brew`. It sends
+one anonymous `GET` to
 `https://api.github.com/repos/luizmz94/tunnelmac/releases` (no token, cookies,
 machine identifiers or connection data), at launch, on **Conectar** when the last
 attempt is more than 4 hours old, from an hourly timer with the same interval, and
@@ -172,9 +172,19 @@ Release candidates are offered by default only when the running version is one.
 Turn off **Verificar automaticamente** in Configurações → Atualizações to stop
 automatic checks; manual checks stay available.
 
-A new version shows a small card in the main window (**Atualizar**, **Depois**,
-**Ver novidades**), a line in the menu bar and a dot on the Atualizações tab. You
-can skip a version. To install it, quit with **Sair** (this disconnects the VPNs),
+When the check at launch finds a new version, the update window opens with its notes
+and **Instalar atualização**, **Lembrar mais tarde** and **Pular esta versão**. The
+version also shows a small card in the main window (**Atualizar**, **Depois**,
+**Ver novidades**), a line in the menu bar and a dot on the Atualizações tab.
+
+**Atualizar** (or **Atualizar agora** in Configurações → Atualizações) downloads that
+release, checks its signatures, asks to disconnect active VPNs if there are any,
+replaces the app and opens it again. Profiles, passwords, preferences and the
+privileged service are kept. This works the same for Homebrew installations: the cask
+is marked `auto_updates`, so Homebrew does not undo it. Installing in the app needs a
+version that already includes it; the first one is installed with brew.
+
+To update with Homebrew instead, quit with **Sair** (this disconnects the VPNs),
 then run:
 
 ```sh

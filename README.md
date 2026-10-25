@@ -110,8 +110,9 @@ once with an administrator account. After that, connecting never asks for a pass
 - **Overlapping networks** between simultaneous VPNs are not resolved automatically.
 - **Profiles are checked on import.** OpenVPN scripts, plugins and weak TLS settings, and
   WireGuard `PostUp`-style commands, are removed or refused, never silently weakened.
-- **Updates are announced, never installed for you.** Upgrade with
-  `brew upgrade --cask luizmz94/tunnelmac/tunnelmac` after quitting with **Sair**.
+- **Updates in one click.** The app announces a new version and **Atualizar agora**
+  downloads it, checks its signature and relaunches (Sparkle). `brew upgrade --cask
+  luizmz94/tunnelmac/tunnelmac` after quitting with **Sair** keeps working.
 - **Before uninstalling,** use **Configurações… → Serviço privilegiado → Remover serviço**.
 
 The [guide](docs/GUIDE.md) covers each protocol, where data is stored, backups, updates,

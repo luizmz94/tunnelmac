@@ -17,4 +17,15 @@ for pair in "com.luiz.vpngui:$app" "com.luiz.vpngui.helper:$app/Contents/MacOS/V
     grep -q 'flags=.*runtime' <<<"$details"
     codesign --verify --strict -R="identifier \"$identifier\" and anchor apple generic and certificate leaf[subject.OU] = \"$team\"" "$component"
 done
+# Sparkle and its installer tools: the same Team, hardened runtime, no XPC services.
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+[[ ! -e "$sparkle/Versions/B/XPCServices" ]]
+for component in "$sparkle/Versions/B/Autoupdate" "$sparkle/Versions/B/Updater.app" "$sparkle"; do
+    details=$(codesign -dvv "$component" 2>&1)
+    grep -q 'Authority=Developer ID Application' <<<"$details"
+    grep -q 'flags=.*runtime' <<<"$details"
+    codesign --verify --strict -R="anchor apple generic and certificate leaf[subject.OU] = \"$team\"" "$component"
+done
+[[ -n $(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$app/Contents/Info.plist") ]]
+[[ $(/usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' "$app/Contents/Info.plist") == false ]]
 plutil -lint "$app/Contents/Info.plist" "$app/Contents/Library/LaunchDaemons/com.luiz.vpngui.helper.plist"

@@ -21,6 +21,9 @@ mkdir -p "$runner/Contents/MacOS"
 swift build --package-path IntegrationRunner --scratch-path "$PWD/.build/integration" --product VPNIntegrationRunner --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c debug
 bin_dir=$(swift build --package-path IntegrationRunner --scratch-path "$PWD/.build/integration" --disable-sandbox --build-system native --cache-path "$PWD/.build/cache" --manifest-cache local -c debug --show-bin-path)
 cp "$bin_dir/VPNIntegrationRunner" "$runner/Contents/MacOS/VPNGUI"
+# The app links Sparkle; same framework and rpath as the bundle built above.
+ditto "$out/TunnelMac.app/Contents/Frameworks" "$runner/Contents/Frameworks"
+install_name_tool -add_rpath @executable_path/../Frameworks "$runner/Contents/MacOS/VPNGUI"
 cp "$out/TunnelMac.app/Contents/MacOS/VPNSupervisor" "$runner/Contents/MacOS/VPNSupervisor"
 cp "$out/TunnelMac.app/Contents/Info.plist" "$runner/Contents/Info.plist"
 cp -R "$out/TunnelMac.app/Contents/Resources" "$runner/Contents/Resources"

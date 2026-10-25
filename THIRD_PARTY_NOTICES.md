@@ -26,6 +26,39 @@ wireguard-tools programs are not used: the helper implements the macOS tunnel se
 itself, following wg-quick's documented behavior. "WireGuard" and the WireGuard logo
 are registered trademarks of Jason A. Donenfeld; this project is independent of it.
 
+**Sparkle** 2.9.6 (https://sparkle-project.org) is included in the app bundle
+(`Contents/Frameworks/Sparkle.framework`) for in-app updates, under the MIT License.
+Its complete LICENSE file, with the notices of the code it bundles (bsdiff 4.3 by Colin
+Percival, BSD; sais-lite by Yuta Mori, MIT; ed25519 by Orson Peters, zlib; code by Mark
+Hamlin, BSD), ships in the app as `Contents/Resources/Sparkle-LICENSE.txt` and is at
+https://github.com/sparkle-project/Sparkle/blob/2.9.6/LICENSE.
+
+    Copyright (c) 2006-2013 Andy Matuschak.
+    Copyright (c) 2009-2013 Elgato Systems GmbH.
+    Copyright (c) 2011-2014 Kornel Lesiński.
+    Copyright (c) 2015-2017 Mayur Pawashe.
+    Copyright (c) 2014 C.W. Betts.
+    Copyright (c) 2014 Petroules Corporation.
+    Copyright (c) 2014 Big Nerd Ranch.
+    All rights reserved.
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of
+    this software and associated documentation files (the "Software"), to deal in
+    the Software without restriction, including without limitation the rights to
+    use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+    the Software, and to permit persons to whom the Software is furnished to do so,
+    subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+    FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+    COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+    IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+    CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 **Protocol marks:** the Fortinet, OpenVPN and WireGuard marks in the Nova conexão
 chooser use path data from Simple Icons 13.21.0 (https://simpleicons.org, CC0-1.0).
 The marks are trademarks of Fortinet, Inc., OpenVPN Inc. and Jason A. Donenfeld; they
