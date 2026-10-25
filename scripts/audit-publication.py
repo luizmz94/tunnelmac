@@ -49,7 +49,7 @@ for obj in objects:
     scan(git('cat-file', 'blob', oid), f'history:{oid}:{path}', findings)
 for rev in git('rev-list', '--all').decode().splitlines():
     scan(git('show', '-s', '--format=%B%nAuthor: %an <%ae>%nCommitter: %cn <%ce>', rev), f'commit-message:{rev}', findings)
-for folder in ('Sources', 'IntegrationRunner', 'Tests', 'scripts', 'specs', 'Resources', '.github', 'packaging', 'TunnelMac-Brand'):
+for folder in ('Sources', 'IntegrationRunner', 'Tests', 'scripts', 'specs', 'Resources', '.github', 'packaging', 'TunnelMac-Brand', 'docs'):
     for path in sorted((ROOT / folder).rglob('*')):
         if path.is_file() and path.suffix in ('.swift', '.c', '.h', '.md', '.sh', '.py', '.yml', '.rb', '.svg', '.plist'):
             scan(path.read_bytes(), f'working-tree:{path.relative_to(ROOT)}', findings)

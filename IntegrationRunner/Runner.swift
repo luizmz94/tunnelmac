@@ -3,6 +3,13 @@ import AppKit
 @testable import VPNApp
 
 @main
+enum Launcher {
+    /// `--showcase` opens the README demo (fictitious connections) instead of the checks.
+    static func main() {
+        if ShowcaseApp.requested { ShowcaseApp.main() } else { IntegrationApp.main() }
+    }
+}
+
 struct IntegrationApp: App {
     init() {
         // The Homebrew sandbox check runs this executable in the app's maintenance mode.
