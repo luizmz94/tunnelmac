@@ -2,11 +2,18 @@
 
 ## Unreleased
 
-- First launch: a short sheet asks to allow TunnelMac in the background, activates the
-  service, opens Login Items and continues in Serviço privilegiado once macOS allows it.
-  The first registration's "Operation not permitted" (waiting for that approval) is no
-  longer shown as a failure, and a never-registered service no longer reads as "não
-  encontrado".
+- First launch: a setup guide in steps. Choose the VPN types you use (installed and
+  outdated clients are detected, with the exact `brew install`/`brew upgrade` command
+  and a Verificar button), activate the service, allow it in Login Items (System
+  Settings opens only from the guide's button, next to a picture of the switch), approve
+  each chosen client, done. The first registration's "Operation not permitted" (waiting
+  for that approval) is no longer shown as a failure, and a never-registered service no
+  longer reads as "não encontrado".
+- The administrator prompt says TunnelMac and names the client being approved; a right
+  created by older builds ("VPN GUI …") is rewritten.
+- A connection whose approved client copy is older than Homebrew's latest shows how to
+  update it; a Homebrew installation older than the approved copy no longer asks for an
+  upgrade or a (downgrading) approval.
 - Serviço privilegiado: state and approvals on top, the explanation below.
 - The main window's sidebar keeps its minimum width (260 pt) on macOS 13–15, which
   restored a narrower saved width and hid the settings, service and + buttons.

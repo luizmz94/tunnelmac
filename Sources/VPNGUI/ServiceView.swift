@@ -38,10 +38,15 @@ struct ServicePanel: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmingRemoval = false
     @State private var copied: RuntimeKind?
-    init(model: AppModel, versions: ClientVersionChecker? = nil) {
+    /// Only the VPN clients, optionally a subset (first-run guide); the guide carries the service state.
+    private let clientsOnly: Bool
+    private let kinds: [RuntimeKind]
+    init(model: AppModel, versions: ClientVersionChecker? = nil, clientsOnly: Bool = false, kinds: [RuntimeKind] = RuntimeKind.allCases) {
+        self.clientsOnly = clientsOnly
+        self.kinds = kinds
         _model = ObservedObject(wrappedValue: model)
         _service = ObservedObject(wrappedValue: model.service)
-        _versions = StateObject(wrappedValue: versions ?? .production(helper: model.service.client))
+        _versions = StateObject(wrappedValue: versions ?? model.clientVersions)
     }
 
     private var showsClients: Bool {
@@ -53,20 +58,24 @@ struct ServicePanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SheetHeader(symbol: service.health.symbol, tone: service.health.tone,
-                        title: service.health.title, subtitle: "TunnelMac \(HelperConstants.releaseVersion) · build \(HelperConstants.build)")
-            Text(showsClients ? clientsDetail : service.health.detail)
-                .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
-            if let warning = service.bundleLocationWarning {
-                InlineNotice(tone: .warning, symbol: "folder.badge.questionmark", title: warning)
+            if !clientsOnly {
+                SheetHeader(symbol: service.health.symbol, tone: service.health.tone,
+                            title: service.health.title, subtitle: "TunnelMac \(HelperConstants.releaseVersion) · build \(HelperConstants.build)")
+                Text(showsClients ? clientsDetail : service.health.detail)
+                    .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                if let warning = service.bundleLocationWarning {
+                    InlineNotice(tone: .warning, symbol: "folder.badge.questionmark", title: warning)
+                }
             }
             if let message = service.message {
                 InlineNotice(tone: .neutral, symbol: "info.circle", title: message)
             }
-            if showsClients { clients }
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { serviceActions; Spacer(minLength: 0) }
-                VStack(alignment: .leading, spacing: 8) { serviceActions }
+            if showsClients || clientsOnly { clients }
+            if !clientsOnly {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) { serviceActions; Spacer(minLength: 0) }
+                    VStack(alignment: .leading, spacing: 8) { serviceActions }
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,7 +109,7 @@ struct ServicePanel: View {
                 if versions.checking { ProgressView().controlSize(.small).accessibilityLabel("Consultando versões") }
             }
             VStack(spacing: 0) {
-                ForEach(Array(RuntimeKind.allCases.enumerated()), id: \.element) { index, kind in
+                ForEach(Array(kinds.enumerated()), id: \.element) { index, kind in
                     if index > 0 { Divider().padding(.leading, 44) }
                     clientRow(kind)
                 }
@@ -187,7 +196,7 @@ struct ServicePanel: View {
                                 text: "Instalado\(installed.map { " (\($0))" } ?? ""), ainda não aprovado. Aprove para conectar com ele.", command: nil)
         case .updateAvailable(let current, let latest):
             return Presentation(symbol: "arrow.up.circle", tone: .warning,
-                                text: "Versão \(current) em uso; a \(latest) já está disponível. Atualize e depois aprove de novo:",
+                                text: "Versão \(current) instalada; a \(latest) já está disponível. Atualize e depois aprove de novo:",
                                 command: "brew upgrade \(formula)")
         case .approvalOutdated(let approved, let installed):
             return Presentation(symbol: "arrow.triangle.2.circlepath", tone: .warning,

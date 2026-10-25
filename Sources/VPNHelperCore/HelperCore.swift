@@ -492,7 +492,7 @@ public final class HelperCore {
                 guard inventory.digest == digest else {
                     throw HelperFailure(.runtimeRejected, "A instalação mudou desde a inspeção. Revise o inventário novamente antes de aprovar.")
                 }
-                guard self.configuration.authorizer.authorize(authorization) else {
+                guard self.configuration.authorizer.authorize(authorization, prompt: SystemAdminAuthorizer.approvalPrompt(kind, path: path)) else {
                     throw HelperFailure(.authorizationDenied, "Aprovação de administrador cancelada ou recusada.")
                 }
                 // Serialized with start/status on the core queue. Installing never replaces a
@@ -517,7 +517,7 @@ public final class HelperCore {
             respond(.failure(HelperFailure(.busy, "Há sessões ativas ou encerrando; desconecte antes de remover os arquivos do serviço."))); return
         }
         work.async {
-            guard self.configuration.authorizer.authorize(authorization) else {
+            guard self.configuration.authorizer.authorize(authorization, prompt: SystemAdminAuthorizer.removalPrompt) else {
                 respond(.failure(HelperFailure(.authorizationDenied, "Aprovação de administrador cancelada ou recusada."))); return
             }
             self.queue.async {

@@ -199,8 +199,21 @@ enum UIPreviewTests {
                 for (status, name) in [(SMAppService.Status.notRegistered, "onboarding-activate"), (.requiresApproval, "onboarding-allow")] {
                     let pending = ServiceController(policy: .trusted(team: "LOCALCHECK"), registrar: FakeRegistrar(status), client: nil)
                     pending.refresh()
-                    try render(ServiceOnboardingSheet(service: pending) {}, NSSize(width: 500, height: 420), name)
+                    let pendingModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("\(name)-\(suffix)")),
+                                                passwords: passwords, service: pending)
+                    try render(ServiceOnboardingSheet(model: pendingModel, forcedStep: ServiceOnboarding.step(pending.health)) { _ in },
+                               NSSize(width: 760, height: 540), name)
                 }
+                for (step, name) in [(ServiceOnboarding.Step.clients, "onboarding-clients"), (.approve, "onboarding-approve"), (.done, "onboarding-done")] {
+                    try render(ServiceOnboardingSheet(model: bothModel, versions: versions, forcedStep: step, chosen: [.openfortivpn, .openvpn]) { _ in },
+                               NSSize(width: 760, height: 540), name)
+                }
+                // Approved copy older than Homebrew's latest: Connect works, the detail says how to update.
+                bothModel.clientVersions.setForChecks(local: [:], latest: [.openfortivpn: "9.9.9"])
+                try render(ConnectionDetail(connection: connections[1], session: bothModel.manager.session(connections[1].id), model: bothModel,
+                                            edit: {}, delete: {}),
+                           NSSize(width: 640, height: 560), "detail-outdated-client")
+                bothModel.clientVersions.setForChecks(local: [:], latest: [:])
                 try render(ScrollView { VStack(alignment: .leading, spacing: 22) { ServiceSettings(model: bothModel) }.padding(24) },
                            NSSize(width: 680, height: 900), "settings-service")
                 let dnsDefault = AppPreferences.disposable()
@@ -212,7 +225,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 50, "Renders esperados: 50, gerados: \(files.count)")
+            try require(files.count == 58, "Renders esperados: 58, gerados: \(files.count)")
         }
         return failures
     }

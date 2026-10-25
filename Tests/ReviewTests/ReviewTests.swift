@@ -324,3 +324,47 @@ extension ReviewTests {
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.directory.appendingPathComponent("pending-operation.json").path))
     }
 }
+
+extension ReviewTests {
+    func testOnboardingHomebrewCommandsCoverOnlyChosenClients() {
+        let states: [RuntimeKind: ClientState] = [
+            .openfortivpn: .notInstalled,
+            .openvpn: .notApproved(installed: "2.7.8", latest: "2.7.10"),
+            .wireguard: .notApproved(installed: "0.0.20250522", latest: nil),
+        ]
+        let all = ServiceOnboarding.commands(RuntimeKind.allCases) { states[$0]! }
+        XCTAssertEqual(all, ["brew install openfortivpn", "brew upgrade openvpn"])
+        XCTAssertEqual(ServiceOnboarding.commands([.wireguard]) { states[$0]! }, [])
+        XCTAssertEqual(ServiceOnboarding.commands([.wireguard, .openfortivpn]) { _ in .notInstalled }, ["brew install openfortivpn wireguard-go"])
+        XCTAssertFalse(ServiceOnboarding.installed(states[.openvpn]!))
+        XCTAssertTrue(ServiceOnboarding.installed(states[.wireguard]!))
+        XCTAssertEqual(ServiceOnboarding.step(.ready), .approve)
+    }
+}
+
+extension ReviewTests {
+    func testAdminPromptNamesTheClientAndOldDescriptionsAreRewritten() {
+        let prompts = RuntimeKind.allCases.map { SystemAdminAuthorizer.approvalPrompt($0, path: "/opt/homebrew/bin/\($0.executableName)") }
+        XCTAssertEqual(Set(prompts).count, RuntimeKind.allCases.count)
+        XCTAssertTrue(prompts.allSatisfy { $0.hasPrefix("TunnelMac ") && !$0.contains("VPN GUI") })
+        XCTAssertTrue(prompts[1].contains("OpenVPN") && prompts[1].contains("/opt/homebrew/bin/openvpn"))
+        let old: [String: Any] = ["class": "rule", "rule": ["authenticate-admin"],
+                                  "default-prompt": ["": "VPN GUI quer aprovar ou remover a cópia protegida do openfortivpn."]]
+        XCTAssertTrue(SystemAdminAuthorizer.definitionIsExpected(old))
+        XCTAssertFalse(SystemAdminAuthorizer.descriptionIsCurrent(old))
+        var current = old
+        current["default-prompt"] = ["": SystemAdminAuthorizer.description]
+        XCTAssertTrue(SystemAdminAuthorizer.descriptionIsCurrent(current))
+    }
+}
+
+extension ReviewTests {
+    func testDowngradedInstallationKeepsTheCurrentApprovedCopy() {
+        let state = ClientState.evaluate(approved: "1.24.1", installed: "1.24.0", installedExists: true, sourceChanged: true, latest: "1.24.1")
+        XCTAssertEqual(state, .upToDate("1.24.1"))
+        XCTAssertEqual(ClientState.evaluate(approved: "1.24.0", installed: "1.23.1", installedExists: true, sourceChanged: true, latest: "1.24.1"),
+                       .updateAvailable(current: "1.24.0", latest: "1.24.1"))
+        XCTAssertEqual(ClientState.evaluate(approved: "1.24.1", installed: "1.24.1", installedExists: true, sourceChanged: true, latest: "1.24.1"),
+                       .approvalOutdated(approved: "1.24.1", installed: "1.24.1"))
+    }
+}

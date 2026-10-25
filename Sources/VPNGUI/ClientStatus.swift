@@ -26,6 +26,9 @@ enum ClientState: Equatable {
         if let latest, ClientVersion.isNewer(latest, than: newest) {
             return .updateAvailable(current: newest, latest: latest)
         }
+        // Homebrew went back to an older release: the approved copy in use stays current,
+        // and approving the older installation would be a downgrade.
+        if let installed, ClientVersion.isNewer(approved, than: installed) { return .upToDate(approved) }
         if sourceChanged || installed.map({ ClientVersion.isNewer($0, than: approved) }) == true {
             return .approvalOutdated(approved: approved, installed: installed)
         }

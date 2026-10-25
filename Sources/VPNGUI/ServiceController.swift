@@ -15,7 +15,9 @@ protocol ServiceRegistrar: AnyObject {
 
 @MainActor
 final class DaemonRegistrar: ServiceRegistrar {
-    private let service = SMAppService.daemon(plistName: HelperConstants.plistName)
+    /// A fresh object per read: one kept from launch can go on reporting requiresApproval
+    /// after the switch is turned on in System Settings.
+    private var service: SMAppService { SMAppService.daemon(plistName: HelperConstants.plistName) }
     var status: SMAppService.Status { service.status }
     func register() throws { try service.register() }
     func unregister(completion: @escaping (Error?) -> Void) {
@@ -207,7 +209,8 @@ final class ServiceController: ObservableObject, SessionTransport {
 
     // MARK: Actions (one attempt per click; never a register loop)
 
-    func activate() {
+    /// openingSettings: false when the caller shows what to turn on first (first-run guide).
+    func activate(openingSettings: Bool = true) {
         guard case .trusted = policy, let registrar else { refresh(); return }
         if registrar.status == .enabled { refresh(); return }
         // Same label installed the legacy way would conflict; never touch someone else's file.
@@ -233,7 +236,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         }
         refresh()
         // Straight to the switch the user has to turn on.
-        if health == .requiresApproval { openSettings() }
+        if openingSettings, health == .requiresApproval { openSettings() }
     }
 
     func openSettings() { registrar?.openSystemSettings() }

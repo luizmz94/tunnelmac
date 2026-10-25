@@ -38,10 +38,11 @@ final class FakeRegistrar: ServiceRegistrar {
 
 final class FakeAuthorizer: AdminAuthorizing {
     private let lock = NSLock()
-    private var _allow = true, _calls = 0
+    private var _allow = true, _calls = 0, _prompts: [String] = []
     var allow: Bool { get { lock.withLock { _allow } } set { lock.withLock { _allow = newValue } } }
     var calls: Int { lock.withLock { _calls } }
-    func authorize(_ externalForm: Data) -> Bool { lock.withLock { _calls += 1; return _allow } }
+    var prompts: [String] { lock.withLock { _prompts } }
+    func authorize(_ externalForm: Data, prompt: String) -> Bool { lock.withLock { _calls += 1; _prompts.append(prompt); return _allow } }
 }
 
 /// Canned helper used to test the app's reaction to helper states.
