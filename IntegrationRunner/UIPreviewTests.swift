@@ -1,6 +1,7 @@
 @testable import VPNApp
 import Foundation
 import SwiftUI
+import ServiceManagement
 import AppKit
 import VPNHelperShared
 
@@ -146,6 +147,14 @@ enum UIPreviewTests {
             if let host = live.contentView {
                 let splits = splitViews(host)
                 try require(!splits.isEmpty, "Split view não encontrado na janela real")
+                // A restored, too narrow sidebar hid its toolbar buttons (macOS 15).
+                if let split = splits.first(where: \.isVertical), let sidebar = split.arrangedSubviews.first {
+                    split.setPosition(120, ofDividerAt: 0)
+                    _ = TestSupport.spin(0.2) { false }
+                    MainWindowBinding.enforceSidebarMinimum(in: live)
+                    _ = TestSupport.spin(0.2) { false }
+                    try require(sidebar.frame.width >= MainView.sidebarMinimum - 1, "Sidebar abaixo do mínimo: \(sidebar.frame.width)")
+                }
                 try require(splits.allSatisfy { $0.frame.height <= host.bounds.height + 60 },
                             "O conteúdo ultrapassou a altura da janela ao selecionar uma conexão")
                 live.setContentSize(NSSize(width: 850, height: 550))
@@ -187,6 +196,13 @@ enum UIPreviewTests {
                                               .wireguard: .init(path: "/opt/homebrew/bin/wireguard-go", exists: true, version: "0.0.20250522", sourceChanged: false)],
                                       latest: [.openvpn: "2.7.10", .openfortivpn: "1.24.1", .wireguard: "0.0.20250522"])
                 try render(ServicePanel(model: bothModel, versions: versions).padding(20), NSSize(width: 620, height: 600), "service-panel-both")
+                for (status, name) in [(SMAppService.Status.notRegistered, "onboarding-activate"), (.requiresApproval, "onboarding-allow")] {
+                    let pending = ServiceController(policy: .trusted(team: "LOCALCHECK"), registrar: FakeRegistrar(status), client: nil)
+                    pending.refresh()
+                    try render(ServiceOnboardingSheet(service: pending) {}, NSSize(width: 500, height: 420), name)
+                }
+                try render(ScrollView { VStack(alignment: .leading, spacing: 22) { ServiceSettings(model: bothModel) }.padding(24) },
+                           NSSize(width: 680, height: 900), "settings-service")
                 let dnsDefault = AppPreferences.disposable()
                 let dnsCustom = AppPreferences.disposable()
                 dnsCustom.addCustomDNS(try InternetDNSOption.custom(name: "Servidor de casa com nome longo", servers: "192.0.2.53"))
@@ -196,7 +212,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 44, "Renders esperados: 44, gerados: \(files.count)")
+            try require(files.count == 50, "Renders esperados: 50, gerados: \(files.count)")
         }
         return failures
     }

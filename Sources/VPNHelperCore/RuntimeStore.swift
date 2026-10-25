@@ -141,6 +141,7 @@ public final class RuntimeStore {
     public var clientCertificates: String { root + "/client-cert" }
     /// Previous DNS of the primary service while the "DNS da internet" is applied.
     public var internetDNSRecord: String { root + "/internet-dns.json" }
+    public var dnsBaselineRecord: String { root + "/dns-baseline.json" }
 
     // MARK: State
 
@@ -413,7 +414,7 @@ public final class RuntimeStore {
     /// Removes only the helper's own managed files (runtime copies, supervisor copy,
     /// state and work directory). Nothing outside `root` is touched.
     public func removeAll() {
-        for path in [runtimes, supervisors, work, wireGuardRecords, clientCertificates, internetDNSRecord, statePath, registryPath] { SecureFile.removeTree(path) }
+        for path in [runtimes, supervisors, work, wireGuardRecords, clientCertificates, internetDNSRecord, dnsBaselineRecord, statePath, registryPath] { SecureFile.removeTree(path) }
         rmdir(root)
     }
 

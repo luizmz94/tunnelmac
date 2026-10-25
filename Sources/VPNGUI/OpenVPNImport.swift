@@ -31,10 +31,15 @@ struct OpenVPNImport: Equatable {
     }
 }
 
-/// Reads a single .ovpn/.conf file or a Viscosity .visc folder. Referenced certificates and
-/// keys are read only from inside the profile's own folder and become inline blocks.
+/// Reads a single .ovpn/.conf file, a Viscosity .visc folder or a .zip of one. Referenced
+/// certificates and keys are read only from inside the profile's own folder and become
+/// inline blocks.
 enum OpenVPNImporter {
     static let maximumReferencedFile = 64 * 1024
+    /// Limits for a zipped profile: checked on the archive's listing before extracting.
+    static let maximumArchive = 1024 * 1024
+    static let maximumArchiveEntries = 64
+    static let maximumExtracted = 4 * 1024 * 1024
 
     /// Several files chosen together: exactly one profile (.ovpn/.conf) plus the
     /// certificates and keys it references, matched by file name. Files left out of the
@@ -69,6 +74,7 @@ enum OpenVPNImporter {
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
             throw AppFailure("Arquivo não encontrado: \(url.path)")
         }
+        if !isDirectory.boolValue, isZip(url) { return try loadArchive(url) }
         let file = isDirectory.boolValue ? try configuration(inFolder: url) : url
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         guard (attributes[.type] as? FileAttributeType) == .typeRegular,
@@ -95,6 +101,88 @@ enum OpenVPNImporter {
             }
         }
         return imported
+    }
+
+    // MARK: Zip (e.g. Viscosity.visc.zip, as exported or mailed)
+
+    static func isZip(_ url: URL) -> Bool {
+        if url.pathExtension.lowercased() == "zip" { return true }
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        return (try? handle.read(upToCount: 4)) == Data([0x50, 0x4b, 0x03, 0x04])
+    }
+
+    /// The listing is checked first (entry count, relative names, total size), then the
+    /// system's ditto extracts into a private temporary folder, read like a .visc folder
+    /// and removed afterwards. The archive itself is the only original.
+    static func loadArchive(_ archive: URL) throws -> OpenVPNImport {
+        let attributes = try FileManager.default.attributesOfItem(atPath: archive.path)
+        guard (attributes[.type] as? FileAttributeType) == .typeRegular, (attributes[.size] as? Int ?? .max) <= maximumArchive else {
+            throw AppFailure("O .zip precisa ser um arquivo de até 1 MB.")
+        }
+        let names = try tool("/usr/bin/zipinfo", ["-1", archive.path]).split(separator: "\n").map(String.init)
+        guard !names.isEmpty, names.count <= maximumArchiveEntries else {
+            throw AppFailure("O .zip precisa conter só o perfil e seus certificados (até \(maximumArchiveEntries) itens).")
+        }
+        guard names.allSatisfy({ !$0.hasPrefix("/") && !$0.split(separator: "/").contains("..") }) else {
+            throw AppFailure("O .zip contém caminhos fora da própria pasta; nada foi importado.")
+        }
+        let totals = try tool("/usr/bin/zipinfo", ["-t", archive.path])
+        guard let match = totals.range(of: #"([0-9]+) bytes uncompressed"#, options: .regularExpression),
+              let size = Int(totals[match].split(separator: " ")[0]), size <= maximumExtracted else {
+            throw AppFailure("O conteúdo do .zip passa de 4 MB; não parece um perfil OpenVPN.")
+        }
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TunnelMac-import-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        _ = try tool("/usr/bin/ditto", ["-x", "-k", archive.path, temporary.path])
+        // Private like the app's copy, so only the archive's own permissions are reported.
+        let items = FileManager.default.enumerator(at: temporary, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+        while let item = items?.nextObject() as? URL {
+            let values = try item.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
+            guard values.isSymbolicLink != true else { throw AppFailure("O .zip contém links simbólicos; nada foi importado.") }
+            chmod(item.path, values.isDirectory == true ? 0o700 : 0o600)
+        }
+        var imported = try load(try profileFolder(in: temporary))
+        imported.source = archive.path.replacingOccurrences(of: FileManager.default.homeDirectoryForCurrentUser.path, with: "~")
+        imported.sourceFiles = [archive.standardizedFileURL]
+        imported.sourceFolder = nil
+        imported.exposedOriginals = []
+        let mode = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
+        if mode & 0o077 != 0, imported.profile.blocks.contains(where: { $0.content.contains("PRIVATE KEY") || $0.content.contains("Static key") }) {
+            imported.exposedOriginals = [archive.resolvingSymlinksInPath().path]
+            imported.warnings.append("O arquivo original \(archive.lastPathComponent) contém chaves e pode ser lido por outros usuários do Mac (recomendado: chmod 600). A cópia do app é privada.")
+        }
+        return imported
+    }
+
+    /// The .visc (or any single) folder at the top of the archive, or the top itself when
+    /// the profile sits there.
+    static func profileFolder(in root: URL) throws -> URL {
+        let entries = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: [.isDirectoryKey])
+            .filter { !$0.lastPathComponent.hasPrefix(".") && $0.lastPathComponent != "__MACOSX" }
+        if entries.contains(where: { ["ovpn", "conf"].contains($0.pathExtension.lowercased()) }) { return root }
+        let folders = entries.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+        guard entries.count == 1, let folder = folders.first else {
+            throw AppFailure("O .zip não contém uma pasta .visc nem um perfil .ovpn.")
+        }
+        return folder
+    }
+
+    /// One fixed system tool, literal arguments, no shell; stdout on success.
+    private static func tool(_ path: String, _ arguments: [String]) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = arguments
+        process.environment = ["PATH": "/usr/bin:/bin", "LANG": "C"]
+        let output = Pipe()
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw AppFailure("Não foi possível abrir o .zip (está corrompido?).") }
+        return String(decoding: data, as: UTF8.self)
     }
 
     /// Moves the originals of a saved import to the Trash (recoverable until emptied).

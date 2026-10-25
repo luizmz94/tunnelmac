@@ -10,6 +10,9 @@ final class DNSHost: WireGuardHost {
     var primary: String? = "primary"
     var failWrites = false
     var writes = 0
+    /// What System Settings has saved for the service; nil = unknown.
+    var configured: [String]?
+    func configuredDNSServers(service: String) -> [String]? { configured }
     func run(_ tool: String, _ arguments: [String]) -> CommandResult { .init(status: 0, output: "") }
     func resolve(_ host: String, port: Int) -> [String] { [] }
     func uapi(interface: String, pid: pid_t, request: String) throws -> String { "errno=0\n\n" }
@@ -75,6 +78,52 @@ final class ReviewTests: XCTestCase {
         // /opt/homebrew leaves room for the Cellar file name; /usr/local only for the install name.
         XCTAssertEqual(try managedLeaf(prefix: "/opt/homebrew"), "liblz4.1.10.0.dylib")
         XCTAssertEqual(try managedLeaf(prefix: "/usr/local"), "liblz4.1.dylib")
+    }
+    func testDNSBaselineRestoresTheUserDNSAfterTheLastVPN() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        let baseline = DNSBaseline(host: host, recordPath: path)
+        host.configured = ["192.0.2.53"]
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]   // first VPN
+        baseline.capture()                                         // second VPN: same snapshot
+        host.values["primary"] = ["ServerAddresses": ["10.9.0.1"]]
+        XCTAssertEqual(baseline.settle(), .restored(servers: ["192.0.2.53"]))
+        XCTAssertEqual(WireGuardTunnel.servers(host.values["primary"]), ["192.0.2.53"])
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+        XCTAssertNil(baseline.settle())
+    }
+    func testDNSBaselineLeavesARestoredOrUserChangedDNSAlone() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        let baseline = DNSBaseline(host: host, recordPath: path)
+        baseline.capture()
+        XCTAssertEqual(baseline.settle(), .unchanged)
+        XCTAssertEqual(host.writes, 0)
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["9.9.9.9"]]
+        host.configured = ["9.9.9.9"]                                // set in System Settings meanwhile
+        XCTAssertEqual(baseline.settle(), .keptUserChange(servers: ["9.9.9.9"]))
+        XCTAssertEqual(WireGuardTunnel.servers(host.values["primary"]), ["9.9.9.9"])
+        XCTAssertEqual(host.writes, 0)
+        host.configured = nil                                        // settings unreadable: leave it
+        baseline.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        XCTAssertEqual(baseline.settle(), .unchanged)
+        XCTAssertEqual(host.writes, 0)
+    }
+    func testDNSBaselineSurvivesAHelperRestartAndRemovesAVPNDNSOverDHCP() throws {
+        let host = DNSHost(), path = try temporary().appendingPathComponent("baseline").path
+        host.values["primary"] = nil                                 // automatic DNS (DHCP)
+        DNSBaseline(host: host, recordPath: path).capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        host.configured = []
+        let restarted = DNSBaseline(host: host, recordPath: path)
+        XCTAssertEqual(restarted.settle(), .restored(servers: []))
+        XCTAssertNil(host.values["primary"])
+        host.failWrites = true
+        restarted.capture()
+        host.values["primary"] = ["ServerAddresses": ["10.8.0.1"]]
+        XCTAssertEqual(restarted.settle(), .failed)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path))  // kept for the retry
     }
     func testDNSJournalWriteFailureDoesNotChangeDNS() throws {
         let host = DNSHost(), root = try temporary()

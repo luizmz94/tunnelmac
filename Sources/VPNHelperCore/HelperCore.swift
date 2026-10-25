@@ -61,6 +61,9 @@ public final class HelperCore {
     private var idleTask: DispatchWorkItem?
     /// "DNS da internet", shared by every session that asks for it.
     let internetDNS: InternetDNS
+    /// The user's DNS from before the first running VPN, checked after the last one.
+    let dnsBaseline: DNSBaseline
+    private var baselineRetry: DispatchWorkItem?
 
     public init(_ configuration: Configuration) {
         self.configuration = configuration
@@ -68,6 +71,7 @@ public final class HelperCore {
                              probeIdentity: configuration.probeIdentity)
         try? store.prepareDirectories()
         internetDNS = InternetDNS(host: configuration.wireGuardHost, recordPath: store.internetDNSRecord)
+        dnsBaseline = DNSBaseline(host: configuration.wireGuardHost, recordPath: store.dnsBaselineRecord)
         registry = SessionRegistry(path: store.registryPath)
         queue.async {
             self.recoverWireGuard()
@@ -79,8 +83,37 @@ public final class HelperCore {
             let leftovers = dns.tokens().filter { !live.contains($0) }
             leftovers.forEach { dns.remove(token: $0) }
             if !leftovers.isEmpty { dns.flush() }
+            _ = self.settleDNSBaseline()
             self.scheduleIdleCheck()
         }
+    }
+
+    // MARK: User DNS
+
+    /// When no session runs and every client's own DNS cleanup is done, compares the DNS
+    /// with the one saved before the first VPN. While a cleanup is still pending, retries.
+    private func settleDNSBaseline() -> String? {
+        baselineRetry?.cancel(); baselineRetry = nil
+        guard !sessions.values.contains(where: { !$0.finished }),
+              registry.stale(excluding: Set(sessions.keys)).isEmpty else { return nil }
+        guard !internetDNS.active, !WireGuardTunnel.dnsOwned else { retryDNSBaseline(); return nil }
+        let outcome = dnsBaseline.settle()
+        if outcome == .failed { retryDNSBaseline() }
+        return DNSBaseline.message(outcome)
+    }
+
+    private func retryDNSBaseline(attempt: Int = 1) {
+        guard attempt <= 60 else { return } // The next session's end, or the next helper start, checks again.
+        let task = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            self.baselineRetry = nil
+            guard !self.sessions.values.contains(where: { !$0.finished }) else { return }
+            if self.internetDNS.active || WireGuardTunnel.dnsOwned || self.dnsBaseline.settle() == .failed {
+                self.retryDNSBaseline(attempt: attempt + 1)
+            }
+        }
+        baselineRetry = task
+        queue.asyncAfter(deadline: .now() + 5, execute: task)
     }
 
     // MARK: Clients
@@ -393,6 +426,11 @@ public final class HelperCore {
             configFD = try ProtectedDescriptor.anonymousFile(content, directory: store.work)
             if let cookie { cookieFD = try ProtectedDescriptor.pipe(Data(cookie.utf8)) }
         } catch { return .failure(Self.wrap(error)) }
+        // The first VPN saves the user's DNS; the others share that snapshot.
+        if !sessions.values.contains(where: { !$0.finished }) {
+            baselineRetry?.cancel(); baselineRetry = nil
+            dnsBaseline.capture()
+        }
         let argv = [supervisor] + supervisorArguments
         let environment = RuntimeEnvironment.list(environment ?? runtime.environment)
         var pid: pid_t = 0
@@ -405,12 +443,14 @@ public final class HelperCore {
             }
         }
         guard control >= 0 else {
+            _ = settleDNSBaseline()
             return .failure(HelperFailure(.internalError, "Não foi possível iniciar o supervisor (\(String(cString: strerror(errno))))."))
         }
         let pump = EventPump(token: token, sink: client.sink)
         let runner = SessionRunner(token: token, ownerID: client.id, uid: client.uid, connectionID: connectionID,
                                    supervisorPID: pid, control: control, queue: queue, pump: pump)
         runner.observer = observer?(runner)
+        runner.finalCheck = { [weak self] in self?.settleDNSBaseline() }
         runner.onFinish = { [weak self] runner in
             guard let self else { return }
             self.registry.remove(token: runner.token)

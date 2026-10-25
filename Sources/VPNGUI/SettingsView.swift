@@ -486,18 +486,18 @@ struct ServiceSettings: View {
     /// runtime copy, and passwords reach it per connection through file descriptors.
     static let explanation = "O openfortivpn, o OpenVPN e o WireGuard precisam de privilégios de administrador para criar a interface da VPN e ajustar rotas e DNS. Em vez de pedir sua senha a cada conexão ou rodar o app como root, o TunnelMac registra um pequeno serviço do sistema que só aceita pedidos deste app assinado, só executa as cópias do openfortivpn, do OpenVPN e do wireguard-go que você aprovou e não guarda senhas: elas ficam no seu Keychain e são entregues só ao conectar. Você pode removê-lo aqui a qualquer momento."
 
+    /// What to do first on top (state, approvals, actions); the explanation below.
     var body: some View {
-        SettingsSection(title: "Por que este serviço existe") {
-            HStack(alignment: .top, spacing: 12) {
-                SettingsIcon(symbol: "lock.shield", color: .blue)
-                Text(Self.explanation).font(.callout).fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(14)
-        }
-        InlineNotice(tone: .neutral, symbol: "info.circle",
-                     title: "Antes de desinstalar com brew uninstall, use Remover serviço aqui.")
         SettingsSection(title: "Estado") {
             ServicePanel(model: model).padding(16)
+        }
+        SettingsSection(title: "Por que este serviço existe",
+                        footer: "Antes de desinstalar com brew uninstall, use Remover serviço acima.") {
+            HStack(alignment: .top, spacing: 12) {
+                SettingsIcon(symbol: "lock.shield", color: .blue)
+                Text(Self.explanation).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
         }
     }
 }

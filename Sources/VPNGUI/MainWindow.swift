@@ -14,6 +14,9 @@ struct MainView: View {
     @State private var query = ""
     @State private var rowHeight: CGFloat = 0
     @State private var sidebarHeight: CGFloat = 0
+    @State private var onboarding = false
+    /// Sidebar width that keeps the traffic lights and its three toolbar buttons visible.
+    static let sidebarMinimum: CGFloat = 260
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -27,7 +30,13 @@ struct MainView: View {
     var body: some View {
         NavigationSplitView {
             sidebar
-                .navigationSplitViewColumnWidth(min: 260, ideal: 300, max: 400)
+                .navigationSplitViewColumnWidth(min: Self.sidebarMinimum, ideal: 300, max: 400)
+                .sheet(isPresented: $onboarding) {
+                    ServiceOnboardingSheet(service: service) {
+                        ServiceOnboarding.postponed = true
+                        onboarding = false
+                    }
+                }
                 .withoutSidebarToggle()
                 .toolbar {
                     // Declared in the sidebar column; the flexible spacer (macOS 26+) pushes the
@@ -80,6 +89,8 @@ struct MainView: View {
             // Back from System Settings: read the real status again (approval or revocation).
             if !model.service.busy { model.service.refresh() }
         }
+        .onAppear { evaluateOnboarding(service.health) }
+        .onChange(of: service.health) { evaluateOnboarding($0) }
         .sheet(item: $editing, onDismiss: { pendingImport = nil }) { connection in
             ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport) { selected = connection.id }
         }
@@ -108,6 +119,17 @@ struct MainView: View {
                 if model.data.connections.contains(where: { $0.id == id }) { selected = id }
                 menuBar.pendingSelection = nil
             }
+        }
+    }
+
+    /// Shows the first-run sheet while the service waits for activation or approval; when
+    /// macOS allows it, continues in Serviço privilegiado to approve a VPN client.
+    private func evaluateOnboarding(_ health: ServiceController.Health) {
+        if ServiceOnboarding.needed(health) {
+            if !onboarding, !ServiceOnboarding.postponed, editing == nil { onboarding = true }
+        } else if onboarding, health != .checking {
+            onboarding = false
+            menuBar.showServiceManagement()
         }
     }
 

@@ -30,10 +30,11 @@ every formula, so installing OpenVPN in particular may compile it and its
 dependencies from source. If a source build fails, run the same `brew install` again
 before reporting it. Approve the clients only after they are installed.
 
-Install the signed/notarized app in `/Applications/TunnelMac.app`. Open
-**Configurações… → Serviço privilegiado → Ativar serviço** (the **Gerenciar…** button
-in the sidebar opens the same tab) and approve the background item in System Settings
-→ General → Login Items. Return to the app, review **Aprovar openfortivpn…** and
+Install the signed/notarized app in `/Applications/TunnelMac.app`. On first launch a
+short sheet asks to **Permitir em segundo plano**: it activates the service and opens
+System Settings → General → Login Items, where TunnelMac must be allowed in the
+background. Once macOS allows it, the app continues in Configurações… → Serviço
+privilegiado (also reachable from the shield button or **Gerenciar…**). Return to the app, review **Aprovar openfortivpn…** and
 approve with an administrator account. Each macOS user needs runtime approval.
 Root is needed for openfortivpn/pppd to configure tunnels, routes and DNS; the GUI
 always runs as a normal user. The runtime is copied to a protected root-owned
@@ -67,10 +68,13 @@ policy is never silently weakened.
 
 Use **+** (⌘N) → **OpenVPN** with a single `.ovpn`/`.conf` that carries its keys
 inline, a Viscosity `.visc` folder whose profile references `ca.crt`, `cert.crt`,
-`key.key` and `ta.key`, or the profile and those files selected (or dropped) together. Referenced files must sit inside the profile's
+`key.key` and `ta.key` (or a `.zip` of that folder, e.g. `Viscosity.visc.zip`), or the profile and those files selected (or dropped) together. Referenced files must sit inside the profile's
 folder (no absolute paths, `..` or links leaving it); they are copied inline into a
 private profile under `~/Library/Application Support/VPNGUI/OpenVPN` (0600). The
-originals are not modified; a world-readable original key produces a warning.
+originals are not modified; a world-readable original key produces a warning. A `.zip`
+is checked first (at most 64 entries and 4 MB uncompressed, no absolute or `..`
+paths, no links), extracted with the system's `ditto` into a private temporary folder
+that is removed after reading; the archive is the only original.
 Profiles that use `auth-user-pass` ask for a username and password (Keychain).
 
 Only tunnel directives are kept. Scripts, plugins, `setenv`, management interfaces,
@@ -122,8 +126,8 @@ explicit review and approval of the profile's trusted digest; TLS is not disable
   (always kept in the Dock while the menu bar icon is off, so the app never becomes
   invisible); open at login (`SMAppService.mainApp`, only in signed builds).
 - **Atualizações:** update check options and how to update (see below).
-- **Serviço privilegiado:** why the service exists, its state, runtime approval and
-  **Remover serviço** (formerly the Gerenciar… sheet).
+- **Serviço privilegiado:** its state, runtime approval and **Remover serviço** on top;
+  why the service exists below (formerly the Gerenciar… sheet).
 - **Sobre:** version, build, repository, release notes, license and notices.
 
 Preferences live in the app's own `UserDefaults` (`com.luiz.vpngui`); nothing
@@ -221,6 +225,13 @@ Internet DNS defaults to **Do not change**. Existing explicit selections are
 preserved. Public DNS is applied only after choosing a provider in Settings;
 profile DNS takes precedence. A WireGuard profile requiring DNS fails visibly if
 it cannot own/apply it. Only one WireGuard may own system DNS at a time.
+
+Whatever the choice, the helper saves the primary service's DNS when the first VPN
+starts (`dns-baseline.json`, root-only) and checks it when the last one has ended and
+each client undid its own change. A VPN's servers left behind (a client that died,
+a failed `dns-updown`) are replaced by the saved value and the log says so; a DNS
+the user changed in System Settings meanwhile is kept. Connections that start while
+others run share that first snapshot, so a VPN's DNS is never taken for the user's.
 Runtime approval shows the actual source and warnings before administrator consent;
 disconnect all sessions before replacing a runtime.
 

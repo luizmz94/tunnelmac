@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- First launch: a short sheet asks to allow TunnelMac in the background, activates the
+  service, opens Login Items and continues in Serviço privilegiado once macOS allows it.
+  The first registration's "Operation not permitted" (waiting for that approval) is no
+  longer shown as a failure, and a never-registered service no longer reads as "não
+  encontrado".
+- Serviço privilegiado: state and approvals on top, the explanation below.
+- The main window's sidebar keeps its minimum width (260 pt) on macOS 13–15, which
+  restored a narrower saved width and hid the settings, service and + buttons.
+- OpenVPN import accepts a `.zip` of a Viscosity `.visc` folder (or of a profile).
+- The user's DNS is saved when the first VPN starts and checked after the last one
+  ends; a VPN's servers left behind are replaced by it, a change made in System
+  Settings meanwhile is kept.
+- Shorter OpenVPN password note in the editor.
+
 ## 0.5.0-rc.4
 
 - Intel Macs (x86_64) are supported: each release ships `TunnelMac-<version>-arm64.zip`

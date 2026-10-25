@@ -102,18 +102,31 @@ enum HelperTests {
             try require(service.message?.contains("Ajustes") == true, "Sem orientação de aprovação")
             service.refresh(); service.refresh()
             try require(registrar.events == ["register"], "Registro repetido sem clique")
+            try require(registrar.settingsOpened == 1, "Ativar não levou aos Itens de Início")
             service.openSettings()
-            try require(registrar.settingsOpened == 1, "Ajustes não abertos")
+            try require(registrar.settingsOpened == 2, "Ajustes não abertos")
             registrar.status = .notFound
+            service.daemonPlistInBundle = { false }
             service.refresh()
             try require(service.health == .notFound && !service.canConnect, "Helper ausente não detectado")
+            service.daemonPlistInBundle = { true }
+            service.refresh()
+            try require(service.health == .notRegistered, "Nunca registrado (notFound com o plist no bundle) não pede Ativar")
+            // First registration: macOS throws EPERM and waits for the user's approval.
+            registrar.registerError = NSError(domain: NSPOSIXErrorDomain, code: Int(EPERM))
+            registrar.status = .requiresApproval
+            service.activate()
+            try require(service.health == .requiresApproval && service.message?.contains("Permitir em segundo plano") == true
+                        && service.message?.contains("Não foi possível") == false && registrar.settingsOpened == 3,
+                        "EPERM aguardando aprovação mostrado como falha: \(service.message ?? "-")")
+            registrar.registerError = nil
             registrar.status = .notRegistered
             registrar.registerError = NSError(domain: "SMAppServiceErrorDomain", code: Int(kSMErrorInvalidSignature))
             service.activate()
-            try require(service.message?.contains("assinatura") == true && registrar.events.count == 2, "Erro de assinatura sem diagnóstico")
+            try require(service.message?.contains("assinatura") == true && registrar.events.count == 3, "Erro de assinatura sem diagnóstico")
             let unsigned = ServiceController(policy: .unavailable(reason: "Build sem Team ID."), registrar: registrar, client: nil)
             unsigned.activate()
-            try require(registrar.events.count == 2, "Build ad hoc tentou registrar")
+            try require(registrar.events.count == 3, "Build ad hoc tentou registrar")
             unsigned.refresh()
             if case .unsigned = unsigned.health {} else { throw TestSupport.Failure("Ad hoc não marcado como assinatura necessária") }
         }
