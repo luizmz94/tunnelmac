@@ -140,11 +140,14 @@ enum HelperTests {
                 let registrar = FakeRegistrar(.enabled)
                 let endpoint = helper?.listener.endpoint
                 let client = HelperClient(requirement: ownRequirement) { endpoint.map { NSXPCConnection(listenerEndpoint: $0) } }
-                return (ServiceController(policy: .trusted(team: "LOCALCHECK"), registrar: registrar, client: client), registrar)
+                let controller = ServiceController(policy: .trusted(team: "LOCALCHECK"), registrar: registrar, client: client)
+                controller.helperRestartDelay = .milliseconds(100)
+                return (controller, registrar)
             }
             let silent = FakeHelper(accept: false) { _ in .done }
             var (s, registrar) = service(silent)
             s.refresh()
+            // The first failure waits for a previous helper to exit (in-app update), then retries once.
             try require(spin(10) { if case .unresponsive = s.health { return true }; return false }, "Helper sem resposta tratado como saudável: \(s.health.title)")
             try require(!s.canConnect, "Conectar liberado sem handshake")
             let incompatible = FakeHelper { _ in .failure(HelperFailure(.incompatibleProtocol, "Protocolo diferente.")) }

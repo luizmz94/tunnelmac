@@ -98,6 +98,13 @@ final class ServiceController: ObservableObject, SessionTransport {
     }
 
     @Published private(set) var health: Health = .checking
+    /// After an in-app update the previous helper may still be running: its binary was
+    /// replaced, so its code signature no longer validates and the handshake fails. It exits
+    /// 30 s after its last client leaves, so the first failed handshake of this launch drops
+    /// the connection and tries once more after that, without reconnecting meanwhile.
+    private var helperRestart: Task<Void, Never>?
+    private var helperRestartTried = false
+    var helperRestartDelay: Duration = .seconds(35)
     @Published private(set) var status: HelperStatus?
     @Published private(set) var busy = false
     @Published var message: String?
@@ -184,6 +191,7 @@ final class ServiceController: ObservableObject, SessionTransport {
 
     private func handshake() {
         guard let client else { health = .unresponsive("cliente indisponível"); return }
+        if helperRestart != nil { return } // Waiting for the previous helper to exit.
         if health != .ready { health = .checking }
         client.request(.status) { [weak self] result in
             guard let self else { return }
@@ -191,9 +199,25 @@ final class ServiceController: ObservableObject, SessionTransport {
             case .success(.status(let status)): self.apply(status)
             case .success(.failure(let failure)), .failure(let failure):
                 self.status = nil
+                if failure.code != .incompatibleProtocol, !self.helperRestartTried {
+                    self.waitForHelperRestart()
+                    return
+                }
                 self.health = failure.code == .incompatibleProtocol ? .incompatible(failure.message) : .unresponsive(failure.message)
             case .success: self.health = .unresponsive("resposta inesperada")
             }
+        }
+    }
+
+    private func waitForHelperRestart() {
+        helperRestartTried = true
+        client?.invalidate()
+        health = .checking
+        helperRestart = Task { [weak self] in
+            try? await Task.sleep(for: self?.helperRestartDelay ?? .zero)
+            guard let self, !Task.isCancelled else { return }
+            self.helperRestart = nil
+            self.refresh()
         }
     }
 
