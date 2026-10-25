@@ -308,6 +308,11 @@ struct ShowcaseTour {
                 if let sheet = window.attachedSheet { window.endSheet(sheet) }
             }
             await pause(0.5)
+
+            await captureOnboarding(over: window, suffix)
+            await captureSettings(.backup, "backup-\(suffix)", height: 470)
+            window.makeKeyAndOrderFront(nil)
+            await pause(0.5)
         }
         NSApp.appearance = nil
 
@@ -337,6 +342,60 @@ struct ShowcaseTour {
         demo.model.manager.disconnectAll()
         await pause(1.5)
         NSApp.terminate(nil)
+    }
+
+    /// The first-run guide at its first step on a fresh Mac: nothing approved yet,
+    /// openfortivpn installed, OpenVPN behind Homebrew's formula, wireguard-go missing.
+    private func captureOnboarding(over window: NSWindow, _ suffix: String) async {
+        let service = ServiceController(policy: .unavailable(reason: "Demonstração"), registrar: nil, client: nil)
+        service.useForLocalChecks(status: HelperStatus(protocolVersion: HelperConstants.protocolVersion,
+                                                       helperVersion: HelperConstants.fullVersion, runtime: nil, runtimeProblem: nil,
+                                                       userAuthorized: false, activeSessions: 0, stoppingConnections: []))
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TunnelMac-showcase-guide-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: root) }
+        guard let store = try? JSONStore(directory: root) else { return }
+        let model = AppModel(store: store, passwords: PasswordStore(service: "com.luiz.vpngui.showcase.password"), service: service)
+        let versions = ClientVersionChecker(transport: DisabledUpdateTransport())
+        func fake() {
+            versions.setForChecks(local: [.openfortivpn: .init(path: "/opt/homebrew/bin/openfortivpn", exists: true, version: "1.24.1", sourceChanged: false),
+                                          .openvpn: .init(path: "/opt/homebrew/sbin/openvpn", exists: true, version: "2.7.8", sourceChanged: false),
+                                          .wireguard: .init(path: "/opt/homebrew/bin/wireguard-go", exists: false, version: nil, sourceChanged: false)],
+                                  latest: [.openfortivpn: "1.24.1", .openvpn: "2.7.10", .wireguard: "0.0.20250522"])
+        }
+        fake()
+        let guide = ServiceOnboardingSheet(model: model, versions: versions, forcedStep: .clients,
+                                           chosen: [.openfortivpn, .openvpn, .wireguard]) { _ in }
+        let controller = NSHostingController(rootView: guide)
+        window.contentViewController?.presentAsSheet(controller)
+        await pause(0.8)
+        fake() // The guide reads this Mac's installations on appear.
+        await pause(1.0)
+        if let sheet = window.attachedSheet { capture([sheet, window], "onboarding-\(suffix)") }
+        window.contentViewController?.dismiss(controller)
+        await pause(0.8)
+    }
+
+    /// Configurações on the given tab. The Window scene opens only through SwiftUI's
+    /// openWindow, so the same view is hosted in a window of its own.
+    private func captureSettings(_ tab: SettingsTab, _ name: String, height: CGFloat) async {
+        demo.menuBar.preferences.internetDNSSelection = InternetDNSOption.cloudflare.id
+        demo.menuBar.settingsTab = tab
+        let settings = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 780, height: height),
+                                styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
+                                backing: .buffered, defer: false)
+        settings.isReleasedWhenClosed = false
+        settings.title = "Configurações"
+        settings.titlebarAppearsTransparent = true
+        settings.isOpaque = false
+        settings.backgroundColor = .clear
+        settings.contentViewController = NSHostingController(rootView: SettingsView(menuBar: demo.menuBar))
+        settings.setContentSize(NSSize(width: 780, height: height))
+        settings.center()
+        settings.makeKeyAndOrderFront(nil)
+        await pause(1.5)
+        capture([settings], name)
+        settings.orderOut(nil)
+        await pause(0.5)
     }
 
     private func select(_ name: String) { demo.menuBar.pendingSelection = demo.connection(name).id }

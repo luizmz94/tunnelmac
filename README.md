@@ -27,10 +27,15 @@
 
 ## Why TunnelMac
 
-- **Three protocols, one list.** [openfortivpn](https://github.com/adrienverge/openfortivpn) for Fortinet SSL VPN (password, SAML or client certificate), [OpenVPN](https://openvpn.net/community/) 2.7+ profiles and [WireGuard](https://www.wireguard.com) `.conf` files.
+- **Three protocols, one list.** Fortinet SSL VPN (password, SAML in the browser or
+  client certificate), OpenVPN 2.7+ profiles (`.ovpn` or Viscosity `.visc`) and
+  WireGuard `.conf` files.
 - **Several tunnels at once.** Each connection has its own session, timer and live log.
 - **Lives in the menu bar.** Close the window and your VPNs keep running.
-- **Secure by design.** Passwords and SAML sessions stay in Keychain. A small signed helper starts only the VPN clients you approved, and checks them before every connection.
+- **DNS that just works.** Internal names resolve through each VPN, everything else
+  keeps your DNS (or Cloudflare, Google, AdGuard), and it is restored when you disconnect.
+- **Secure by design.** Passwords and SAML sessions stay in Keychain. A small signed
+  helper starts only the VPN clients you approved, and checks them before every connection.
 - **Native.** SwiftUI and AppKit, Liquid Glass on macOS 26, light and dark mode.
 
 <p align="center">
@@ -43,22 +48,20 @@
 brew install --cask luizmz94/tunnelmac/tunnelmac
 ```
 
-Then install the clients you use:
+Open TunnelMac and the setup guide takes it from there: pick the VPN types you use, run
+the `brew` command it shows, allow the service in Login Items and approve each client
+once with an administrator account. After that, connecting never asks for a password.
 
-```sh
-brew install openfortivpn   # Fortinet
-brew install openvpn        # OpenVPN 2.7+
-brew install wireguard-go   # WireGuard
-```
-
-**First run:** open **Configurações… → Serviço privilegiado**, click **Ativar serviço**,
-allow TunnelMac in System Settings → General → Login Items, then approve each VPN client
-with an administrator account. You only do this once per macOS user.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/onboarding-dark.png">
+    <img src="docs/assets/onboarding-light.png" alt="Setup guide: choose the VPN types and install the clients" width="760">
+  </picture>
+</p>
 
 > [!NOTE]
 > TunnelMac is a release candidate on the way to 1.0. It runs on Apple Silicon and Intel
-> Macs; Homebrew picks the right build. On Intel, Homebrew no longer ships prebuilt
-> packages for every client, so `brew install` may compile them (OpenVPN takes a while).
+> Macs; Homebrew picks the right build. The interface is in Brazilian Portuguese.
 > See [Releases](https://github.com/luizmz94/tunnelmac/releases) for manual downloads
 > and checksums.
 
@@ -82,12 +85,19 @@ with an administrator account. You only do this once per macOS user.
     </td>
   </tr>
   <tr>
-    <td align="center" colspan="2">
+    <td align="center" width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/menubar-dark.png">
-        <img src="docs/assets/menubar-light.png" alt="Menu bar with all connections" width="360">
+        <img src="docs/assets/menubar-light.png" alt="Menu bar with all connections" width="300">
       </picture>
       <br><sub>Connect and disconnect anything from the menu bar</sub>
+    </td>
+    <td align="center" width="50%">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/backup-dark.png">
+        <img src="docs/assets/backup-light.png" alt="Encrypted backup export and import">
+      </picture>
+      <br><sub>Move every connection to another Mac in one encrypted file</sub>
     </td>
   </tr>
 </table>
@@ -102,12 +112,24 @@ with an administrator account. You only do this once per macOS user.
   WireGuard `PostUp`-style commands, are removed or refused, never silently weakened.
 - **Updates are announced, never installed for you.** Upgrade with
   `brew upgrade --cask luizmz94/tunnelmac/tunnelmac` after quitting with **Sair**.
-- **Moving to another Mac?** **Configurações… → Backup** exports every connection,
-  password and profile to one password-encrypted file, and imports it on the other Mac.
 - **Before uninstalling,** use **Configurações… → Serviço privilegiado → Remover serviço**.
 
-The [guide](docs/GUIDE.md) covers each protocol, where data is stored, updates, migration
-from OpenFortiDesk and removal.
+The [guide](docs/GUIDE.md) covers each protocol, where data is stored, backups, updates,
+migration from OpenFortiDesk and removal.
+
+## Built on
+
+TunnelMac is the interface. The tunnels are made by these open-source clients, installed
+from Homebrew. Thanks to their authors and contributors.
+
+| Protocol | Client | License |
+| --- | --- | --- |
+| Fortinet SSL VPN | [**openfortivpn**](https://github.com/adrienverge/openfortivpn) by Adrien Vergé and contributors | GPL-3.0 |
+| OpenVPN | [**OpenVPN**](https://github.com/OpenVPN/openvpn) by OpenVPN Inc. and contributors | GPL-2.0 |
+| WireGuard | [**wireguard-go**](https://git.zx2c4.com/wireguard-go) by Jason A. Donenfeld and the WireGuard contributors | MIT |
+
+None of them is bundled: each user installs and approves their own copy.
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has the details.
 
 ## Contributing
 
@@ -118,6 +140,6 @@ Security issues: see [SECURITY.md](SECURITY.md).
 
 ---
 
-<sub>MIT licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). TunnelMac (formerly
-OpenFortiDesk) is independent of, and not affiliated with, Fortinet, OpenVPN Inc., the
-WireGuard project or openfortivpn. No VPN executable or Homebrew library is bundled.</sub>
+<sub>MIT licensed. TunnelMac (formerly OpenFortiDesk) is independent of, and not affiliated
+with, Fortinet, OpenVPN Inc., the WireGuard project or openfortivpn. Fortinet, OpenVPN and
+WireGuard are trademarks of their respective owners.</sub>

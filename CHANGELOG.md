@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- README: the setup guide replaces the manual first-run steps, new screenshots of the
+  guide and of Backup, and a Built on section crediting openfortivpn, OpenVPN and
+  wireguard-go. docs/GUIDE.md describes the setup guide.
+- `scripts/showcase.sh --capture` also captures the setup guide (fictitious Homebrew
+  state) and Configurações › Backup.
+
+## 0.5.0-rc.5 — 2026-10-25
+
 - First launch: a setup guide in steps. Choose the VPN types you use (installed and
   outdated clients are detected, with the exact `brew install`/`brew upgrade` command
   and a Verificar button), activate the service, allow it in Login Items (System
@@ -32,7 +40,7 @@
   repeats and sequences) gates Exportar, and Gerar senha forte suggests a random
   macOS-style password (xxxxxx-xxxxxx-xxxxxx) with show/hide and Copiar.
 
-## 0.5.0-rc.4
+## 0.5.0-rc.4 — 2026-10-25
 
 - Intel Macs (x86_64) are supported: each release ships `TunnelMac-<version>-arm64.zip`
   and `TunnelMac-<version>-x86_64.zip`, and the Homebrew cask picks the right one. The
@@ -46,13 +54,13 @@
   runner only) and regenerates the README images with `--capture`.
 - CONTRIBUTING.md: local setup, project map and contribution workflow.
 
-## 0.5.0-rc.3
+## 0.5.0-rc.3 — 2026-10-25
 
 - WireGuard: a re-resolved endpoint moves only after its route outside the tunnel exists.
 - Automatic releases: a push to main that passes the checks is released (version picked
   or bumped by `scripts/next-version.py`) and the Homebrew tap is updated.
 
-## 0.5.0-rc.2
+## 0.5.0-rc.2 — 2026-10-25
 
 - Address parser, authentication, runtime consent, timeout and network recovery findings.
 - Runtime approval shows the source path and inspection warnings before asking for the
@@ -71,7 +79,7 @@
 - Share publication preflight and classify stable/prerelease from the version.
 - Preserve explicit DNS selections; new installations leave system DNS unchanged.
 
-## 0.5.0-rc.1
+## 0.5.0-rc.1 — 2026-10-24
 
 - **DNS da internet** (Configurações › Geral › Rede): 1.1.1.1 - Cloudflare (default),
   8.8.8.8 - Google, 94.140.14.14 - AdGuard, entries of your own (**Adicionar mais…**, a
@@ -128,7 +136,7 @@
   own steps, not its debug output.
 - Helper protocol 4: update the service after upgrading.
 
-## 0.4.0-rc.1 — unreleased
+## 0.4.0-rc.1 — 2026-10-24
 
 - Rename the product from OpenFortiDesk to **TunnelMac** (bundle `TunnelMac.app`,
   cask `tunnelmac`, repositories `luizmz94/tunnelmac` and

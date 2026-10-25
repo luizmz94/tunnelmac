@@ -31,11 +31,13 @@ dependencies from source. If a source build fails, run the same `brew install` a
 before reporting it. Approve the clients only after they are installed.
 
 Install the signed/notarized app in `/Applications/TunnelMac.app`. On first launch a
-short sheet asks to **Permitir em segundo plano**: it activates the service and opens
-System Settings → General → Login Items, where TunnelMac must be allowed in the
-background. Once macOS allows it, the app continues in Configurações… → Serviço
-privilegiado (also reachable from the shield button or **Gerenciar…**). Return to the app, review **Aprovar openfortivpn…** and
-approve with an administrator account. Each macOS user needs runtime approval.
+setup guide opens in five steps: **Escolher as VPNs** (installed and outdated clients
+are detected, with the exact `brew install`/`brew upgrade` command and a **Verificar**
+button), **Ativar o serviço**, **Permitir em segundo plano** (System Settings → General →
+Login Items opens from the guide's button), **Aprovar os clientes** with an
+administrator account, and **Pronto**. **Agora não** postpones it until the next launch;
+everything stays available in Configurações… → Serviço privilegiado (also reachable
+from the shield button or **Gerenciar…**). Each macOS user needs runtime approval.
 Root is needed for openfortivpn/pppd to configure tunnels, routes and DNS; the GUI
 always runs as a normal user. The runtime is copied to a protected root-owned
 location, inventoried and integrity-checked before every connection.

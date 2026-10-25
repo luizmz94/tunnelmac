@@ -3,6 +3,19 @@ TunnelMac release candidate: macOS 13+, Apple Silicon (arm64) and Intel (x86_64)
 TunnelMac is the new name of OpenFortiDesk: the app now handles Fortinet SSL VPN
 (openfortivpn), OpenVPN profiles and WireGuard configurations.
 
+Changes in 0.5.0-rc.5:
+- First launch opens a setup guide in steps: choose the VPN types you use (installed
+  and outdated clients are detected, with the exact brew command), activate the
+  service, allow it in Login Items, approve the clients, done.
+- Configurações › Backup: export every connection, password and OpenVPN/WireGuard
+  profile into one password-encrypted .tunnelmacbackup file (AES-256-GCM) and import
+  it on another Mac. The password must be strong; Gerar senha forte suggests one.
+- A connection whose approved client is older than Homebrew's latest shows how to
+  update it. The administrator prompt now says TunnelMac and names the client.
+- OpenVPN import accepts a .zip of a Viscosity .visc folder.
+- Your DNS is saved when the first VPN starts and checked after the last one ends.
+- macOS 13–15: the sidebar keeps its minimum width, so its buttons no longer hide.
+
 Changes in 0.5.0-rc.4:
 - Intel Macs: this release ships TunnelMac-0.5.0-rc.4-x86_64.zip next to the arm64
   archive, and the Homebrew cask installs the right one. The arm64 build is unchanged.
