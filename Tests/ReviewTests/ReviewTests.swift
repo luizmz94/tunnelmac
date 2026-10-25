@@ -157,7 +157,10 @@ final class ReviewTests: XCTestCase {
         _ = dns.acquire(token: "a", servers: ["9.9.9.9"])
         XCTAssertEqual(host.writes, 0)
         lock.withLock { owned = false }
-        Thread.sleep(forTimeInterval: 0.12)
+        // Waits for the monitor's first tick (bounded): slow CI runners can miss a fixed sleep.
+        let deadline = Date().addingTimeInterval(5)
+        while !dns.active, Date() < deadline { Thread.sleep(forTimeInterval: 0.02) }
+        XCTAssertTrue(dns.active, "Monitor did not apply the deferred DNS")
         _ = dns.release(token: "a") // Synchronizes with the timer before assertions.
         XCTAssertGreaterThanOrEqual(host.writes, 2)
     }
