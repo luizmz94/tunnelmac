@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Configurações → Backup: export every connection with its password and OpenVPN or
+  WireGuard profile, plus the app preferences, into one `.tunnelmacbackup` file
+  encrypted with a password (AES-256-GCM, PBKDF2-SHA256 600k), and import it on this or
+  another Mac. Import validates everything first, shows what will be added or replaced,
+  and keeps connections that are not in the backup. SAML sessions are not exported;
+  client certificates must already be in the other Mac's Keychain.
+
 ## 0.5.0-rc.4
 
 - Intel Macs (x86_64) are supported: each release ships `TunnelMac-<version>-arm64.zip`

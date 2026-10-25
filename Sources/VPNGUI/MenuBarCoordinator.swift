@@ -42,13 +42,14 @@ enum MenuBarRowAction: Equatable {
 /// or to the main window. It keeps no connection state of its own.
 /// Tabs of the Configurações window.
 enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
-    case general, updates, service, about
+    case general, updates, service, backup, about
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: return "Geral"
         case .updates: return "Atualizações"
         case .service: return "Serviço privilegiado"
+        case .backup: return "Backup"
         case .about: return "Sobre"
         }
     }
@@ -57,6 +58,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .general: return "Barra de menus, Dock e abertura ao iniciar sessão"
         case .updates: return "Verificação de novas versões no GitHub; a instalação é pelo Homebrew"
         case .service: return "O componente do sistema que inicia o openfortivpn, o OpenVPN e o WireGuard por você"
+        case .backup: return "Exporte as conexões para outro Mac ou guarde uma cópia, protegida por senha"
         case .about: return "Versão, licença e links do projeto"
         }
     }
@@ -65,6 +67,7 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .general: return "gearshape"
         case .updates: return "arrow.triangle.2.circlepath"
         case .service: return "lock.shield"
+        case .backup: return "archivebox"
         case .about: return "info.circle"
         }
     }

@@ -5,9 +5,13 @@ struct ConnectionSave {
     let store: JSONStore
     let passwords: PasswordStore
     let cookies: SAMLCookieStore
-    func run(current: SavedData, connection: Connection, password: String, openVPNProfile: String?, wireGuardProfile: String?) throws -> SavedData {
+    /// `requirePassword: false` (backup import) saves a cadastro whose password was not in the
+    /// backup; connecting then asks the user to edit it and type the password again.
+    func run(current: SavedData, connection: Connection, password: String, openVPNProfile: String?, wireGuardProfile: String?,
+             requirePassword: Bool = true) throws -> SavedData {
         let c = try connection.validated()
-        if c.usesPassword {
+        let storesPassword = c.usesPassword && (requirePassword || !password.isEmpty)
+        if storesPassword {
             guard !password.isEmpty else { throw AppFailure("Informe a senha da VPN.") }
             if c.isOpenVPN {
                 do { try OpenVPNRules.checkCredential(password, label: "Senha") }
@@ -33,7 +37,7 @@ struct ConnectionSave {
         if let index = updated.connections.firstIndex(where: { $0.id == c.id }) { updated.connections[index] = c }
         else { updated.connections.append(c) }
         try ConnectionTransaction(store: store, passwords: passwords, cookies: cookies).save(
-            connection: c, updated: updated, password: c.usesPassword ? password : nil,
+            connection: c, updated: updated, password: storesPassword ? password : nil,
             openVPN: openVPNProfile, wireGuard: wireGuardProfile)
         return updated
     }

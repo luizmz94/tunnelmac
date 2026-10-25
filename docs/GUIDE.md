@@ -124,10 +124,31 @@ explicit review and approval of the profile's trusted digest; TLS is not disable
 - **Atualizações:** update check options and how to update (see below).
 - **Serviço privilegiado:** why the service exists, its state, runtime approval and
   **Remover serviço** (formerly the Gerenciar… sheet).
+- **Backup:** export every connection to one `.tunnelmacbackup` file, and import it
+  on this or another Mac (see below).
 - **Sobre:** version, build, repository, release notes, license and notices.
 
 Preferences live in the app's own `UserDefaults` (`com.luiz.vpngui`); nothing
 sensitive is stored there.
+
+### Backup and moving to another Mac
+
+**Exportar…** writes the connections, their Keychain passwords, the OpenVPN and
+WireGuard profiles (private keys included) and, optionally, the app preferences
+(menu bar, Dock, update check and DNS da internet) into one file, encrypted with
+AES-256-GCM under a key derived from the password you choose (PBKDF2-HMAC-SHA256,
+600,000 iterations, random salt and nonce; the header is authenticated too). The
+password has at least 8 characters and cannot be recovered.
+
+**Importar…** asks for that password, validates every connection and profile with
+the same rules as a manual save and shows what will change before writing anything:
+connections from the backup are added, those with the same identifier (an earlier
+import or a restore on the same Mac) are replaced, and all others are kept.
+
+Not included: SAML sessions (temporary, bound to this Mac), the login item and update
+bookkeeping. A Fortinet client certificate travels only as a reference: import the
+identity into the other Mac's Keychain (Keychain Access → File → Import Items) and the
+connection uses it as before; the import summary lists any that are missing.
 
 ## Update check
 
