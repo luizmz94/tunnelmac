@@ -257,6 +257,14 @@ struct GeneralSettings: View {
     @ObservedObject var loginItem: LoginItemController
 
     var body: some View {
+        SettingsSection {
+            HStack(alignment: .center, spacing: 12) {
+                Text("Aparência")
+                Spacer(minLength: 12)
+                AppearancePicker(selection: $preferences.appearance)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+        }
         SettingsSection(title: "Aplicativo") {
             SettingsRow(symbol: "menubar.rectangle", color: .blue, title: "Ícone na barra de menus",
                         subtitle: "Para conectar rapidamente.") {
@@ -287,6 +295,89 @@ struct GeneralSettings: View {
             }
         }
         InternetDNSSection(preferences: preferences)
+    }
+}
+
+/// Light, Dark and Automatic as window thumbnails, like System Settings › Appearance.
+struct AppearancePicker: View {
+    @Binding var selection: AppAppearance
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(AppAppearance.allCases) { option in
+                Button { selection = option } label: {
+                    VStack(spacing: 5) {
+                        AppearanceThumbnail(option: option)
+                            .padding(2)
+                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(selection == option ? Color.accentColor : .clear, lineWidth: 2.5))
+                        Text(option.title).font(.caption)
+                            .fontWeight(selection == option ? .semibold : .regular)
+                            .foregroundStyle(selection == option ? .primary : .secondary)
+                            .fixedSize()
+                    }
+                    .frame(minWidth: 64)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option.title)
+                .accessibilityAddTraits(selection == option ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+    }
+}
+
+/// A tiny window: title bar, accent bar and traffic lights; Automatic is half light, half dark.
+struct AppearanceThumbnail: View {
+    let option: AppAppearance
+    private let size = CGSize(width: 56, height: 36)
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        Group {
+            switch option {
+            case .light: window(dark: false)
+            case .dark: window(dark: true)
+            case .automatic:
+                ZStack {
+                    window(dark: false)
+                    window(dark: true).mask(DiagonalHalf())
+                }
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipShape(shape)
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
+        .accessibilityHidden(true)
+    }
+
+    private func window(dark: Bool) -> some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(dark ? Color(white: 0.14) : Color(white: 0.97))
+            VStack(alignment: .leading, spacing: 4) {
+                RoundedRectangle(cornerRadius: 2).fill(Color.accentColor).frame(width: 30, height: 5)
+                RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(dark ? 0.5 : 0.3)).frame(width: 22, height: 4)
+                Spacer(minLength: 0)
+                HStack(spacing: 3) {
+                    Circle().fill(Color.red)
+                    Circle().fill(Color.yellow)
+                    Circle().fill(Color.green)
+                }
+                .frame(height: 5)
+            }
+            .padding(6)
+        }
+    }
+}
+
+/// Lower-right triangle, for the dark half of the Automatic thumbnail.
+private struct DiagonalHalf: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.maxX * 0.62, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.maxX * 0.38, y: rect.maxY))
+            path.closeSubpath()
+        }
     }
 }
 

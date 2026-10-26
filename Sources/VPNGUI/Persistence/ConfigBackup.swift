@@ -28,13 +28,15 @@ struct BackupPreferences: Codable, Equatable {
     var includePrereleases: Bool
     var internetDNSSelection: String
     var customInternetDNS: [InternetDNSOption]
+    /// Absent in older backups.
+    var appearance: String?
 }
 
 extension AppPreferences {
     var backup: BackupPreferences {
         BackupPreferences(showMenuBarIcon: showMenuBarIcon, hideDockOnClose: hideDockOnClose, checkForUpdates: checkForUpdates,
                           includePrereleases: includePrereleases, internetDNSSelection: internetDNSSelection,
-                          customInternetDNS: customInternetDNS)
+                          customInternetDNS: customInternetDNS, appearance: appearance.rawValue)
     }
     /// Custom DNS entries are checked with the same rules as typed ones; invalid ones are dropped.
     func restore(_ saved: BackupPreferences) {
@@ -42,6 +44,7 @@ extension AppPreferences {
         hideDockOnClose = saved.hideDockOnClose
         checkForUpdates = saved.checkForUpdates
         includePrereleases = saved.includePrereleases
+        if let saved = saved.appearance.flatMap(AppAppearance.init(rawValue:)) { appearance = saved }
         var custom: [InternetDNSOption] = []
         for option in saved.customInternetDNS where !custom.contains(where: { $0.id == option.id })
             && !InternetDNSOption.presets.contains(where: { $0.id == option.id }) && option.id != InternetDNSOption.offID {

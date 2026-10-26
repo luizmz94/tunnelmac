@@ -128,6 +128,8 @@ final class MenuBarCoordinator: ObservableObject {
         self.updates.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.installer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.loginItem.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
+        // Windows, sheets and the menu bar window all take the chosen appearance.
+        preferences.$appearance.sink { NSApp?.appearance = $0.nsAppearance }.store(in: &observers)
         // Turning the menu bar icon off must never leave the app without a Dock icon.
         preferences.$showMenuBarIcon.dropFirst().sink { [weak self] shown in
             if !shown { self?.setActivationPolicy(.regular) }
