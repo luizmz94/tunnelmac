@@ -44,7 +44,7 @@ struct SettingsSidebar: View {
                     Label {
                         Text(tab.title)
                     } icon: {
-                        SettingsIcon(symbol: tab.symbol, color: tab.tileColor, size: 20)
+                        SidebarIcon(symbol: tab.symbol, color: tab.tileColor)
                     }
                     Spacer(minLength: 4)
                     indicator(for: tab)
@@ -161,6 +161,10 @@ struct SettingsIcon: View {
             .frame(width: size, height: size)
             .background(shape.fill(tile(style)))
             .overlay(shape.strokeBorder(Color.white.opacity(style == .dark || style == .tintedDark ? 0.1 : 0), lineWidth: 0.5))
+            // Black tiles keep the bright (dark-mode) colors in a light window, and are flattened
+            // so the light sidebar's vibrancy does not dim the glyph.
+            .environment(\.colorScheme, style == .dark || style == .tintedDark ? .dark : scheme)
+            .compositingGroup()
             .accessibilityHidden(true)
     }
 
@@ -183,6 +187,32 @@ struct SettingsIcon: View {
         case .tinted: return AnyShapeStyle(Color.accentColor.gradient)
         case .clear: return AnyShapeStyle(Color.primary.opacity(0.08))
         }
+    }
+}
+
+/// SettingsIcon drawn into a bitmap for the sidebar. A source list dims and blends the
+/// vector content of its rows (more so in an inactive window); a picture, like System
+/// Settings' own icons, keeps its colors.
+struct SidebarIcon: View {
+    let symbol: String
+    let color: Color
+    var size: CGFloat = 20
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Group {
+            if let image = render() { Image(nsImage: image) } else { SettingsIcon(symbol: symbol, color: color, size: size) }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    @MainActor private func render() -> NSImage? {
+        let renderer = ImageRenderer(content: SettingsIcon(symbol: symbol, color: color, size: size)
+            .environment(\.colorScheme, scheme))
+        renderer.scale = displayScale
+        return renderer.nsImage
     }
 }
 
@@ -309,14 +339,14 @@ struct AppearancePicker: View {
                     VStack(spacing: 5) {
                         AppearanceThumbnail(option: option)
                             .padding(2)
-                            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
                                 .strokeBorder(selection == option ? Color.accentColor : .clear, lineWidth: 2.5))
                         Text(option.title).font(.caption)
                             .fontWeight(selection == option ? .semibold : .regular)
                             .foregroundStyle(selection == option ? .primary : .secondary)
                             .fixedSize()
                     }
-                    .frame(minWidth: 64)
+                    .frame(minWidth: 72)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(option.title)
@@ -329,11 +359,39 @@ struct AppearancePicker: View {
 /// A tiny window: title bar, accent bar and traffic lights; Automatic is half light, half dark.
 struct AppearanceThumbnail: View {
     let option: AppAppearance
-    private let size = CGSize(width: 56, height: 36)
+    private let size = CGSize(width: 67, height: 44)
+
+    /// The same pictures System Settings › Appearance shows, read from the system at run time
+    /// (nothing is copied into the app). The location is not public, so a drawing stands in
+    /// when they are missing.
+    private static let systemPane = Bundle(path: "/System/Library/ExtensionKit/Extensions/Appearance.appex")
+    private var systemImage: NSImage? {
+        let name: String
+        switch option {
+        case .light: name = "AppearanceLight"
+        case .dark: name = "AppearanceDark"
+        case .automatic: name = "AppearanceAuto"
+        }
+        return Self.systemPane?.image(forResource: name)
+    }
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
         Group {
+            if let systemImage {
+                Image(nsImage: systemImage).resizable().interpolation(.high)
+            } else {
+                drawing
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipShape(shape)
+        .accessibilityHidden(true)
+    }
+
+    private var drawing: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        return Group {
             switch option {
             case .light: window(dark: false)
             case .dark: window(dark: true)
@@ -344,10 +402,7 @@ struct AppearanceThumbnail: View {
                 }
             }
         }
-        .frame(width: size.width, height: size.height)
-        .clipShape(shape)
         .overlay(shape.strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
-        .accessibilityHidden(true)
     }
 
     private func window(dark: Bool) -> some View {
