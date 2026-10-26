@@ -43,6 +43,12 @@ extension VPNProtocol {
 struct ProtocolIcon: View {
     let kind: VPNProtocol
     var size: CGFloat = 28
+    @Environment(\.colorScheme) private var scheme
+    /// WireGuard's dark red disappears on dark surfaces; there it takes the brighter red
+    /// the TunnelMac brand uses on dark backgrounds.
+    private var color: Color {
+        kind == .wireguard && scheme == .dark ? Color(red: 0xE0 / 255, green: 0x52 / 255, blue: 0x4F / 255) : kind.brandColor
+    }
     var body: some View {
         Group {
             if let image = ProtocolIcons.image(kind) {
@@ -52,7 +58,7 @@ struct ProtocolIcon: View {
             }
         }
         .aspectRatio(contentMode: .fit)
-        .foregroundStyle(kind.brandColor)
+        .foregroundStyle(color)
         .frame(width: size, height: size)
         .accessibilityHidden(true)
     }
