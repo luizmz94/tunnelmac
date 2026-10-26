@@ -311,9 +311,7 @@ struct ConnectionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            StatusSymbol(symbol: session.state.symbol, tone: session.state.tone,
-                         pulsing: session.state.inProgress, size: 14)
-            ProtocolIcon(kind: connection.kind, size: 18)
+            ProtocolTile(kind: connection.kind, state: session.state)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name).font(.body.weight(.medium)).lineLimit(1).truncationMode(.tail)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
