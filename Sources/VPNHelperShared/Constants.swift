@@ -10,8 +10,8 @@ public enum HelperConstants {
     public static let plistName = "com.luiz.vpngui.helper.plist"
     /// Single source of the product version; scripts/build.sh writes it into Info.plist.
     public static let version = "0.5.0"
-    public static let releaseVersion = "0.5.0-rc.6"
-    public static let build = "30"
+    public static let releaseVersion = "0.5.0-rc.7"
+    public static let build = "31"
     public static var fullVersion: String { "\(version) (\(build))" }
     /// Bumped whenever a request, response or event changes shape or meaning.
     public static let protocolVersion = 7
