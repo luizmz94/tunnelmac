@@ -156,31 +156,32 @@ struct SettingsIcon: View {
         let shape = RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
         let style = IconStyle.current(dark: scheme == .dark)
         Image(systemName: symbol)
-            .font(.system(size: size * (style == .regular ? 0.5 : 0.54), weight: .medium))
+            .font(.system(size: size * (style == .dark ? 0.54 : 0.5), weight: .semibold))
             .foregroundStyle(glyph(style))
             .frame(width: size, height: size)
             .background(shape.fill(tile(style)))
-            .overlay(shape.strokeBorder(Color.white.opacity(style == .regular ? 0 : 0.09), lineWidth: 0.5))
+            .overlay(shape.strokeBorder(Color.white.opacity(style == .dark || style == .tintedDark ? 0.1 : 0), lineWidth: 0.5))
             .accessibilityHidden(true)
     }
 
     private func glyph(_ style: IconStyle) -> AnyShapeStyle {
         switch style {
-        case .regular: return AnyShapeStyle(Color.white)
-        case .dark: return AnyShapeStyle(color)
+        case .regular, .tinted: return AnyShapeStyle(Color.white)
+        // Neutral tabs read as light gray on black, like System Settings › General.
+        case .dark: return AnyShapeStyle(color == .gray ? Color(white: 0.82) : color)
+        case .tintedDark: return AnyShapeStyle(Color.accentColor)
         case .clear: return AnyShapeStyle(Color.primary.opacity(0.85))
-        case .tinted: return AnyShapeStyle(Color.accentColor)
         }
     }
 
     private func tile(_ style: IconStyle) -> AnyShapeStyle {
         switch style {
         case .regular: return AnyShapeStyle(color.gradient)
-        // Near-black, darker than the sidebar, like System Settings' dark icons.
-        case .dark: return AnyShapeStyle(LinearGradient(colors: [Color(white: 0.17), Color(white: 0.09)],
-                                                        startPoint: .top, endPoint: .bottom))
+        // Almost black in either appearance, so the colored glyph stands out.
+        case .dark, .tintedDark: return AnyShapeStyle(LinearGradient(colors: [Color(white: 0.14), Color(white: 0.02)],
+                                                                     startPoint: .top, endPoint: .bottom))
+        case .tinted: return AnyShapeStyle(Color.accentColor.gradient)
         case .clear: return AnyShapeStyle(Color.primary.opacity(0.08))
-        case .tinted: return AnyShapeStyle(Color.accentColor.opacity(0.16))
         }
     }
 }
@@ -188,13 +189,13 @@ struct SettingsIcon: View {
 /// The icon style from System Settings › Appearance (macOS 26+). The key is not documented;
 /// anything unknown falls back to the default, colored tiles.
 enum IconStyle {
-    case regular, dark, clear, tinted
+    case regular, dark, clear, tinted, tintedDark
     static func current(dark: Bool, defaults: UserDefaults = .standard) -> IconStyle {
         guard let theme = defaults.string(forKey: "AppleIconAppearanceTheme") else { return .regular }
         // "Automatic" variants follow the light/dark appearance.
         let darkVariant = theme.hasSuffix("Dark") || (theme.hasSuffix("Automatic") && dark)
         if theme.hasPrefix("Clear") { return .clear }
-        if theme.hasPrefix("Tinted") { return .tinted }
+        if theme.hasPrefix("Tinted") { return darkVariant ? .tintedDark : .tinted }
         return darkVariant ? .dark : .regular
     }
 }
