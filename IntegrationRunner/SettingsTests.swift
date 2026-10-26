@@ -507,7 +507,7 @@ enum SettingsTests {
             menuBar.installUpdate()
             try require(menuBar.settingsTab == .updates && !menuBar.installer.available, "Atualizar sem Sparkle não mostrou como atualizar")
             window.orderOut(nil)
-            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape", "arrow.triangle.2.circlepath", "lock.shield", "archivebox", "info.circle"], "Ícones das abas")
+            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape.fill", "arrow.triangle.2.circlepath", "lock.shield.fill", "archivebox.fill", "info"], "Ícones das abas")
             for symbol in SettingsTab.allCases.map(\.symbol) + ["menubar.rectangle", "dock.rectangle", "power", "rectangle.portrait.and.arrow.right",
                            "shippingbox", "clock.arrow.circlepath", "testtube.2", "wifi.exclamationmark", "checkmark.circle", "arrow.up.right.square",
                            "doc.on.doc", "terminal", "arrow.down.circle", "chevron.left.forwardslash.chevron.right", "doc.text", "checkmark.seal",

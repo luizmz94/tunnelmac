@@ -71,13 +71,22 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .about: return "Versão, licença e links do projeto"
         }
     }
+    /// Glyph and color of the tab's tile in the sidebar, as in System Settings.
     var symbol: String {
         switch self {
-        case .general: return "gearshape"
+        case .general: return "gearshape.fill"
         case .updates: return "arrow.triangle.2.circlepath"
-        case .service: return "lock.shield"
-        case .backup: return "archivebox"
-        case .about: return "info.circle"
+        case .service: return "lock.shield.fill"
+        case .backup: return "archivebox.fill"
+        case .about: return "info"
+        }
+    }
+    var tileColor: Color {
+        switch self {
+        case .general, .about: return .gray
+        case .updates: return .blue
+        case .service: return .green
+        case .backup: return .orange
         }
     }
 }

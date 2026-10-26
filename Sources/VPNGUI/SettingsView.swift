@@ -41,7 +41,11 @@ struct SettingsSidebar: View {
         List(selection: Binding<SettingsTab?>(get: { menuBar.settingsTab }, set: { if let tab = $0 { menuBar.settingsTab = tab } })) {
             ForEach(SettingsTab.allCases) { tab in
                 HStack(spacing: 8) {
-                    Label(tab.title, systemImage: tab.symbol)
+                    Label {
+                        Text(tab.title)
+                    } icon: {
+                        SettingsIcon(symbol: tab.symbol, color: tab.tileColor, size: 22)
+                    }
                     Spacer(minLength: 4)
                     indicator(for: tab)
                 }
@@ -49,6 +53,7 @@ struct SettingsSidebar: View {
             }
         }
         .listStyle(.sidebar)
+        .settingsWithoutSidebarToggle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             Text("Versão \(HelperConstants.releaseVersion) (build \(HelperConstants.build))")
                 .font(.caption).foregroundStyle(.secondary)
@@ -88,10 +93,8 @@ struct SettingsDetail: View {
         let tab = menuBar.settingsTab
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tab.title).font(.largeTitle.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                    Text(tab.subtitle).font(.callout).foregroundStyle(.secondary)
-                }
+                // The tab's name is the window title; here only what it is for.
+                Text(tab.subtitle).font(.callout).foregroundStyle(.secondary)
                 switch tab {
                 case .general: GeneralSettings(menuBar: menuBar, preferences: menuBar.preferences, loginItem: menuBar.loginItem)
                 case .updates: UpdateSettings(updates: menuBar.updates, installer: menuBar.installer,
@@ -105,7 +108,8 @@ struct SettingsDetail: View {
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .contentBackground()
+        // Opaque on every version: the scrolling pane has no backdrop of its own.
+        .background(Color(nsColor: .windowBackgroundColor))
         .id(tab) // Each tab starts at the top.
     }
 }
@@ -192,6 +196,13 @@ struct SettingsRow<Control: View>: View {
 extension SettingsRow where Control == EmptyView {
     init(symbol: String, color: Color, title: String, subtitle: String? = nil, note: String? = nil) {
         self.init(symbol: symbol, color: color, title: title, subtitle: subtitle, note: note) { EmptyView() }
+    }
+}
+
+private extension View {
+    /// The tabs are the whole navigation; hiding them would leave the window without it.
+    @ViewBuilder func settingsWithoutSidebarToggle() -> some View {
+        if #available(macOS 14.0, *) { toolbar(removing: .sidebarToggle) } else { self }
     }
 }
 

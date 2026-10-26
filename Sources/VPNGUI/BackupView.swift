@@ -43,7 +43,7 @@ struct BackupSettings: View {
     static let footer = "Criptografado com AES-256-GCM e uma chave derivada de uma senha forte (PBKDF2-SHA256, 600 mil iterações). Sem a senha não há como abrir o arquivo. Sessões SAML não são incluídas; certificados do cliente precisam estar no Keychain do outro Mac."
 
     var body: some View {
-        SettingsSection(title: "Backup", footer: Self.footer) {
+        SettingsSection(footer: Self.footer) {
             SettingsRow(symbol: "square.and.arrow.up", color: .blue, title: "Exportar configurações",
                         subtitle: "Conexões, senhas, perfis OpenVPN e WireGuard e as preferências do app, num arquivo protegido por senha.") {
                 Button("Exportar…") { notice = nil; exporting = true }
