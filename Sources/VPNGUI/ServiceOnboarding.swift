@@ -478,7 +478,7 @@ private struct LoginItemsMock: View {
             }
         }
         .padding(14)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.primary.opacity(0.04)))
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.04)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Ligue o TunnelMac em Permitir em segundo plano")
     }

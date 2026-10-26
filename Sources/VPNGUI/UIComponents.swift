@@ -202,7 +202,7 @@ struct InlineNotice<Actions: View>: View {
     @ViewBuilder var actions: Actions
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.hierarchical)
@@ -275,9 +275,18 @@ struct SheetHeader: View {
     let tone: StatusTone
     let title: String
     var subtitle: String?
+    /// Shown instead of the symbol: the protocol the sheet is about, or the app itself.
+    var kind: VPNProtocol?
+    var brand = false
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            StatusBadge(symbol: symbol, tone: tone, diameter: 40)
+            if let kind {
+                ProtocolTile(kind: kind, state: .disconnected, size: 40)
+            } else if brand {
+                BrandSymbol(size: 40)
+            } else {
+                StatusBadge(symbol: symbol, tone: tone, diameter: 40)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
@@ -298,7 +307,9 @@ struct SheetFooter<Content: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             Divider()
+            // Secondary buttons get the same glass as the prominent one (which keeps its own style).
             HStack(spacing: 10) { content }
+                .adaptiveButtonStyle()
                 .padding(.horizontal, 20).padding(.vertical, 14)
         }
         .background(Color(nsColor: .windowBackgroundColor))

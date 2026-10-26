@@ -105,7 +105,7 @@ struct ConnectionEditor: View {
 
     private var kindChooser: some View {
         VStack(spacing: 0) {
-            SheetHeader(symbol: "plus.circle", tone: .neutral, title: "Nova conexão", subtitle: "Escolha o tipo de VPN")
+            SheetHeader(symbol: "plus.circle", tone: .neutral, title: "Nova conexão", subtitle: "Escolha o tipo de VPN", brand: true)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(spacing: 12) {
                 ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
@@ -146,7 +146,7 @@ struct ConnectionEditor: View {
         let kind = connection.kind
         let wireGuard = kind == .wireguard
         return VStack(spacing: 0) {
-            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: "Importar perfil \(kind.title)", subtitle: kind.title)
+            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: "Importar perfil \(kind.title)", subtitle: kind.title, kind: kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 10) {
@@ -158,9 +158,9 @@ struct ConnectionEditor: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 22)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(kind.brandColor.opacity(dropTargeted ? 0.14 : 0.05)))
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(style: StrokeStyle(lineWidth: dropTargeted ? 2 : 1, dash: [6, 4]))
                     .foregroundStyle(dropTargeted ? kind.brandColor : Color.secondary.opacity(0.5)))
                 .onDrop(of: [UTType.fileURL], isTargeted: $dropTargeted) { providers in
@@ -293,7 +293,8 @@ struct ConnectionEditor: View {
         VStack(spacing: 0) {
             SheetHeader(symbol: connection.usesProfile ? "doc.badge.gearshape" : "network.badge.shield.half.filled", tone: .neutral,
                         title: isNew ? (connection.usesProfile ? "Importar perfil \(connection.kind.title)" : "Nova conexão") : "Editar conexão",
-                        subtitle: isNew ? connection.kind.title : "\(connection.name) · \(connection.kind.title)")
+                        subtitle: isNew ? connection.kind.title : "\(connection.name) · \(connection.kind.title)",
+                        kind: connection.kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             Form {
                 switch connection.kind {
@@ -654,9 +655,9 @@ struct ProtocolCard: View {
             }
             .padding(16)
             .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .strokeBorder(hovering ? kind.brandColor.opacity(0.7) : Color(nsColor: .separatorColor), lineWidth: hovering ? 1.5 : 0.5))
         }
         .buttonStyle(.plain)
