@@ -758,13 +758,13 @@ struct AboutSettings: View {
         }
         SettingsSection(title: "Dependências") {
             SettingsRow(symbol: "terminal", color: .gray, title: "openfortivpn",
-                        subtitle: "Para Fortinet SSL VPN. Dependência externa, instalada pelo Homebrew e mantida pelo próprio projeto. Não é distribuída com o TunnelMac.")
+                        subtitle: "Para Fortinet SSL VPN.")
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "OpenVPN 2.7+",
-                        subtitle: "Para perfis OpenVPN (brew install openvpn). Dependência externa, não distribuída com o TunnelMac.")
+                        subtitle: "Para perfis OpenVPN.")
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "wireguard-go",
-                        subtitle: "Para perfis WireGuard (brew install wireguard-go). Dependência externa, não distribuída com o TunnelMac; o wg-quick não é usado.")
+                        subtitle: "Para perfis WireGuard.")
         }
     }
 

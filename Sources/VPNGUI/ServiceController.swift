@@ -76,15 +76,15 @@ final class ServiceController: ObservableObject, SessionTransport {
             switch self {
             case .checking: return "Consultando o registro e o serviço privilegiado."
             case .unsigned(let reason): return reason + " Veja o guia de ativação no README."
-            case .notRegistered: return "Use Ativar serviço. O macOS pedirá a aprovação do item em Ajustes do Sistema › Geral › Itens de Início."
-            case .requiresApproval: return "Habilite TunnelMac em Ajustes do Sistema › Geral › Itens de Início › Permitir em segundo plano e volte ao app."
+            case .notRegistered: return "Use Ativar serviço e aprove em Ajustes do Sistema › Itens de Início."
+            case .requiresApproval: return "Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano."
             case .notFound: return "O bundle não contém o LaunchDaemon esperado. Use o app gerado por scripts/build.sh."
             case .unresponsive(let reason): return "O serviço está habilitado, mas o handshake autenticado falhou: \(reason)"
             case .incompatible(let reason): return reason
             case .outdated(let version): return "O serviço registrado é \(version); este app é \(HelperConstants.fullVersion). Use Atualizar serviço (desconecta antes)."
-            case .runtimeMissing(let reason): return reason + " Aprove o cliente VPN que você usa (openfortivpn, OpenVPN ou WireGuard); requer administrador."
-            case .userNotAuthorized: return "Um administrador precisa autorizar este usuário do macOS: aprove um cliente VPN (openfortivpn, OpenVPN ou WireGuard)."
-            case .ready: return "Conectar não pede senha de administrador enquanto o serviço estiver habilitado e íntegro."
+            case .runtimeMissing(let reason): return reason + " Aprove o cliente VPN que você usa."
+            case .userNotAuthorized: return "Aprove um cliente VPN (pede senha de administrador)."
+            case .ready: return "Conectar não pede senha de administrador."
             }
         }
         var symbol: String {
@@ -244,7 +244,7 @@ final class ServiceController: ObservableObject, SessionTransport {
             refresh()
             return
         }
-        let approval = "Serviço registrado. Em Ajustes do Sistema › Geral › Itens de Início, ative TunnelMac em Permitir em segundo plano e volte ao app."
+        let approval = "Serviço registrado. Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano."
         do {
             try registrar.register()
             message = registrar.status == .requiresApproval ? approval : "Serviço registrado."

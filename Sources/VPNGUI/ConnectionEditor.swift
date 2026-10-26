@@ -8,7 +8,7 @@ enum OpenVPNImportPanel {
     @MainActor static func choose() -> [URL]? {
         let panel = NSOpenPanel()
         panel.title = "Importar perfil OpenVPN"
-        panel.message = "Escolha o .ovpn (ou .conf), uma pasta .visc ou o .zip dela, ou o .ovpn junto com os certificados (⌘-clique para selecionar vários). Os originais não são alterados."
+        panel.message = "Escolha o .ovpn, a pasta .visc (ou o .zip) ou o .ovpn com os certificados (⌘-clique)."
         panel.prompt = "Importar"
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
@@ -23,7 +23,7 @@ enum WireGuardImportPanel {
     @MainActor static func choose() -> [URL]? {
         let panel = NSOpenPanel()
         panel.title = "Importar perfil WireGuard"
-        panel.message = "Escolha o arquivo .conf do WireGuard. O original não é alterado; comandos PostUp/PreDown nunca são executados."
+        panel.message = "Escolha o arquivo .conf do WireGuard."
         panel.prompt = "Importar"
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -58,6 +58,9 @@ struct ConnectionEditor: View {
     @State var pendingWireGuard: WireGuardImport?
     var saved: () -> Void
     @State private var password = ""
+    /// Typed in this sheet (as opposed to read from the Keychain); never cleared behind the user's back.
+    @State private var passwordTyped = false
+    @State private var revealPassword = false
     /// Fortinet gateway as typed: host, host:port or host:port/realm.
     @State private var gatewayText = ""
     @State private var error: String?
@@ -125,7 +128,7 @@ struct ConnectionEditor: View {
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
-        .frame(width: 560, height: 520)
+        .sheetFrame(width: 560, height: 520)
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {
@@ -146,7 +149,7 @@ struct ConnectionEditor: View {
         let kind = connection.kind
         let wireGuard = kind == .wireguard
         return VStack(spacing: 0) {
-            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: "Importar perfil \(kind.title)", subtitle: kind.title, kind: kind)
+            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: "Importar perfil \(kind.title)", kind: kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 10) {
@@ -169,19 +172,14 @@ struct ConnectionEditor: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Aceita").font(.callout.weight(.semibold))
                     if wireGuard {
-                        Label("O .conf exportado pelo servidor WireGuard (o mesmo do wg-quick)", systemImage: "doc.text")
-                        Label("Um [Interface] com PrivateKey e Address, e um ou mais [Peer]", systemImage: "point.3.connected.trianglepath.dotted")
+                        Label("O .conf do servidor ou do app WireGuard", systemImage: "doc.text")
                     } else {
-                        Label("Um .ovpn ou .conf com os certificados embutidos", systemImage: "doc.text")
+                        Label("Um .ovpn ou .conf", systemImage: "doc.text")
                         Label("Uma pasta .visc do Viscosity, ou o .zip dela", systemImage: "folder")
-                        Label("O .ovpn junto com ca, cert, key e ta, selecionados de uma vez", systemImage: "doc.on.doc")
+                        Label("O .ovpn com os certificados, selecionados juntos", systemImage: "doc.on.doc")
                     }
                 }
                 .font(.callout)
-                Text(wireGuard
-                     ? "A chave privada é copiada para um perfil privado do app, que só o seu usuário do macOS lê. Comandos PostUp/PreDown do arquivo nunca são executados. O original não é alterado e pode ser apagado depois."
-                     : "Certificados e chaves são copiados para um perfil privado do app, que só o seu usuário do macOS lê. Os arquivos originais não são alterados e podem ser apagados depois.")
-                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 22).padding(.vertical, 14)
             if let error {
@@ -195,7 +193,7 @@ struct ConnectionEditor: View {
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
-        .frame(width: 560, height: 560)
+        .sheetFrame(width: 560, height: 560)
     }
 
     private func receive(_ providers: [NSItemProvider]) {
@@ -274,8 +272,8 @@ struct ConnectionEditor: View {
     private var cleanupMessage: String {
         guard let cleanup else { return "" }
         let intro = cleanup.holdsPrivateKey
-            ? "O perfil e a chave privada já estão guardados na pasta privada do app, que só o seu usuário lê. O original não é mais necessário e, enquanto existir, a chave privada fica nele:\n\n"
-            : "O perfil, os certificados e as chaves já estão guardados na pasta privada do app, que só o seu usuário lê. Os originais não são mais necessários:\n\n"
+            ? "O app já guardou o perfil. O original não é mais necessário e ainda contém a chave privada:\n\n"
+            : "O app já guardou o perfil e as chaves. Os originais não são mais necessários:\n\n"
         return intro + cleanup.names.joined(separator: "\n") + "\n\nEles vão para a Lixeira; esvazie-a para apagá-los de vez."
     }
 
@@ -293,7 +291,7 @@ struct ConnectionEditor: View {
         VStack(spacing: 0) {
             SheetHeader(symbol: connection.usesProfile ? "doc.badge.gearshape" : "network.badge.shield.half.filled", tone: .neutral,
                         title: isNew ? (connection.usesProfile ? "Importar perfil \(connection.kind.title)" : "Nova conexão") : "Editar conexão",
-                        subtitle: isNew ? connection.kind.title : "\(connection.name) · \(connection.kind.title)",
+                        subtitle: isNew ? (connection.usesProfile ? nil : connection.kind.title) : "\(connection.name) · \(connection.kind.title)",
                         kind: connection.kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             Form {
@@ -319,7 +317,7 @@ struct ConnectionEditor: View {
                     .disabled(!loaded || model.writing || !model.ready)
             }
         }
-        .frame(width: 560, height: connection.usesProfile ? 640 : 600)
+        .sheetFrame(width: 560, height: connection.usesProfile ? 640 : 600)
         .animation(Motion.state(reduceMotion), value: error)
         .onAppear {
             gatewayText = GatewayAddress.display(host: connection.server, port: connection.port, realm: connection.realm)
@@ -355,8 +353,30 @@ struct ConnectionEditor: View {
         }
         .onDisappear { importGeneration += 1 }
         .onChange(of: connection.username) { _ in
-            // A password belongs to an account; never reuse it silently for a different user.
-            if loaded { password = "" }
+            // A saved password belongs to its account: changing the user drops it. One typed in
+            // this sheet stays, whatever order the fields were filled in.
+            if loaded && !passwordTyped { password = "" }
+        }
+    }
+
+    /// Password with the eye button to show it, as in the macOS password fields.
+    private var passwordRow: some View {
+        let typed = Binding(get: { password }, set: { password = $0; passwordTyped = true })
+        return LabeledContent("Senha") {
+            HStack(spacing: 6) {
+                Group {
+                    if revealPassword { TextField("Senha", text: typed) } else { SecureField("Senha", text: typed) }
+                }
+                .labelsHidden()
+                .multilineTextAlignment(.trailing)
+                .focused($focus, equals: .password)
+                Button { revealPassword.toggle() } label: {
+                    Image(systemName: revealPassword ? "eye.slash" : "eye").foregroundStyle(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help(revealPassword ? "Ocultar senha" : "Mostrar senha")
+                .accessibilityLabel(revealPassword ? "Ocultar senha" : "Mostrar senha")
+            }
         }
     }
 
@@ -368,7 +388,7 @@ struct ConnectionEditor: View {
                 .focused($focus, equals: .name)
             TextField("Servidor", text: $gatewayText, prompt: Text("vpn.exemplo.com:10443"))
                 .focused($focus, equals: .server)
-                .help("Como no FortiClient: vpn.exemplo.com, vpn.exemplo.com:10443 ou vpn.exemplo.com:443/realm. Sem porta, usa 443.")
+                .help("vpn.exemplo.com, vpn.exemplo.com:10443 ou vpn.exemplo.com:443/realm")
         }
         Section {
             Picker("Método", selection: $connection.authentication) {
@@ -376,12 +396,9 @@ struct ConnectionEditor: View {
             }
             .pickerStyle(.segmented)
             TextField("Usuário", text: $connection.username,
-                      prompt: Text(connection.authentication == .password ? "nome.sobrenome" : "Opcional"))
+                      prompt: Text(connection.authentication == .password ? "usuário" : "Opcional"))
                 .focused($focus, equals: .username)
-            if connection.authentication == .password {
-                SecureField("Senha", text: $password)
-                    .focused($focus, equals: .password)
-            }
+            if connection.authentication == .password { passwordRow }
         } header: {
             Text("Autenticação")
         }
@@ -403,9 +420,6 @@ struct ConnectionEditor: View {
             }
         } header: {
             Text("Certificado")
-        } footer: {
-            Text("Use o certificado do cliente quando o gateway pedir um (no FortiClient, \"Certificado do Cliente\"). Ele fica no Keychain; a cada conexão o macOS pode pedir para o TunnelMac usar a chave.")
-                .font(.caption).foregroundStyle(.secondary)
         }
         .task { identities = await Task.detached { ClientIdentities.list() }.value }
     }
@@ -429,14 +443,14 @@ struct ConnectionEditor: View {
     private func importCertificate() {
         let panel = NSOpenPanel()
         panel.title = "Importar certificado do cliente"
-        panel.message = "Escolha o arquivo .p12 ou .pfx com o certificado e a chave. Ele será guardado no Keychain de login; o original não é alterado."
+        panel.message = "Escolha o arquivo .p12 ou .pfx."
         panel.prompt = "Continuar"
         panel.allowedContentTypes = [.pkcs12]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let alert = NSAlert()
         alert.messageText = "Senha do certificado"
-        alert.informativeText = "Digite a senha de \(url.lastPathComponent). Ela é usada só para importar o certificado e não é guardada."
+        alert.informativeText = "Digite a senha de \(url.lastPathComponent)."
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         alert.accessoryView = field
         alert.addButton(withTitle: "Importar")
@@ -495,8 +509,9 @@ struct ConnectionEditor: View {
                 }
             }
             HStack {
-                Text(pendingWireGuard != nil && !isNew ? "O novo perfil substituirá o atual ao salvar." : "A chave privada fica numa cópia privada do app.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if pendingWireGuard != nil && !isNew {
+                    Text("O novo perfil substitui o atual ao salvar.").font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Substituir perfil…") { replaceProfile() }.controlSize(.small)
             }
@@ -534,23 +549,20 @@ struct ConnectionEditor: View {
                 }
             }
             HStack {
-                Text(pendingImport != nil && !isNew ? "O novo perfil substituirá o atual ao salvar." : "Certificados e chaves ficam numa cópia privada do app.")
-                    .font(.caption).foregroundStyle(.secondary)
+                if pendingImport != nil && !isNew {
+                    Text("O novo perfil substitui o atual ao salvar.").font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
                 Button("Substituir perfil…") { replaceProfile() }.controlSize(.small)
             }
         }
         if summary?.requiresCredentials == true {
             Section {
-                TextField("Usuário", text: $connection.username, prompt: Text("nome.sobrenome"))
+                TextField("Usuário", text: $connection.username, prompt: Text("usuário"))
                     .focused($focus, equals: .username)
-                SecureField("Senha", text: $password)
-                    .focused($focus, equals: .password)
+                passwordRow
             } header: {
                 Text("Autenticação")
-            } footer: {
-                Text("A senha fica no Keychain, nunca em arquivo.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         if let fix = currentFix {
@@ -558,7 +570,7 @@ struct ConnectionEditor: View {
                 Toggle(isOn: $applyDigestFix) {
                     VStack(alignment: .leading, spacing: 3) {
                         Text("Usar auth \(fix.to) em vez de \(fix.from)")
-                        Text("O perfil original declara auth \(fix.from), um nome de assinatura que o OpenVPN 2.7 recusa (“Message hash algorithm not found”). \(fix.to) é o algoritmo HMAC equivalente e precisa ser o mesmo configurado no servidor. A troca vale só para a cópia do app; o arquivo original não muda. Desligue para voltar ao valor original.")
+                        Text("O OpenVPN 2.7 recusa auth \(fix.from); \(fix.to) é o equivalente e precisa ser igual ao do servidor.")
                             .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     }
                 }

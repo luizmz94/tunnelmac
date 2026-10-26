@@ -301,6 +301,33 @@ struct SheetHeader: View {
     }
 }
 
+/// Room a sheet has inside the window it slides out of; the main window publishes it.
+private struct SheetHeightLimitKey: EnvironmentKey { static let defaultValue = CGFloat.infinity }
+extension EnvironmentValues {
+    var sheetHeightLimit: CGFloat {
+        get { self[SheetHeightLimitKey.self] }
+        set { self[SheetHeightLimitKey.self] = newValue }
+    }
+}
+
+/// Sheet size with a preferred height that shrinks to fit the window (forms scroll and the
+/// footer stays visible), so a small window never hides the sheet's buttons.
+private struct SheetFrame: ViewModifier {
+    let width: CGFloat
+    let height: CGFloat
+    let minimum: CGFloat
+    @Environment(\.sheetHeightLimit) private var limit
+    func body(content: Content) -> some View {
+        content.frame(width: width, height: max(minimum, min(height, limit)))
+    }
+}
+
+extension View {
+    func sheetFrame(width: CGFloat, height: CGFloat, minimum: CGFloat = 360) -> some View {
+        modifier(SheetFrame(width: width, height: height, minimum: minimum))
+    }
+}
+
 /// Fixed footer bar of a sheet, on top of a hairline.
 struct SheetFooter<Content: View>: View {
     @ViewBuilder var content: Content

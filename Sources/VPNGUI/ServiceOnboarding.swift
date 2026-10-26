@@ -117,7 +117,7 @@ struct ServiceOnboardingSheet: View {
                 SheetFooter { footer }
             }
         }
-        .frame(width: 760, height: 540)
+        .sheetFrame(width: 760, height: 540, minimum: 480)
         .onAppear {
             versions.refresh(status: service.status)
             follow(service.health)
@@ -249,15 +249,15 @@ struct ServiceOnboardingSheet: View {
     private var lead: String {
         switch step {
         case .clients:
-            return "O TunnelMac conecta usando os clientes abertos de cada tipo de VPN, instalados pelo Homebrew. Marque os que você precisa; dá para mudar depois."
+            return "Marque os que você usa. Eles são instalados pelo Homebrew."
         case .activate:
-            return "Para criar a VPN e ajustar rotas e DNS, o TunnelMac usa um pequeno serviço do sistema. Você o ativa uma vez só."
+            return "Um serviço do sistema cria a VPN sem pedir sua senha. Ative uma vez só."
         case .allow:
-            return "O macOS pede que você ligue o TunnelMac em Permitir em segundo plano. Clique em Abrir Ajustes do Sistema, ligue a chave como abaixo e volte: esta janela continua sozinha."
+            return "Ligue o TunnelMac em Permitir em segundo plano e volte. Esta janela continua sozinha."
         case .approve:
-            return "O serviço só executa cópias dos clientes que você aprovou. O macOS pede a senha de administrador uma vez para cada um."
+            return "O macOS pede a senha de administrador uma vez para cada cliente."
         case .done:
-            return "O serviço está ativo e conectar não pede mais senha de administrador. Adicione sua primeira conexão ou importe um perfil."
+            return "Conectar não pede mais senha. Adicione sua primeira conexão."
         }
     }
 

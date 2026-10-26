@@ -15,6 +15,8 @@ struct MainView: View {
     @State private var rowHeight: CGFloat = 0
     @State private var sidebarHeight: CGFloat = 0
     @State private var onboarding = false
+    /// Window height minus the toolbar band and a margin: the most a sheet may take.
+    @State private var sheetLimit = CGFloat.infinity
     /// Sidebar width that keeps the traffic lights and its three toolbar buttons visible.
     static let sidebarMinimum: CGFloat = 260
     @Environment(\.openWindow) private var openWindow
@@ -36,6 +38,7 @@ struct MainView: View {
                         if !completed { ServiceOnboarding.postponed = true }
                         onboarding = false
                     }
+                    .environment(\.sheetHeightLimit, sheetLimit)
                 }
                 .withoutSidebarToggle()
                 .toolbar {
@@ -79,6 +82,11 @@ struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(GeometryReader { proxy in
+            Color.clear
+                .onAppear { sheetLimit = proxy.size.height - 70 }
+                .onChange(of: proxy.size.height) { sheetLimit = $0 - 70 }
+        })
         .onAppear {
             let open = openWindow
             if menuBar.openSettingsFallback == nil {
@@ -93,6 +101,7 @@ struct MainView: View {
         .onChange(of: service.health) { evaluateOnboarding($0) }
         .sheet(item: $editing, onDismiss: { pendingImport = nil }) { connection in
             ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport) { selected = connection.id }
+                .environment(\.sheetHeightLimit, sheetLimit)
         }
         .alert("Erro", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
@@ -136,8 +145,8 @@ struct MainView: View {
 
     private func deleteMessage(_ connection: Connection?) -> String {
         switch connection?.kind {
-        case .openvpn: return "O cadastro, a senha salva e a cópia privada do perfil OpenVPN serão removidos. O arquivo original não é alterado."
-        case .wireguard: return "O cadastro e a cópia privada do perfil WireGuard, com a chave privada, serão removidos. O arquivo original não é alterado."
+        case .openvpn: return "A conexão, a senha e o perfil serão removidos."
+        case .wireguard: return "A conexão e o perfil serão removidos."
         default: return "O cadastro, a senha salva e a sessão SAML guardada serão removidos."
         }
     }
@@ -221,7 +230,7 @@ struct MainView: View {
                            tone: .warning)
         } else if model.data.connections.isEmpty {
             EmptyStateView(symbol: "network.badge.shield.half.filled", title: "Nenhuma conexão cadastrada",
-                           message: "Cadastre um gateway Fortinet ou importe um perfil OpenVPN ou WireGuard para conectar por aqui ou pela barra de menus.") {
+                           message: "Adicione uma conexão Fortinet, OpenVPN ou WireGuard.") {
                 Button { editing = Connection() } label: { Label("Nova conexão", systemImage: "plus") }
                     .adaptiveButtonStyle(prominent: true)
                     .controlSize(.large)
@@ -471,7 +480,7 @@ struct ConnectionDetail: View {
             }
             Button("Cancelar", role: .cancel) { confirmingDigestFix = nil }
         } message: {
-            Text("auth define o HMAC dos pacotes e precisa coincidir com o servidor. \(confirmingDigestFix?.from ?? "") é um nome de assinatura que o OpenVPN 2.7 não aceita nessa diretiva; \(confirmingDigestFix?.to ?? "") é o equivalente usual. Só a cópia do perfil no app muda.")
+            Text("O OpenVPN 2.7 não aceita \(confirmingDigestFix?.from ?? ""); \(confirmingDigestFix?.to ?? "") é o equivalente e precisa ser igual ao do servidor.")
         }
     }
 
@@ -502,7 +511,7 @@ struct ConnectionDetail: View {
         if !session.state.active, let fix = session.digestFix {
             InlineNotice(tone: .warning, symbol: "wrench.and.screwdriver",
                          title: "O OpenVPN recusou auth \(fix.from)",
-                         message: "Nada foi alterado. O app pode trocar para auth \(fix.to) na cópia do perfil, se o servidor usar esse algoritmo.") {
+                         message: "O app pode trocar para auth \(fix.to), se o servidor usar esse algoritmo.") {
                 Button("Corrigir perfil…") { confirmingDigestFix = fix }
             }
             .transition(.opacity)
@@ -510,7 +519,7 @@ struct ConnectionDetail: View {
         if !session.state.active, let digest = session.suggestedCertificate {
             InlineNotice(tone: .warning, symbol: "lock.trianglebadge.exclamationmark",
                          title: "O certificado do servidor precisa ser conferido",
-                         message: "Nada é aceito automaticamente. Compare o SHA-256 com o administrador antes de confiar.") {
+                         message: "Compare o SHA-256 com o administrador antes de confiar.") {
                 Button("Conferir certificado…") { certificateToTrust = digest }
             }
             .transition(.opacity)
@@ -548,7 +557,7 @@ struct ConnectionDetail: View {
         guard let approved = service.status?.runtime(kind),
               case .updateAvailable(_, let latest) = versions.state(kind, status: service.status) else { return nil }
         return ("\(kind.title) \(latest) disponível",
-                "Esta conexão usa a cópia aprovada \(ClientVersion.clean(approved.version)). Atualize no Terminal com brew upgrade \(kind.executableName) e aprove a nova versão em Serviço privilegiado.")
+                "Atualize com brew upgrade \(kind.executableName) e aprove de novo em Serviço privilegiado.")
     }
 
     private var facts: some View {
@@ -585,7 +594,7 @@ struct ConnectionDetail: View {
             InlineNotice(tone: .warning, symbol: "lock.open",
                          title: "\(keys) pode ser lido por outros usuários do Mac",
                          message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                            + " ainda está na pasta de origem. A cópia do app é privada; apague o original ou use chmod 600.") {
+                            + " ainda está na pasta de origem. Apague o original.") {
                 Button("Mostrar no Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                 }
@@ -608,7 +617,7 @@ struct ConnectionDetail: View {
                 InlineNotice(tone: .warning, symbol: "lock.open",
                              title: "Chaves originais legíveis por outros usuários do Mac",
                              message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                                + " ainda estão na pasta de origem. A cópia do app é privada; apague os originais ou use chmod 600.") {
+                                + " ainda estão na pasta de origem. Apague os originais.") {
                     Button("Mostrar no Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                     }
@@ -706,7 +715,7 @@ struct CertificateTrustSheet: View {
                     InlineNotice(tone: .warning, symbol: "arrow.triangle.swap",
                                  title: "Este digest substituirá o certificado confiável já cadastrado.")
                 }
-                Text("Confira o digest com o administrador por um canal confiável. Ao confirmar, ele será salvo nesta conexão e uma nova tentativa será iniciada.")
+                Text("Confira o digest com o administrador antes de confiar.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(22)
