@@ -44,7 +44,7 @@ struct SettingsSidebar: View {
                     Label {
                         Text(tab.title)
                     } icon: {
-                        SettingsIcon(symbol: tab.symbol, color: tab.tileColor, size: 22)
+                        SettingsIcon(symbol: tab.symbol, color: tab.tileColor, size: 20)
                     }
                     Spacer(minLength: 4)
                     indicator(for: tab)
@@ -156,11 +156,11 @@ struct SettingsIcon: View {
         let shape = RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
         let style = IconStyle.current(dark: scheme == .dark)
         Image(systemName: symbol)
-            .font(.system(size: size * 0.5, weight: style == .regular ? .semibold : .medium))
+            .font(.system(size: size * (style == .regular ? 0.5 : 0.54), weight: .medium))
             .foregroundStyle(glyph(style))
             .frame(width: size, height: size)
             .background(shape.fill(tile(style)))
-            .overlay(shape.strokeBorder(Color.primary.opacity(style == .regular ? 0 : 0.08), lineWidth: 0.5))
+            .overlay(shape.strokeBorder(Color.white.opacity(style == .regular ? 0 : 0.09), lineWidth: 0.5))
             .accessibilityHidden(true)
     }
 
@@ -176,7 +176,9 @@ struct SettingsIcon: View {
     private func tile(_ style: IconStyle) -> AnyShapeStyle {
         switch style {
         case .regular: return AnyShapeStyle(color.gradient)
-        case .dark: return AnyShapeStyle(Color.white.opacity(0.1))
+        // Near-black, darker than the sidebar, like System Settings' dark icons.
+        case .dark: return AnyShapeStyle(LinearGradient(colors: [Color(white: 0.17), Color(white: 0.09)],
+                                                        startPoint: .top, endPoint: .bottom))
         case .clear: return AnyShapeStyle(Color.primary.opacity(0.08))
         case .tinted: return AnyShapeStyle(Color.accentColor.opacity(0.16))
         }
@@ -243,7 +245,7 @@ private extension View {
 
 private extension Toggle {
     func settingsSwitch(_ label: String) -> some View {
-        toggleStyle(.switch).labelsHidden().controlSize(.small).accessibilityLabel(label)
+        toggleStyle(.switch).labelsHidden().controlSize(.mini).accessibilityLabel(label)
     }
 }
 
