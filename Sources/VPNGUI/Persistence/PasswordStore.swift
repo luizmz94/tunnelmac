@@ -18,6 +18,7 @@ struct PasswordStore {
         let status = SecItemCopyMatching(q as CFDictionary, &result)
         if status == errSecItemNotFound { return nil }
         try check(status)
+        if (result as? Data)?.isEmpty == true { return nil } // Scrubbed by KeychainItem.delete.
         guard let data = result as? Data, let text = String(data: data, encoding: .utf8) else {
             throw AppFailure("Senha inválida no Keychain.")
         }
@@ -33,12 +34,23 @@ struct PasswordStore {
         } else { try check(status) }
     }
     func delete(_ id: UUID) throws {
-        let status = SecItemDelete(query(id) as CFDictionary)
+        let status = KeychainItem.delete(query(id))
         if status != errSecItemNotFound { try check(status) }
     }
     private func check(_ status: OSStatus) throws {
         guard status == errSecSuccess else {
             throw AppFailure("Keychain (\(status)): \(SecCopyErrorMessageString(status, nil) as String? ?? String(status))")
         }
+    }
+}
+
+enum KeychainItem {
+    /// Items created by an earlier build (another path or signature) carry an owner ACL that
+    /// refuses deletion with errSecInvalidOwnerEdit, although their value can still be updated.
+    /// The secret is then overwritten with nothing, so a pending deletion can finish.
+    static func delete(_ query: [String: Any]) -> OSStatus {
+        let status = SecItemDelete(query as CFDictionary)
+        guard status == errSecInvalidOwnerEdit else { return status }
+        return SecItemUpdate(query as CFDictionary, [kSecValueData as String: Data()] as CFDictionary)
     }
 }

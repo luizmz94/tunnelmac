@@ -98,7 +98,7 @@ struct SAMLCookieStore {
         return record
     }
     func delete(_ id: UUID) throws {
-        let status = SecItemDelete(query(id) as CFDictionary)
+        let status = KeychainItem.delete(query(id))
         if status != errSecItemNotFound { try check(status) }
     }
     private func check(_ status: OSStatus) throws {

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Deleting a connection no longer blocks the app when the Keychain refuses to delete its
+  password or SAML session (errSecInvalidOwnerEdit, items created by an earlier build):
+  the secret is overwritten with nothing and the deletion finishes.
 - README: the setup guide replaces the manual first-run steps, new screenshots of the
   guide and of Backup, and a Built on section crediting openfortivpn, OpenVPN and
   wireguard-go. docs/GUIDE.md describes the setup guide.
