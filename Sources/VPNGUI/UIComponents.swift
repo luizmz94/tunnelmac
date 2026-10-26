@@ -145,6 +145,14 @@ extension View {
     }
 }
 
+extension View {
+    /// Content area of a split view. On macOS 26+ it is left to the system, so the sidebar floats
+    /// as glass over it and the toolbar fades in with the scroll edge; before, an opaque window color.
+    @ViewBuilder func contentBackground() -> some View {
+        if #available(macOS 26, *) { self } else { background(Color(nsColor: .windowBackgroundColor)) }
+    }
+}
+
 /// Groups related glass controls so they render and blend as one (macOS 26+).
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8

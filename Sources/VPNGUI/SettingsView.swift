@@ -105,7 +105,7 @@ struct SettingsDetail: View {
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .contentBackground()
         .id(tab) // Each tab starts at the top.
     }
 }

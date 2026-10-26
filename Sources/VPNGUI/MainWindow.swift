@@ -403,7 +403,7 @@ struct ConnectionDetail: View {
             ClientCredit(kind: connection.kind.runtime, version: service.status?.runtime(connection.kind.runtime)?.version)
                 .padding(.horizontal, 28).padding(.bottom, 10).padding(.top, 2)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .contentBackground()
         .onAppear { versions.refresh(status: service.status) }
         .onChange(of: service.status) { versions.refresh(status: $0) }
         .toolbar {
@@ -430,7 +430,7 @@ struct ConnectionDetail: View {
         }
         .padding(.horizontal, 28).padding(.top, 14).padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .contentBackground()
         .animation(Motion.state(reduceMotion), value: session.state)
         .animation(Motion.state(reduceMotion), value: session.suggestedCertificate)
         .sheet(item: Binding(get: { certificateToTrust.map(CertificateDigest.init) },
@@ -764,6 +764,7 @@ struct ClientCredit: View {
                     .underline(hovering)
             }
             .font(.caption)
+            .foregroundStyle(.secondary)
             .onHover { inside in
                 hovering = inside
                 if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
