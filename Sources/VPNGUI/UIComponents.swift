@@ -145,6 +145,14 @@ extension View {
     }
 }
 
+extension View {
+    /// Content area of a split view. On macOS 26+ it is left to the system, so the sidebar floats
+    /// as glass over it and the toolbar fades in with the scroll edge; before, an opaque window color.
+    @ViewBuilder func contentBackground() -> some View {
+        if #available(macOS 26, *) { self } else { background(Color(nsColor: .windowBackgroundColor)) }
+    }
+}
+
 /// Groups related glass controls so they render and blend as one (macOS 26+).
 struct GlassGroup<Content: View>: View {
     var spacing: CGFloat = 8
@@ -172,6 +180,15 @@ struct ContentPanel: ViewModifier {
 
 extension View {
     func contentPanel(cornerRadius: CGFloat = 10) -> some View { modifier(ContentPanel(cornerRadius: cornerRadius)) }
+
+    /// Grouped surface for a block of read-only details, like a System Settings group.
+    func cardSurface(cornerRadius: CGFloat = 12) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return padding(.horizontal, 16).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(Color.primary.opacity(0.045)))
+            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
 }
 
 // MARK: - Messages
@@ -185,7 +202,7 @@ struct InlineNotice<Actions: View>: View {
     @ViewBuilder var actions: Actions
 
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: symbol)
                 .symbolRenderingMode(.hierarchical)
@@ -258,9 +275,18 @@ struct SheetHeader: View {
     let tone: StatusTone
     let title: String
     var subtitle: String?
+    /// Shown instead of the symbol: the protocol the sheet is about, or the app itself.
+    var kind: VPNProtocol?
+    var brand = false
     var body: some View {
         HStack(alignment: .center, spacing: 14) {
-            StatusBadge(symbol: symbol, tone: tone, diameter: 40)
+            if let kind {
+                ProtocolTile(kind: kind, state: .disconnected, size: 40)
+            } else if brand {
+                BrandSymbol(size: 40)
+            } else {
+                StatusBadge(symbol: symbol, tone: tone, diameter: 40)
+            }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                 if let subtitle {
@@ -275,13 +301,42 @@ struct SheetHeader: View {
     }
 }
 
+/// Room a sheet has inside the window it slides out of; the main window publishes it.
+private struct SheetHeightLimitKey: EnvironmentKey { static let defaultValue = CGFloat.infinity }
+extension EnvironmentValues {
+    var sheetHeightLimit: CGFloat {
+        get { self[SheetHeightLimitKey.self] }
+        set { self[SheetHeightLimitKey.self] = newValue }
+    }
+}
+
+/// Sheet size with a preferred height that shrinks to fit the window (forms scroll and the
+/// footer stays visible), so a small window never hides the sheet's buttons.
+private struct SheetFrame: ViewModifier {
+    let width: CGFloat
+    let height: CGFloat
+    let minimum: CGFloat
+    @Environment(\.sheetHeightLimit) private var limit
+    func body(content: Content) -> some View {
+        content.frame(width: width, height: max(minimum, min(height, limit)))
+    }
+}
+
+extension View {
+    func sheetFrame(width: CGFloat, height: CGFloat, minimum: CGFloat = 360) -> some View {
+        modifier(SheetFrame(width: width, height: height, minimum: minimum))
+    }
+}
+
 /// Fixed footer bar of a sheet, on top of a hairline.
 struct SheetFooter<Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         VStack(spacing: 0) {
             Divider()
+            // Secondary buttons get the same glass as the prominent one (which keeps its own style).
             HStack(spacing: 10) { content }
+                .adaptiveButtonStyle()
                 .padding(.horizontal, 20).padding(.vertical, 14)
         }
         .background(Color(nsColor: .windowBackgroundColor))
@@ -324,7 +379,7 @@ struct LogConsole: View {
                 }
             }
         }
-        .contentPanel()
+        .contentPanel(cornerRadius: 12)
         .accessibilityLabel(lines.isEmpty ? "Logs vazios" : "Logs da conexão")
     }
 }

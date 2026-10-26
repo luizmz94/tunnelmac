@@ -19,6 +19,7 @@ final class AppPreferences: ObservableObject {
         static let cachedOffer = "pendingUpdateOffer"
         static let internetDNS = "internetDNSSelection"
         static let customDNS = "customInternetDNS"
+        static let appearance = "appearance"
     }
 
     let defaults: UserDefaults
@@ -35,6 +36,8 @@ final class AppPreferences: ObservableObject {
     @Published var lastUpdateSuccess: Date? { didSet { store(lastUpdateSuccess, Key.lastUpdateSuccess) } }
     /// Id of the chosen "DNS da internet" (preset, custom or `InternetDNSOption.offID`).
     @Published var internetDNSSelection: String { didSet { defaults.set(internetDNSSelection, forKey: Key.internetDNS) } }
+    /// Light, dark or following the system (the default).
+    @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     @Published var customInternetDNS: [InternetDNSOption] {
         didSet { defaults.set(try? JSONEncoder().encode(customInternetDNS), forKey: Key.customDNS) }
     }
@@ -53,6 +56,7 @@ final class AppPreferences: ObservableObject {
         lastUpdateAttempt = defaults.object(forKey: Key.lastUpdateAttempt) as? Date
         lastUpdateSuccess = defaults.object(forKey: Key.lastUpdateSuccess) as? Date
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
+        appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         customInternetDNS = defaults.data(forKey: Key.customDNS).flatMap { try? JSONDecoder().decode([InternetDNSOption].self, from: $0) } ?? []
     }
 
@@ -136,7 +140,7 @@ final class MainAppLoginItem: LoginItemService {
     func openSystemSettings() { SMAppService.openSystemSettingsLoginItems() }
 }
 
-/// "Abrir ao iniciar sessão". Reads the real registration state; never registers
+/// "Abrir ao iniciar o Mac" (a login item). Reads the real registration state; never registers
 /// anything in the local checks runner or in ad hoc builds.
 @MainActor
 final class LoginItemController: ObservableObject {
@@ -182,14 +186,35 @@ final class LoginItemController: ObservableObject {
 
     func openSystemSettings() { service?.openSystemSettings() }
 
-    var detail: String {
+    var detail: String? {
         if let unavailableReason { return unavailableReason }
         if let message { return message }
         switch status {
-        case .enabled: return "Abre o TunnelMac quando você entra no Mac."
-        case .requiresApproval: return "Aguardando aprovação em Ajustes do Sistema › Geral › Itens de Início."
-        case .notFound: return "O macOS não encontrou o app para abrir ao iniciar. Instale-o em /Applications."
-        default: return "Abre o TunnelMac quando você entra no Mac."
+        case .enabled: return nil
+        case .requiresApproval: return "Aprove em Ajustes do Sistema › Itens de Início."
+        case .notFound: return "Instale o app em Aplicativos para usar isto."
+        default: return nil
+        }
+    }
+}
+
+/// App-wide appearance chosen in Configurações › Geral. Automatic follows macOS.
+enum AppAppearance: String, CaseIterable, Identifiable {
+    case light, dark, automatic
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .automatic: return "Automático"
+        case .light: return "Claro"
+        case .dark: return "Escuro"
+        }
+    }
+    /// nil lets every window follow the system appearance.
+    var nsAppearance: NSAppearance? {
+        switch self {
+        case .automatic: return nil
+        case .light: return NSAppearance(named: .aqua)
+        case .dark: return NSAppearance(named: .darkAqua)
         }
     }
 }

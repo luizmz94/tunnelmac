@@ -11,7 +11,7 @@ enum BackupPanels {
     @MainActor static func chooseDestination(now: Date = Date()) -> URL? {
         let panel = NSSavePanel()
         panel.title = "Exportar backup do TunnelMac"
-        panel.message = "O arquivo contém senhas e chaves das VPNs, criptografadas com a senha escolhida."
+        panel.message = "Protegido pela senha que você escolher."
         panel.prompt = "Exportar"
         panel.allowedContentTypes = [contentType]
         panel.canCreateDirectories = true
@@ -40,19 +40,17 @@ struct BackupSettings: View {
     @State private var importing: BackupFile?
     @State private var notice: BackupNotice?
 
-    static let footer = "Criptografado com AES-256-GCM e uma chave derivada de uma senha forte (PBKDF2-SHA256, 600 mil iterações). Sem a senha não há como abrir o arquivo. Sessões SAML não são incluídas; certificados do cliente precisam estar no Keychain do outro Mac."
-
     var body: some View {
-        SettingsSection(title: "Backup", footer: Self.footer) {
+        SettingsSection {
             SettingsRow(symbol: "square.and.arrow.up", color: .blue, title: "Exportar configurações",
-                        subtitle: "Conexões, senhas, perfis OpenVPN e WireGuard e as preferências do app, num arquivo protegido por senha.") {
+                        subtitle: "Conexões, senhas e preferências, num arquivo com senha.") {
                 Button("Exportar…") { notice = nil; exporting = true }
                     .controlSize(.small).adaptiveButtonStyle()
                     .disabled(!model.ready || model.writing)
             }
             SettingsDivider()
             SettingsRow(symbol: "square.and.arrow.down", color: .green, title: "Importar backup",
-                        subtitle: "Adiciona as conexões do arquivo; as que já existem neste Mac são substituídas pela versão do backup.") {
+                        subtitle: "Conexões que já existem aqui são substituídas.") {
                 Button("Importar…") { chooseImport() }
                     .controlSize(.small).adaptiveButtonStyle()
                     .disabled(!model.ready || model.writing)
@@ -114,7 +112,7 @@ struct ExportBackupSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Exportar configurações").font(.headline)
-            Text("\(model.data.connections.count) \(model.data.connections.count == 1 ? "conexão" : "conexões") com senhas e perfis. Guarde a senha: ela será pedida ao importar e não pode ser recuperada.")
+            Text("\(model.data.connections.count) \(model.data.connections.count == 1 ? "conexão" : "conexões") com senhas e perfis. Guarde a senha: sem ela o backup não abre.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Form {
                 Section {
@@ -169,7 +167,7 @@ struct ExportBackupSheet: View {
 
     private var generatedNote: some View {
         HStack(alignment: .top, spacing: 8) {
-            Text("Senha gerada. Copie e guarde-a num gerenciador de senhas antes de exportar: sem ela o backup não abre.")
+            Text("Senha gerada. Copie e guarde antes de exportar.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             Button(copied ? "Copiada" : "Copiar") {
@@ -201,7 +199,7 @@ struct ExportBackupSheet: View {
                 try await Task.detached { try BoundedFile.replace(url, data: sealed) }.value
                 finished(BackupNotice(tone: .success, symbol: "checkmark.circle.fill",
                                       title: "Backup exportado: \(count) \(count == 1 ? "conexão" : "conexões")",
-                                      message: "\(url.path)\nO arquivo contém senhas das VPNs; guarde-o em local seguro."))
+                                      message: "\(url.path)\nGuarde o arquivo em local seguro."))
                 dismiss()
             } catch {
                 working = false
@@ -265,14 +263,14 @@ struct ImportBackupSheet: View {
             if !plan.replacing.isEmpty { line("arrow.triangle.2.circlepath.circle.fill", .orange, "Substituídas: " + plan.replacing.joined(separator: ", ")) }
             if plan.payload.connections.isEmpty { line("info.circle.fill", .secondary, "O backup não tem conexões.") }
             if !plan.missingPasswords.isEmpty {
-                line("key.fill", .orange, "Sem senha no backup (edite e salve a senha depois): " + plan.missingPasswords.joined(separator: ", "))
+                line("key.fill", .orange, "Sem senha (informe ao conectar): " + plan.missingPasswords.joined(separator: ", "))
             }
             if !plan.missingCertificates.isEmpty {
-                line("person.badge.key.fill", .orange, "Certificado do cliente ausente neste Mac (importe-o no Acesso às Chaves): " + plan.missingCertificates.joined(separator: ", "))
+                line("person.badge.key.fill", .orange, "Certificado do cliente ausente neste Mac: " + plan.missingCertificates.joined(separator: ", "))
             }
         }
         if plan.hasPreferences {
-            Toggle("Aplicar também as preferências do app (barra de menus, Dock, atualizações e DNS da internet)", isOn: $applyPreferences)
+            Toggle("Aplicar também as preferências do app", isOn: $applyPreferences)
                 .toggleStyle(.checkbox).fixedSize(horizontal: false, vertical: true)
         }
     }

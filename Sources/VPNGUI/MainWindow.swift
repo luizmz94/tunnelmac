@@ -15,6 +15,8 @@ struct MainView: View {
     @State private var rowHeight: CGFloat = 0
     @State private var sidebarHeight: CGFloat = 0
     @State private var onboarding = false
+    /// Window height minus the toolbar band and a margin: the most a sheet may take.
+    @State private var sheetLimit = CGFloat.infinity
     /// Sidebar width that keeps the traffic lights and its three toolbar buttons visible.
     static let sidebarMinimum: CGFloat = 260
     @Environment(\.openWindow) private var openWindow
@@ -36,6 +38,7 @@ struct MainView: View {
                         if !completed { ServiceOnboarding.postponed = true }
                         onboarding = false
                     }
+                    .environment(\.sheetHeightLimit, sheetLimit)
                 }
                 .withoutSidebarToggle()
                 .toolbar {
@@ -79,6 +82,11 @@ struct MainView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(GeometryReader { proxy in
+            Color.clear
+                .onAppear { sheetLimit = proxy.size.height - 70 }
+                .onChange(of: proxy.size.height) { sheetLimit = $0 - 70 }
+        })
         .onAppear {
             let open = openWindow
             if menuBar.openSettingsFallback == nil {
@@ -93,6 +101,7 @@ struct MainView: View {
         .onChange(of: service.health) { evaluateOnboarding($0) }
         .sheet(item: $editing, onDismiss: { pendingImport = nil }) { connection in
             ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport) { selected = connection.id }
+                .environment(\.sheetHeightLimit, sheetLimit)
         }
         .alert("Erro", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
@@ -136,8 +145,8 @@ struct MainView: View {
 
     private func deleteMessage(_ connection: Connection?) -> String {
         switch connection?.kind {
-        case .openvpn: return "O cadastro, a senha salva e a cópia privada do perfil OpenVPN serão removidos. O arquivo original não é alterado."
-        case .wireguard: return "O cadastro e a cópia privada do perfil WireGuard, com a chave privada, serão removidos. O arquivo original não é alterado."
+        case .openvpn: return "A conexão, a senha e o perfil serão removidos."
+        case .wireguard: return "A conexão e o perfil serão removidos."
         default: return "O cadastro, a senha salva e a sessão SAML guardada serão removidos."
         }
     }
@@ -221,7 +230,7 @@ struct MainView: View {
                            tone: .warning)
         } else if model.data.connections.isEmpty {
             EmptyStateView(symbol: "network.badge.shield.half.filled", title: "Nenhuma conexão cadastrada",
-                           message: "Cadastre um gateway Fortinet ou importe um perfil OpenVPN ou WireGuard para conectar por aqui ou pela barra de menus.") {
+                           message: "Adicione uma conexão Fortinet, OpenVPN ou WireGuard.") {
                 Button { editing = Connection() } label: { Label("Nova conexão", systemImage: "plus") }
                     .adaptiveButtonStyle(prominent: true)
                     .controlSize(.large)
@@ -311,9 +320,7 @@ struct ConnectionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            StatusSymbol(symbol: session.state.symbol, tone: session.state.tone,
-                         pulsing: session.state.inProgress, size: 14)
-            ProtocolIcon(kind: connection.kind, size: 18)
+            ProtocolTile(kind: connection.kind, state: session.state)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name).font(.body.weight(.medium)).lineLimit(1).truncationMode(.tail)
                 Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
@@ -341,7 +348,7 @@ struct ConnectionRow: View {
     @ViewBuilder private var trailing: some View {
         if hovering && action.enabled {
             Button(action: perform) {
-                Image(systemName: action == .disconnect ? "stop.fill" : action == .review ? "person.crop.circle.badge.exclamationmark" : "bolt.fill")
+                Image(systemName: action.symbol)
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 22, height: 22)
             }
@@ -397,19 +404,20 @@ struct ConnectionDetail: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            actions
-                .padding(.horizontal, 28).padding(.top, 22).padding(.bottom, 4)
             content
             ClientCredit(kind: connection.kind.runtime, version: service.status?.runtime(connection.kind.runtime)?.version)
                 .padding(.horizontal, 28).padding(.bottom, 10).padding(.top, 2)
         }
-        .background(Color(nsColor: .windowBackgroundColor))
+        .contentBackground()
+        .withoutWindowTitle()
         .onAppear { versions.refresh(status: service.status) }
         .onChange(of: service.status) { versions.refresh(status: $0) }
         .toolbar {
             // Name and state in the window's title area, instead of a header in the content.
             ToolbarItem(placement: .navigation) {
                 HStack(spacing: 10) {
+                    ProtocolIcon(kind: connection.kind, size: 18)
+                        .help(connection.kind.title)
                     Text(connection.name).font(.headline).lineLimit(1).truncationMode(.tail)
                         .accessibilityAddTraits(.isHeader)
                     StatePill(state: session.state, connectedAt: session.connectedAt)
@@ -417,6 +425,24 @@ struct ConnectionDetail: View {
                 // The toolbar draws a capsule around the item; keep the name off its edge.
                 .padding(.horizontal, 12)
                 .fixedSize()
+            }
+            // Actions on the toolbar's glass: the main one first, the secondary ones in a menu.
+            if #available(macOS 26.0, *) { ToolbarSpacer(.flexible, placement: .primaryAction) }
+            ToolbarItem(placement: .primaryAction) { primaryButton.fixedSize() }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Editar…", systemImage: "pencil", action: edit)
+                        .disabled(session.state.active)
+                    Button("Limpar logs", systemImage: "eraser") { session.clearLogs() }
+                        .disabled(session.logs.isEmpty)
+                    Divider()
+                    Button("Excluir…", systemImage: "trash", role: .destructive, action: delete)
+                        .disabled(session.state.active)
+                } label: {
+                    Label("Mais ações", systemImage: "ellipsis")
+                }
+                .menuIndicator(.hidden)
+                .help(session.state.active ? "Mais ações (desconecte antes de editar ou excluir)" : "Mais ações")
             }
         }
     }
@@ -428,9 +454,9 @@ struct ConnectionDetail: View {
             facts
             logs
         }
-        .padding(.horizontal, 28).padding(.top, 14).padding(.bottom, 24)
+        .padding(.horizontal, 28).padding(.top, 20).padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .contentBackground()
         .animation(Motion.state(reduceMotion), value: session.state)
         .animation(Motion.state(reduceMotion), value: session.suggestedCertificate)
         .sheet(item: Binding(get: { certificateToTrust.map(CertificateDigest.init) },
@@ -454,32 +480,10 @@ struct ConnectionDetail: View {
             }
             Button("Cancelar", role: .cancel) { confirmingDigestFix = nil }
         } message: {
-            Text("auth define o HMAC dos pacotes e precisa coincidir com o servidor. \(confirmingDigestFix?.from ?? "") é um nome de assinatura que o OpenVPN 2.7 não aceita nessa diretiva; \(confirmingDigestFix?.to ?? "") é o equivalente usual. Só a cópia do perfil no app muda.")
+            Text("O OpenVPN 2.7 não aceita \(confirmingDigestFix?.from ?? ""); \(confirmingDigestFix?.to ?? "") é o equivalente e precisa ser igual ao do servidor.")
         }
     }
 
-
-    private var actions: some View {
-        HStack(spacing: 10) {
-            GlassGroup(spacing: 10) {
-                HStack(spacing: 10) {
-                    primaryButton
-                    Button(action: edit) { Label("Editar", systemImage: "pencil") }
-                        .adaptiveButtonStyle()
-                        .disabled(session.state.active)
-                        .help(session.state.active ? "Desconecte antes de editar" : "Editar esta conexão")
-                    Button(role: .destructive, action: delete) { Label("Excluir", systemImage: "trash") }
-                        .adaptiveButtonStyle()
-                        .disabled(session.state.active)
-                        .help(session.state.active ? "Desconecte antes de excluir" : "Excluir esta conexão")
-                }
-                .controlSize(.large)
-            }
-            Spacer(minLength: 8)
-            ProtocolIcon(kind: connection.kind, size: 28)
-                .help(connection.kind.title)
-        }
-    }
 
     @ViewBuilder private var primaryButton: some View {
         let button = Button {
@@ -490,22 +494,16 @@ struct ConnectionDetail: View {
             case .disconnecting, .unavailable: break
             }
         } label: {
-            Label(action.title, systemImage: primarySymbol).frame(minWidth: 112)
+            Label(action.title, systemImage: action.symbol)
+                .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 6) // breathing room inside the toolbar capsule
         }
         .disabled(!action.enabled)
+        // The toolbar draws the glass; only the call to action is prominent.
         switch action {
-        case .disconnect, .disconnecting: button.adaptiveButtonStyle()
-        case .review: button.adaptiveButtonStyle(prominent: true).tint(.orange)
-        case .connect, .unavailable: button.adaptiveButtonStyle(prominent: true)
-        }
-    }
-
-    private var primarySymbol: String {
-        switch action {
-        case .connect, .unavailable: return "bolt.fill"
-        case .disconnect: return "stop.fill"
-        case .disconnecting: return "hourglass"
-        case .review: return "person.crop.circle.badge.exclamationmark"
+        case .disconnect, .disconnecting: button
+        case .review: button.buttonStyle(.borderedProminent).tint(.orange)
+        case .connect, .unavailable: button.buttonStyle(.borderedProminent)
         }
     }
 
@@ -513,7 +511,7 @@ struct ConnectionDetail: View {
         if !session.state.active, let fix = session.digestFix {
             InlineNotice(tone: .warning, symbol: "wrench.and.screwdriver",
                          title: "O OpenVPN recusou auth \(fix.from)",
-                         message: "Nada foi alterado. O app pode trocar para auth \(fix.to) na cópia do perfil, se o servidor usar esse algoritmo.") {
+                         message: "O app pode trocar para auth \(fix.to), se o servidor usar esse algoritmo.") {
                 Button("Corrigir perfil…") { confirmingDigestFix = fix }
             }
             .transition(.opacity)
@@ -521,7 +519,7 @@ struct ConnectionDetail: View {
         if !session.state.active, let digest = session.suggestedCertificate {
             InlineNotice(tone: .warning, symbol: "lock.trianglebadge.exclamationmark",
                          title: "O certificado do servidor precisa ser conferido",
-                         message: "Nada é aceito automaticamente. Compare o SHA-256 com o administrador antes de confiar.") {
+                         message: "Compare o SHA-256 com o administrador antes de confiar.") {
                 Button("Conferir certificado…") { certificateToTrust = digest }
             }
             .transition(.opacity)
@@ -559,14 +557,17 @@ struct ConnectionDetail: View {
         guard let approved = service.status?.runtime(kind),
               case .updateAvailable(_, let latest) = versions.state(kind, status: service.status) else { return nil }
         return ("\(kind.title) \(latest) disponível",
-                "Esta conexão usa a cópia aprovada \(ClientVersion.clean(approved.version)). Atualize no Terminal com brew upgrade \(kind.executableName) e aprove a nova versão em Serviço privilegiado.")
+                "Atualize com brew upgrade \(kind.executableName) e aprove de novo em Serviço privilegiado.")
     }
 
-    @ViewBuilder private var facts: some View {
-        switch connection.kind {
-        case .fortinet: fortinetFacts
-        case .openvpn: openVPNFacts
-        case .wireguard: wireGuardFacts
+    private var facts: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Detalhes").font(.headline).accessibilityAddTraits(.isHeader)
+            switch connection.kind {
+            case .fortinet: fortinetFacts
+            case .openvpn: openVPNFacts
+            case .wireguard: wireGuardFacts
+            }
         }
     }
 
@@ -582,6 +583,7 @@ struct ConnectionDetail: View {
                 fact("Chave pública", summary?.publicKey ?? "—")
             }
             .font(.callout)
+            .cardSurface()
             exposedNotice(summary?.stillExposed ?? [], keys: "O arquivo original com a chave privada")
         }
     }
@@ -592,7 +594,7 @@ struct ConnectionDetail: View {
             InlineNotice(tone: .warning, symbol: "lock.open",
                          title: "\(keys) pode ser lido por outros usuários do Mac",
                          message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                            + " ainda está na pasta de origem. A cópia do app é privada; apague o original ou use chmod 600.") {
+                            + " ainda está na pasta de origem. Apague o original.") {
                 Button("Mostrar no Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                 }
@@ -609,12 +611,13 @@ struct ConnectionDetail: View {
                 fact("Autenticação", connection.usesPassword ? "Certificado + usuário e senha" : "Certificado")
             }
             .font(.callout)
+            .cardSurface()
             // Only what still applies: originals left in the source folder that others can read.
             if let exposed = connection.openVPN?.stillExposed, !exposed.isEmpty {
                 InlineNotice(tone: .warning, symbol: "lock.open",
                              title: "Chaves originais legíveis por outros usuários do Mac",
                              message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                                + " ainda estão na pasta de origem. A cópia do app é privada; apague os originais ou use chmod 600.") {
+                                + " ainda estão na pasta de origem. Apague os originais.") {
                     Button("Mostrar no Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                     }
@@ -636,6 +639,7 @@ struct ConnectionDetail: View {
             }
         }
         .font(.callout)
+        .cardSurface()
     }
 
     private func fact(_ label: String, _ value: String) -> some View {
@@ -658,13 +662,13 @@ struct ConnectionDetail: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(session.logs.joined(separator: "\n"), forType: .string)
-                } label: { Label("Copiar", systemImage: "doc.on.doc") }
+                } label: { Label("Copiar", systemImage: "doc.on.doc").labelStyle(.iconOnly) }
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .help("Copiar os logs desta conexão")
                     .accessibilityLabel("Copiar os logs desta conexão")
                     .disabled(session.logs.isEmpty)
-                Button { session.clearLogs() } label: { Label("Limpar", systemImage: "trash") }
+                Button { session.clearLogs() } label: { Label("Limpar", systemImage: "trash").labelStyle(.iconOnly) }
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .help("Limpar logs desta conexão")
@@ -711,7 +715,7 @@ struct CertificateTrustSheet: View {
                     InlineNotice(tone: .warning, symbol: "arrow.triangle.swap",
                                  title: "Este digest substituirá o certificado confiável já cadastrado.")
                 }
-                Text("Confira o digest com o administrador por um canal confiável. Ao confirmar, ele será salvo nesta conexão e uma nova tentativa será iniciada.")
+                Text("Confira o digest com o administrador antes de confiar.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             .padding(22)
@@ -736,6 +740,12 @@ struct CertificateTrustSheet: View {
 }
 
 private extension View {
+    /// The connection's name is already a toolbar item; the empty window title would only
+    /// reserve room and push the actions into the overflow menu.
+    @ViewBuilder func withoutWindowTitle() -> some View {
+        if #available(macOS 15.0, *) { toolbar(removing: .title) } else { self }
+    }
+
     /// The sidebar stays visible; the + button is its only toolbar item.
     @ViewBuilder func withoutSidebarToggle() -> some View {
         if #available(macOS 14.0, *) { toolbar(removing: .sidebarToggle) } else { self }
@@ -764,6 +774,7 @@ struct ClientCredit: View {
                     .underline(hovering)
             }
             .font(.caption)
+            .foregroundStyle(.secondary)
             .onHover { inside in
                 hovering = inside
                 if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }

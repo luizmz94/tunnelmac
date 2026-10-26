@@ -43,6 +43,12 @@ extension VPNProtocol {
 struct ProtocolIcon: View {
     let kind: VPNProtocol
     var size: CGFloat = 28
+    @Environment(\.colorScheme) private var scheme
+    /// WireGuard's dark red disappears on dark surfaces; there it takes the brighter red
+    /// the TunnelMac brand uses on dark backgrounds.
+    private var color: Color {
+        kind == .wireguard && scheme == .dark ? Color(red: 0xE0 / 255, green: 0x52 / 255, blue: 0x4F / 255) : kind.brandColor
+    }
     var body: some View {
         Group {
             if let image = ProtocolIcons.image(kind) {
@@ -52,8 +58,45 @@ struct ProtocolIcon: View {
             }
         }
         .aspectRatio(contentMode: .fit)
-        .foregroundStyle(kind.brandColor)
+        .foregroundStyle(color)
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+}
+
+/// Protocol mark on a soft brand-tinted tile, with the connection state as a dot in the
+/// corner (none while disconnected). The row's text still names the state, so color is
+/// never the only signal.
+struct ProtocolTile: View {
+    let kind: VPNProtocol
+    let state: ConnectionState
+    var size: CGFloat = 30
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ProtocolIcon(kind: kind, size: size * 0.6)
+            .frame(width: size, height: size)
+            .background(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous)
+                .fill(kind.brandColor.opacity(0.14)))
+            .overlay(alignment: .bottomTrailing) {
+                if state != .disconnected { dot.offset(x: 3, y: 3) }
+            }
+            .accessibilityHidden(true)
+    }
+
+    private var dot: some View {
+        let diameter = size * 0.36
+        let image = Image(systemName: "circle.fill")
+            .font(.system(size: diameter))
+            .foregroundStyle(state.tone.color)
+            .background(Circle().fill(.background).padding(-2))
+        return Group {
+            if #available(macOS 14, *) {
+                image.symbolEffect(.pulse, options: .repeating, isActive: state.inProgress && !reduceMotion)
+            } else {
+                image
+            }
+        }
+        .transition(.scale.combined(with: .opacity))
     }
 }

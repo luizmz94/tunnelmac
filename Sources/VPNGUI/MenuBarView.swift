@@ -67,6 +67,7 @@ struct MenuBarView: View {
             footer.padding(.horizontal, 10).padding(.vertical, 10)
         }
         .frame(width: 360)
+        .menuBarGlass()
         .animation(Motion.state(reduceMotion), value: menuBar.summary)
         .onAppear {
             menuBar.openWindowFallback = { openWindow(id: MenuBarCoordinator.sceneID) }
@@ -206,6 +207,16 @@ struct MenuBarView: View {
 }
 
 private extension View {
+    /// The window's own opaque panel gives way to Liquid Glass on macOS 26+.
+    @ViewBuilder func menuBarGlass() -> some View {
+        if #available(macOS 26, *) {
+            containerBackground(.clear, for: .window)
+                .glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
+        } else {
+            self
+        }
+    }
+
     /// Glass buttons on macOS 26+; the previous borderless look before.
     @ViewBuilder func adaptiveMenuFooterStyle() -> some View {
         if #available(macOS 26, *) { buttonStyle(.glass) } else { buttonStyle(.borderless) }
@@ -227,9 +238,7 @@ struct MenuBarRow: View {
     var body: some View {
         let action = MenuBarRowAction.of(session, ready: menuBar.model.ready, serviceReady: menuBar.model.service.canConnect)
         HStack(alignment: .center, spacing: 10) {
-            StatusSymbol(symbol: Self.symbol(session.state), tone: session.state.tone,
-                         pulsing: session.state.inProgress, size: 14)
-            ProtocolIcon(kind: connection.kind, size: 18)
+            ProtocolTile(kind: connection.kind, state: session.state, size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name).font(.body.weight(.medium)).lineLimit(2).truncationMode(.middle)
                 if showsServer {
@@ -250,12 +259,24 @@ struct MenuBarRow: View {
             .accessibilityElement(children: .combine)
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 3) {
-                Button(action.title) { menuBar.perform(connection) }
-                    .controlSize(.small)
-                    .adaptiveButtonStyle()
-                    .disabled(!action.enabled)
-                    .help(help(for: action))
-                    .accessibilityLabel("\(action.title) \(connection.name)")
+                if action == .review {
+                    Button("Revisar…") { menuBar.perform(connection) }
+                        .controlSize(.small)
+                        .adaptiveButtonStyle()
+                        .help(help(for: action))
+                        .accessibilityLabel("Revisar acesso de \(connection.name)")
+                } else {
+                    // Like Wi-Fi and VPN in Control Center: on while connected or on the way there.
+                    Toggle(action.title, isOn: Binding(get: { session.state.active && action != .disconnecting },
+                                                       set: { _ in menuBar.perform(connection) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .disabled(!action.enabled)
+                        .help(help(for: action))
+                        .accessibilityLabel(connection.name)
+                        .accessibilityValue(session.state.rawValue)
+                }
                 if !session.state.active, session.suggestedCertificate != nil {
                     Button("Conferir certificado…") { menuBar.showMainWindow(selecting: connection.id) }
                         .buttonStyle(.link).font(.caption)

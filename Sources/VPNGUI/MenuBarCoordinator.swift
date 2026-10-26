@@ -27,6 +27,15 @@ enum MenuBarRowAction: Equatable {
         case .review: return "Revisar acesso…"
         }
     }
+    /// Linked chain to connect, broken chain to disconnect.
+    var symbol: String {
+        switch self {
+        case .connect, .unavailable: return "personalhotspot"
+        case .disconnect: return "personalhotspot.slash"
+        case .disconnecting: return "hourglass"
+        case .review: return "person.crop.circle.badge.exclamationmark"
+        }
+    }
     var enabled: Bool { ![.disconnecting, .unavailable].contains(self) }
     @MainActor static func of(_ session: Session, ready: Bool, serviceReady: Bool = true) -> MenuBarRowAction {
         guard ready else { return .unavailable }
@@ -53,22 +62,22 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .about: return "Sobre"
         }
     }
-    var subtitle: String {
-        switch self {
-        case .general: return "Barra de menus, Dock e abertura ao iniciar sessão"
-        case .updates: return "Novas versões do GitHub, instaladas pelo próprio app ou pelo Homebrew"
-        case .service: return "O componente do sistema que inicia o openfortivpn, o OpenVPN e o WireGuard por você"
-        case .backup: return "Exporte as conexões para outro Mac ou guarde uma cópia, protegida por senha"
-        case .about: return "Versão, licença e links do projeto"
-        }
-    }
+    /// Glyph and color of the tab's tile in the sidebar, as in System Settings.
     var symbol: String {
         switch self {
-        case .general: return "gearshape"
+        case .general: return "gearshape.fill"
         case .updates: return "arrow.triangle.2.circlepath"
-        case .service: return "lock.shield"
-        case .backup: return "archivebox"
-        case .about: return "info.circle"
+        case .service: return "lock.shield.fill"
+        case .backup: return "archivebox.fill"
+        case .about: return "info"
+        }
+    }
+    var tileColor: Color {
+        switch self {
+        case .general, .about: return .gray
+        case .updates: return .blue
+        case .service: return .green
+        case .backup: return .orange
         }
     }
 }
@@ -119,6 +128,8 @@ final class MenuBarCoordinator: ObservableObject {
         self.updates.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.installer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.loginItem.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
+        // Windows, sheets and the menu bar window all take the chosen appearance.
+        preferences.$appearance.sink { NSApp?.appearance = $0.nsAppearance }.store(in: &observers)
         // Turning the menu bar icon off must never leave the app without a Dock icon.
         preferences.$showMenuBarIcon.dropFirst().sink { [weak self] shown in
             if !shown { self?.setActivationPolicy(.regular) }
