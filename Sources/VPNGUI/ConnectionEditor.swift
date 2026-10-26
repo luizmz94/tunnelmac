@@ -109,13 +109,13 @@ struct ConnectionEditor: View {
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(spacing: 12) {
                 ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
-                             subtitle: "Gateway FortiGate, o mesmo usado pelo FortiClient. Usuário e senha ou login SAML no navegador.",
+                             subtitle: "Gateway FortiGate, o mesmo usado pelo FortiClient.",
                              status: clientStatus(.fortinet)) { choose(.fortinet) }
                 ProtocolCard(kind: .openvpn, title: "OpenVPN",
-                             subtitle: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip). Certificados e chaves ficam guardados junto com a conexão.",
+                             subtitle: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip).",
                              status: clientStatus(.openvpn)) { choose(.openvpn) }
                 ProtocolCard(kind: .wireguard, title: "WireGuard",
-                             subtitle: "Arquivo .conf do servidor ou do app WireGuard. A chave privada fica guardada junto com a conexão.",
+                             subtitle: "Arquivo .conf do servidor ou do app WireGuard.",
                              status: clientStatus(.wireguard)) { choose(.wireguard) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)

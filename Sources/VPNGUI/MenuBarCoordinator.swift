@@ -62,15 +62,6 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
         case .about: return "Sobre"
         }
     }
-    var subtitle: String {
-        switch self {
-        case .general: return "Barra de menus, Dock e abertura ao iniciar sessão"
-        case .updates: return "Novas versões do GitHub, instaladas pelo próprio app ou pelo Homebrew"
-        case .service: return "O componente do sistema que inicia o openfortivpn, o OpenVPN e o WireGuard por você"
-        case .backup: return "Exporte as conexões para outro Mac ou guarde uma cópia, protegida por senha"
-        case .about: return "Versão, licença e links do projeto"
-        }
-    }
     /// Glyph and color of the tab's tile in the sidebar, as in System Settings.
     var symbol: String {
         switch self {

@@ -136,7 +136,7 @@ final class MainAppLoginItem: LoginItemService {
     func openSystemSettings() { SMAppService.openSystemSettingsLoginItems() }
 }
 
-/// "Abrir ao iniciar sessão". Reads the real registration state; never registers
+/// "Abrir ao iniciar o Mac" (a login item). Reads the real registration state; never registers
 /// anything in the local checks runner or in ad hoc builds.
 @MainActor
 final class LoginItemController: ObservableObject {
@@ -182,14 +182,14 @@ final class LoginItemController: ObservableObject {
 
     func openSystemSettings() { service?.openSystemSettings() }
 
-    var detail: String {
+    var detail: String? {
         if let unavailableReason { return unavailableReason }
         if let message { return message }
         switch status {
-        case .enabled: return "Abre o TunnelMac quando você entra no Mac."
-        case .requiresApproval: return "Aguardando aprovação em Ajustes do Sistema › Geral › Itens de Início."
-        case .notFound: return "O macOS não encontrou o app para abrir ao iniciar. Instale-o em /Applications."
-        default: return "Abre o TunnelMac quando você entra no Mac."
+        case .enabled: return nil
+        case .requiresApproval: return "Aprove em Ajustes do Sistema › Itens de Início."
+        case .notFound: return "Instale o app em Aplicativos para usar isto."
+        default: return nil
         }
     }
 }
