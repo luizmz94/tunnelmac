@@ -397,19 +397,20 @@ struct ConnectionDetail: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            actions
-                .padding(.horizontal, 28).padding(.top, 22).padding(.bottom, 4)
             content
             ClientCredit(kind: connection.kind.runtime, version: service.status?.runtime(connection.kind.runtime)?.version)
                 .padding(.horizontal, 28).padding(.bottom, 10).padding(.top, 2)
         }
         .contentBackground()
+        .withoutWindowTitle()
         .onAppear { versions.refresh(status: service.status) }
         .onChange(of: service.status) { versions.refresh(status: $0) }
         .toolbar {
             // Name and state in the window's title area, instead of a header in the content.
             ToolbarItem(placement: .navigation) {
                 HStack(spacing: 10) {
+                    ProtocolIcon(kind: connection.kind, size: 18)
+                        .help(connection.kind.title)
                     Text(connection.name).font(.headline).lineLimit(1).truncationMode(.tail)
                         .accessibilityAddTraits(.isHeader)
                     StatePill(state: session.state, connectedAt: session.connectedAt)
@@ -417,6 +418,24 @@ struct ConnectionDetail: View {
                 // The toolbar draws a capsule around the item; keep the name off its edge.
                 .padding(.horizontal, 12)
                 .fixedSize()
+            }
+            // Actions on the toolbar's glass: the main one first, the secondary ones in a menu.
+            if #available(macOS 26.0, *) { ToolbarSpacer(.flexible, placement: .primaryAction) }
+            ToolbarItem(placement: .primaryAction) { primaryButton.fixedSize() }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("Editar…", systemImage: "pencil", action: edit)
+                        .disabled(session.state.active)
+                    Button("Limpar logs", systemImage: "eraser") { session.clearLogs() }
+                        .disabled(session.logs.isEmpty)
+                    Divider()
+                    Button("Excluir…", systemImage: "trash", role: .destructive, action: delete)
+                        .disabled(session.state.active)
+                } label: {
+                    Label("Mais ações", systemImage: "ellipsis")
+                }
+                .menuIndicator(.hidden)
+                .help(session.state.active ? "Mais ações (desconecte antes de editar ou excluir)" : "Mais ações")
             }
         }
     }
@@ -428,7 +447,7 @@ struct ConnectionDetail: View {
             facts
             logs
         }
-        .padding(.horizontal, 28).padding(.top, 14).padding(.bottom, 24)
+        .padding(.horizontal, 28).padding(.top, 20).padding(.bottom, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .contentBackground()
         .animation(Motion.state(reduceMotion), value: session.state)
@@ -459,28 +478,6 @@ struct ConnectionDetail: View {
     }
 
 
-    private var actions: some View {
-        HStack(spacing: 10) {
-            GlassGroup(spacing: 10) {
-                HStack(spacing: 10) {
-                    primaryButton
-                    Button(action: edit) { Label("Editar", systemImage: "pencil") }
-                        .adaptiveButtonStyle()
-                        .disabled(session.state.active)
-                        .help(session.state.active ? "Desconecte antes de editar" : "Editar esta conexão")
-                    Button(role: .destructive, action: delete) { Label("Excluir", systemImage: "trash") }
-                        .adaptiveButtonStyle()
-                        .disabled(session.state.active)
-                        .help(session.state.active ? "Desconecte antes de excluir" : "Excluir esta conexão")
-                }
-                .controlSize(.large)
-            }
-            Spacer(minLength: 8)
-            ProtocolIcon(kind: connection.kind, size: 28)
-                .help(connection.kind.title)
-        }
-    }
-
     @ViewBuilder private var primaryButton: some View {
         let button = Button {
             switch action {
@@ -490,13 +487,15 @@ struct ConnectionDetail: View {
             case .disconnecting, .unavailable: break
             }
         } label: {
-            Label(action.title, systemImage: primarySymbol).frame(minWidth: 112)
+            Label(action.title, systemImage: primarySymbol)
+                .labelStyle(.titleAndIcon)
         }
         .disabled(!action.enabled)
+        // The toolbar draws the glass; only the call to action is prominent.
         switch action {
-        case .disconnect, .disconnecting: button.adaptiveButtonStyle()
-        case .review: button.adaptiveButtonStyle(prominent: true).tint(.orange)
-        case .connect, .unavailable: button.adaptiveButtonStyle(prominent: true)
+        case .disconnect, .disconnecting: button
+        case .review: button.buttonStyle(.borderedProminent).tint(.orange)
+        case .connect, .unavailable: button.buttonStyle(.borderedProminent)
         }
     }
 
@@ -736,6 +735,12 @@ struct CertificateTrustSheet: View {
 }
 
 private extension View {
+    /// The connection's name is already a toolbar item; the empty window title would only
+    /// reserve room and push the actions into the overflow menu.
+    @ViewBuilder func withoutWindowTitle() -> some View {
+        if #available(macOS 15.0, *) { toolbar(removing: .title) } else { self }
+    }
+
     /// The sidebar stays visible; the + button is its only toolbar item.
     @ViewBuilder func withoutSidebarToggle() -> some View {
         if #available(macOS 14.0, *) { toolbar(removing: .sidebarToggle) } else { self }
