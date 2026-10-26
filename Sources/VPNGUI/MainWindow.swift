@@ -551,11 +551,14 @@ struct ConnectionDetail: View {
                 "Esta conexão usa a cópia aprovada \(ClientVersion.clean(approved.version)). Atualize no Terminal com brew upgrade \(kind.executableName) e aprove a nova versão em Serviço privilegiado.")
     }
 
-    @ViewBuilder private var facts: some View {
-        switch connection.kind {
-        case .fortinet: fortinetFacts
-        case .openvpn: openVPNFacts
-        case .wireguard: wireGuardFacts
+    private var facts: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Detalhes").font(.headline).accessibilityAddTraits(.isHeader)
+            switch connection.kind {
+            case .fortinet: fortinetFacts
+            case .openvpn: openVPNFacts
+            case .wireguard: wireGuardFacts
+            }
         }
     }
 
@@ -571,6 +574,7 @@ struct ConnectionDetail: View {
                 fact("Chave pública", summary?.publicKey ?? "—")
             }
             .font(.callout)
+            .cardSurface()
             exposedNotice(summary?.stillExposed ?? [], keys: "O arquivo original com a chave privada")
         }
     }
@@ -598,6 +602,7 @@ struct ConnectionDetail: View {
                 fact("Autenticação", connection.usesPassword ? "Certificado + usuário e senha" : "Certificado")
             }
             .font(.callout)
+            .cardSurface()
             // Only what still applies: originals left in the source folder that others can read.
             if let exposed = connection.openVPN?.stillExposed, !exposed.isEmpty {
                 InlineNotice(tone: .warning, symbol: "lock.open",
@@ -625,6 +630,7 @@ struct ConnectionDetail: View {
             }
         }
         .font(.callout)
+        .cardSurface()
     }
 
     private func fact(_ label: String, _ value: String) -> some View {
@@ -647,13 +653,13 @@ struct ConnectionDetail: View {
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(session.logs.joined(separator: "\n"), forType: .string)
-                } label: { Label("Copiar", systemImage: "doc.on.doc") }
+                } label: { Label("Copiar", systemImage: "doc.on.doc").labelStyle(.iconOnly) }
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .help("Copiar os logs desta conexão")
                     .accessibilityLabel("Copiar os logs desta conexão")
                     .disabled(session.logs.isEmpty)
-                Button { session.clearLogs() } label: { Label("Limpar", systemImage: "trash") }
+                Button { session.clearLogs() } label: { Label("Limpar", systemImage: "trash").labelStyle(.iconOnly) }
                     .buttonStyle(.borderless)
                     .controlSize(.small)
                     .help("Limpar logs desta conexão")

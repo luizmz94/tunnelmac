@@ -180,6 +180,15 @@ struct ContentPanel: ViewModifier {
 
 extension View {
     func contentPanel(cornerRadius: CGFloat = 10) -> some View { modifier(ContentPanel(cornerRadius: cornerRadius)) }
+
+    /// Grouped surface for a block of read-only details, like a System Settings group.
+    func cardSurface(cornerRadius: CGFloat = 12) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        return padding(.horizontal, 16).padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(shape.fill(Color.primary.opacity(0.045)))
+            .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+    }
 }
 
 // MARK: - Messages
@@ -332,7 +341,7 @@ struct LogConsole: View {
                 }
             }
         }
-        .contentPanel()
+        .contentPanel(cornerRadius: 12)
         .accessibilityLabel(lines.isEmpty ? "Logs vazios" : "Logs da conexão")
     }
 }
