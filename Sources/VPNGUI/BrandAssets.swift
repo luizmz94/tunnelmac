@@ -9,10 +9,10 @@ enum BrandAssets {
         image.size = NSSize(width: 18, height: 18)
         return image
     }()
-    /// Menu bar icon. Idle: the monochrome template. Connected: the ring closes in the logo's
-    /// three arc colors around the core. `angle` turns it (only while a connection is starting,
-    /// since every frame costs CPU), and the active connection count is knocked out of a corner
-    /// badge when there is more than one.
+    /// Menu bar icon. Idle: the monochrome template. Connected: the same shape in the logo's
+    /// colors. `angle` turns it (only while a connection is starting, since every frame costs
+    /// CPU), and the active connection count is knocked out of a corner badge when there is
+    /// more than one.
     static func menuIcon(connected: Bool, angle: CGFloat = 0, badge: Int) -> NSImage? {
         let key = "\(connected)-\(angle)-\(min(badge, 10))"
         if let cached = menuIconVariants[key] { return cached }
@@ -33,12 +33,12 @@ enum BrandAssets {
             context.rotate(by: -angle * .pi / 180)
             context.translateBy(x: -rect.midX, y: -rect.midY)
             if connected {
-                // MenuBarTemplate.svg geometry (18 pt grid): FortiClient top right, OpenVPN at the
-                // bottom, WireGuard top left, now meeting so the ring is closed.
+                // MenuBarTemplate.svg arcs (18 pt grid, angles with y up): FortiClient top right,
+                // OpenVPN at the bottom, WireGuard top left, gaps kept.
                 let scale = rect.width / 18, center = NSPoint(x: rect.midX, y: rect.midY)
-                let arcs: [(UInt32, UInt32, CGFloat, CGFloat)] = [(0x2E95D6, 0x1F7EC2, -30, 90),
-                                                                  (0xEE8A34, 0xDE7420, -150, -30),
-                                                                  (0xD0423F, 0xBF3532, 90, 210)]
+                let arcs: [(UInt32, UInt32, CGFloat, CGFloat)] = [(0x2E95D6, 0x1F7EC2, -14.0, 74.2),
+                                                                  (0xEE8A34, 0xDE7420, -133.7, -46.3),
+                                                                  (0xD0423F, 0xBF3532, 105.8, 194.0)]
                 for (onDark, onLight, start, end) in arcs {
                     let arc = NSBezierPath()
                     arc.appendArc(withCenter: center, radius: 6.2 * scale, startAngle: start, endAngle: end)
