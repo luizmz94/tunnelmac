@@ -3,9 +3,19 @@ import AppKit
 
 struct MenuBarLabel: View {
     @ObservedObject var menuBar: MenuBarCoordinator
+    /// Rotation step while a connection is starting or stopping. The label is rendered into the
+    /// status item as a still image, so SwiftUI animations do not run there: the frames are swapped
+    /// by hand, and only during transitions, since each frame costs CPU.
+    @State private var step = 0
+    private static let steps = 24, interval: Duration = .milliseconds(125)
+    private var spinning: Bool {
+        menuBar.pendingCount > 0 && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
     var body: some View {
         HStack(spacing: 3) {
-            if let image = BrandAssets.menuIcon {
+            if let image = BrandAssets.menuIcon(connected: menuBar.connectedCount > 0,
+                                                angle: spinning ? CGFloat(step) * 360 / CGFloat(Self.steps) : 0,
+                                                badge: menuBar.connectedCount) {
                 Image(nsImage: image)
             } else {
                 Image(systemName: "shield")
@@ -17,6 +27,13 @@ struct MenuBarLabel: View {
         }
             .accessibilityLabel(menuBar.accessibilityDescription)
             .help(menuBar.accessibilityDescription)
+            .task(id: spinning) {
+                guard spinning else { step = 0; return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: Self.interval)
+                    step = (step + 1) % Self.steps
+                }
+            }
     }
 }
 
