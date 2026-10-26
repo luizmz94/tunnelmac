@@ -341,7 +341,7 @@ struct ConnectionRow: View {
     @ViewBuilder private var trailing: some View {
         if hovering && action.enabled {
             Button(action: perform) {
-                Image(systemName: action == .disconnect ? "stop.fill" : action == .review ? "person.crop.circle.badge.exclamationmark" : "bolt.fill")
+                Image(systemName: action.symbol)
                     .font(.system(size: 10, weight: .bold))
                     .frame(width: 22, height: 22)
             }
@@ -487,8 +487,9 @@ struct ConnectionDetail: View {
             case .disconnecting, .unavailable: break
             }
         } label: {
-            Label(action.title, systemImage: primarySymbol)
+            Label(action.title, systemImage: action.symbol)
                 .labelStyle(.titleAndIcon)
+                .padding(.horizontal, 6) // breathing room inside the toolbar capsule
         }
         .disabled(!action.enabled)
         // The toolbar draws the glass; only the call to action is prominent.
@@ -496,15 +497,6 @@ struct ConnectionDetail: View {
         case .disconnect, .disconnecting: button
         case .review: button.buttonStyle(.borderedProminent).tint(.orange)
         case .connect, .unavailable: button.buttonStyle(.borderedProminent)
-        }
-    }
-
-    private var primarySymbol: String {
-        switch action {
-        case .connect, .unavailable: return "bolt.fill"
-        case .disconnect: return "stop.fill"
-        case .disconnecting: return "hourglass"
-        case .review: return "person.crop.circle.badge.exclamationmark"
         }
     }
 

@@ -27,6 +27,15 @@ enum MenuBarRowAction: Equatable {
         case .review: return "Revisar acesso…"
         }
     }
+    /// Linked chain to connect, broken chain to disconnect.
+    var symbol: String {
+        switch self {
+        case .connect, .unavailable: return "personalhotspot"
+        case .disconnect: return "personalhotspot.slash"
+        case .disconnecting: return "hourglass"
+        case .review: return "person.crop.circle.badge.exclamationmark"
+        }
+    }
     var enabled: Bool { ![.disconnecting, .unavailable].contains(self) }
     @MainActor static func of(_ session: Session, ready: Bool, serviceReady: Bool = true) -> MenuBarRowAction {
         guard ready else { return .unavailable }
