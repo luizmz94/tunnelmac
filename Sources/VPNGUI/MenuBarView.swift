@@ -67,6 +67,7 @@ struct MenuBarView: View {
             footer.padding(.horizontal, 10).padding(.vertical, 10)
         }
         .frame(width: 360)
+        .menuBarGlass()
         .animation(Motion.state(reduceMotion), value: menuBar.summary)
         .onAppear {
             menuBar.openWindowFallback = { openWindow(id: MenuBarCoordinator.sceneID) }
@@ -206,6 +207,16 @@ struct MenuBarView: View {
 }
 
 private extension View {
+    /// The window's own opaque panel gives way to Liquid Glass on macOS 26+.
+    @ViewBuilder func menuBarGlass() -> some View {
+        if #available(macOS 26, *) {
+            containerBackground(.clear, for: .window)
+                .glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
+        } else {
+            self
+        }
+    }
+
     /// Glass buttons on macOS 26+; the previous borderless look before.
     @ViewBuilder func adaptiveMenuFooterStyle() -> some View {
         if #available(macOS 26, *) { buttonStyle(.glass) } else { buttonStyle(.borderless) }
