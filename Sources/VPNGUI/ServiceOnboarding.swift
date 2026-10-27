@@ -19,20 +19,20 @@ enum ServiceOnboarding {
 
         var title: String {
             switch self {
-            case .clients: return "Escolher as VPNs"
-            case .activate: return "Ativar o serviço"
-            case .allow: return "Permitir em segundo plano"
-            case .approve: return "Aprovar os clientes"
-            case .done: return "Pronto"
+            case .clients: return String(localized: "Escolher as VPNs")
+            case .activate: return String(localized: "Ativar o serviço")
+            case .allow: return String(localized: "Permitir em segundo plano")
+            case .approve: return String(localized: "Aprovar os clientes")
+            case .done: return String(localized: "Pronto")
             }
         }
         var subtitle: String {
             switch self {
-            case .clients: return "E instalar pelo Homebrew"
-            case .activate: return "O ajudante do sistema"
-            case .allow: return "Nos Ajustes do Sistema"
-            case .approve: return "Com a senha de administrador"
-            case .done: return "Conectar sem senha"
+            case .clients: return String(localized: "E instalar pelo Homebrew")
+            case .activate: return String(localized: "O ajudante do sistema")
+            case .allow: return String(localized: "Nos Ajustes do Sistema")
+            case .approve: return String(localized: "Com a senha de administrador")
+            case .done: return String(localized: "Conectar sem senha")
             }
         }
     }
@@ -206,7 +206,9 @@ struct ServiceOnboardingSheet: View {
             .padding(.top, 3)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Passo \(item.rawValue), \(item.title)\(done ? ", concluído" : current ? ", atual" : "")")
+        .accessibilityLabel(done ? String(localized: "Passo \(item.rawValue), \(item.title), concluído")
+                            : current ? String(localized: "Passo \(item.rawValue), \(item.title), atual")
+                            : String(localized: "Passo \(item.rawValue), \(item.title)"))
     }
 
     // MARK: Content
@@ -238,26 +240,26 @@ struct ServiceOnboardingSheet: View {
 
     private var heading: String {
         switch step {
-        case .clients: return "Quais VPNs você vai usar?"
-        case .activate: return "Conectar sem digitar a senha toda vez"
-        case .allow: return "Permita o TunnelMac em segundo plano"
-        case .approve: return kinds.count > 1 ? "Aprove os clientes escolhidos" : "Aprove o cliente escolhido"
-        case .done: return "Tudo pronto"
+        case .clients: return String(localized: "Quais VPNs você vai usar?")
+        case .activate: return String(localized: "Conectar sem digitar a senha toda vez")
+        case .allow: return String(localized: "Permita o TunnelMac em segundo plano")
+        case .approve: return kinds.count > 1 ? String(localized: "Aprove os clientes escolhidos") : String(localized: "Aprove o cliente escolhido")
+        case .done: return String(localized: "Tudo pronto")
         }
     }
 
     private var lead: String {
         switch step {
         case .clients:
-            return "Marque os que você usa. Eles são instalados pelo Homebrew."
+            return String(localized: "Marque os que você usa. Eles são instalados pelo Homebrew.")
         case .activate:
-            return "Um serviço do sistema cria a VPN sem pedir sua senha. Ative uma vez só."
+            return String(localized: "Um serviço do sistema cria a VPN sem pedir sua senha. Ative uma vez só.")
         case .allow:
-            return "Ligue o TunnelMac em Permitir em segundo plano e volte. Esta janela continua sozinha."
+            return String(localized: "Ligue o TunnelMac em Permitir em segundo plano e volte. Esta janela continua sozinha.")
         case .approve:
-            return "O macOS pede a senha de administrador uma vez para cada cliente."
+            return String(localized: "O macOS pede a senha de administrador uma vez para cada cliente.")
         case .done:
-            return "Conectar não pede mais senha. Adicione sua primeira conexão."
+            return String(localized: "Conectar não pede mais senha. Adicione sua primeira conexão.")
         }
     }
 
@@ -278,8 +280,8 @@ struct ServiceOnboardingSheet: View {
             }
             .contentPanel()
             if !homebrewInstalled {
-                InlineNotice(tone: .warning, symbol: "shippingbox", title: "O Homebrew não está instalado",
-                             message: "Instale-o pelas instruções de brew.sh e volte aqui.") {
+                InlineNotice(tone: .warning, symbol: "shippingbox", title: String(localized: "O Homebrew não está instalado"),
+                             message: String(localized: "Instale-o pelas instruções de brew.sh e volte aqui.")) {
                     Button("Abrir brew.sh") { if let url = URL(string: "https://brew.sh") { NSWorkspace.shared.open(url) } }
                         .adaptiveButtonStyle()
                 }
@@ -339,12 +341,12 @@ struct ServiceOnboardingSheet: View {
     private func installBadge(_ kind: RuntimeKind) -> some View {
         let text: String, tone: StatusTone
         switch state(kind) {
-        case .notInstalled: (text, tone) = ("Não instalado", .neutral)
-        case .notApproved(let installed, let latest?): (text, tone) = ("\(installed ?? "Instalado") → \(latest) disponível", .warning)
-        case .updateAvailable(let current, let latest): (text, tone) = ("\(current) → \(latest) disponível", .warning)
+        case .notInstalled: (text, tone) = (String(localized: "Não instalado"), .neutral)
+        case .notApproved(let installed, let latest?): (text, tone) = (String(localized: "\(installed ?? String(localized: "Instalado")) → \(latest) disponível"), .warning)
+        case .updateAvailable(let current, let latest): (text, tone) = (String(localized: "\(current) → \(latest) disponível"), .warning)
         case .notApproved(let installed, nil), .approvalOutdated(_, let installed):
-            (text, tone) = ("Instalado\(installed.map { " · \($0)" } ?? "")", .success)
-        case .upToDate(let version): (text, tone) = ("Aprovado · \(version)", .success)
+            (text, tone) = (installed.map { String(localized: "Instalado · \($0)") } ?? String(localized: "Instalado"), .success)
+        case .upToDate(let version): (text, tone) = (String(localized: "Aprovado · \(version)"), .success)
         }
         let color = tone == .neutral ? Color.secondary : tone.color
         return Text(text)
@@ -358,12 +360,12 @@ struct ServiceOnboardingSheet: View {
 
     private var activateBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            feature("key.fill", .blue, "Sem senha de administrador a cada conexão",
-                    "O macOS pede uma aprovação agora e pronto.")
-            feature("checkmark.shield.fill", .green, "Só obedece a este app",
-                    "Aceita pedidos apenas do TunnelMac assinado e executa só os clientes aprovados.")
-            feature("lock.fill", .orange, "Senhas ficam no Keychain",
-                    "O serviço não guarda senhas. Você pode removê-lo a qualquer momento em Ajustes.")
+            feature("key.fill", .blue, String(localized: "Sem senha de administrador a cada conexão"),
+                    String(localized: "O macOS pede uma aprovação agora e pronto."))
+            feature("checkmark.shield.fill", .green, String(localized: "Só obedece a este app"),
+                    String(localized: "Aceita pedidos apenas do TunnelMac assinado e executa só os clientes aprovados."))
+            feature("lock.fill", .orange, String(localized: "Senhas ficam no Keychain"),
+                    String(localized: "O serviço não guarda senhas. Você pode removê-lo a qualquer momento em Ajustes."))
         }
         .padding(.top, 4)
     }

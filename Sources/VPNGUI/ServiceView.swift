@@ -92,11 +92,11 @@ struct ServicePanel: View {
 
     private var clientsDetail: String {
         if service.health == .userNotAuthorized {
-            return "Aprove um cliente VPN antes da primeira conexão."
+            return String(localized: "Aprove um cliente VPN antes da primeira conexão.")
         }
         return service.health == .ready
-            ? "Conectar não pede senha de administrador."
-            : "Aprove o cliente VPN que você usa, de novo a cada atualização dele."
+            ? String(localized: "Conectar não pede senha de administrador.")
+            : String(localized: "Aprove o cliente VPN que você usa, de novo a cada atualização dele.")
     }
 
     // MARK: Clients
@@ -184,26 +184,26 @@ struct ServicePanel: View {
         switch state {
         case .notInstalled:
             return Presentation(symbol: "arrow.down.circle", tone: .neutral,
-                                text: "Não instalado. Instale no Terminal e volte para aprovar:",
+                                text: String(localized: "Não instalado. Instale no Terminal e volte para aprovar:"),
                                 command: "brew install \(formula)")
         case .notApproved(let installed, let latest):
             if let latest {
                 return Presentation(symbol: "arrow.up.circle", tone: .warning,
-                                    text: "Desatualizado (\(installed ?? "?") → \(latest)). Atualize antes de aprovar:",
+                                    text: String(localized: "Desatualizado (\(installed ?? "?") → \(latest)). Atualize antes de aprovar:"),
                                     command: "brew upgrade \(formula)")
             }
             return Presentation(symbol: "exclamationmark.shield", tone: .warning,
-                                text: "Instalado\(installed.map { " (\($0))" } ?? ""), falta aprovar.", command: nil)
+                                text: installed.map { String(localized: "Instalado (\($0)), falta aprovar.") } ?? String(localized: "Instalado, falta aprovar."), command: nil)
         case .updateAvailable(_, let latest):
             return Presentation(symbol: "arrow.up.circle", tone: .warning,
-                                text: "A versão \(latest) está disponível. Atualize e aprove de novo:",
+                                text: String(localized: "A versão \(latest) está disponível. Atualize e aprove de novo:"),
                                 command: "brew upgrade \(formula)")
         case .approvalOutdated(_, let installed):
             return Presentation(symbol: "arrow.triangle.2.circlepath", tone: .warning,
-                                text: "Nova versão instalada (\(installed ?? "?")). Aprove de novo para usá-la.",
+                                text: String(localized: "Nova versão instalada (\(installed ?? "?")). Aprove de novo para usá-la."),
                                 command: nil)
         case .upToDate(let version):
-            return Presentation(symbol: "checkmark.seal", tone: .success, text: "Versão \(version), aprovada.", command: nil)
+            return Presentation(symbol: "checkmark.seal", tone: .success, text: String(localized: "Versão \(version), aprovada."), command: nil)
         }
     }
 

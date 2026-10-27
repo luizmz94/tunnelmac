@@ -20,6 +20,9 @@ final class AppPreferences: ObservableObject {
         static let internetDNS = "internetDNSSelection"
         static let customDNS = "customInternetDNS"
         static let appearance = "appearance"
+        /// Read by Foundation at launch: the app's own language order (as set by System
+        /// Settings › Language & Region › Applications).
+        static let languages = "AppleLanguages"
     }
 
     let defaults: UserDefaults
@@ -38,6 +41,11 @@ final class AppPreferences: ObservableObject {
     @Published var internetDNSSelection: String { didSet { defaults.set(internetDNSSelection, forKey: Key.internetDNS) } }
     /// Light, dark or following the system (the default).
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
+    /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
+    @Published var language: AppLanguage {
+        didSet { store(language == .system ? nil : [language.rawValue], Key.languages) }
+    }
+    let launchLanguage: AppLanguage
     @Published var customInternetDNS: [InternetDNSOption] {
         didSet { defaults.set(try? JSONEncoder().encode(customInternetDNS), forKey: Key.customDNS) }
     }
@@ -57,6 +65,11 @@ final class AppPreferences: ObservableObject {
         lastUpdateSuccess = defaults.object(forKey: Key.lastUpdateSuccess) as? Date
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
+        // Only the app's own domain: the global AppleLanguages is the system's choice.
+        let domain = defaults.persistentDomain(forName: disposableSuite ?? Bundle.main.bundleIdentifier ?? "")
+        let saved = AppLanguage(tag: (domain?[Key.languages] as? [String])?.first)
+        language = saved
+        launchLanguage = saved
         customInternetDNS = defaults.data(forKey: Key.customDNS).flatMap { try? JSONDecoder().decode([InternetDNSOption].self, from: $0) } ?? []
     }
 
@@ -151,16 +164,16 @@ final class LoginItemController: ObservableObject {
 
     init(service: LoginItemService?, unavailableReason: String? = nil) {
         self.service = service
-        self.unavailableReason = service == nil ? (unavailableReason ?? "Indisponível neste build.") : unavailableReason
+        self.unavailableReason = service == nil ? (unavailableReason ?? String(localized: "Indisponível neste build.")) : unavailableReason
         refresh()
     }
 
     static func production() -> LoginItemController {
         if MenuBarCoordinator.isLocalChecks {
-            return LoginItemController(service: nil, unavailableReason: "Desativado no executor de verificações e na revisão visual.")
+            return LoginItemController(service: nil, unavailableReason: String(localized: "Desativado no executor de verificações e na revisão visual."))
         }
         if case .unavailable = CodeTrust.localPolicy() {
-            return LoginItemController(service: nil, unavailableReason: "Build sem assinatura Apple (ad hoc): use o app instalado pelo Homebrew.")
+            return LoginItemController(service: nil, unavailableReason: String(localized: "Build sem assinatura Apple (ad hoc): use o app instalado pelo Homebrew."))
         }
         return LoginItemController(service: MainAppLoginItem())
     }
@@ -179,7 +192,7 @@ final class LoginItemController: ObservableObject {
         do {
             if enable { try service.register() } else { try service.unregister() }
         } catch {
-            message = (enable ? "Não foi possível ativar: " : "Não foi possível desativar: ") + error.localizedDescription
+            message = (enable ? String(localized: "Não foi possível ativar: ") : String(localized: "Não foi possível desativar: ")) + error.localizedDescription
         }
         status = service.status
     }
@@ -191,9 +204,36 @@ final class LoginItemController: ObservableObject {
         if let message { return message }
         switch status {
         case .enabled: return nil
-        case .requiresApproval: return "Aprove em Ajustes do Sistema › Itens de Início."
-        case .notFound: return "Instale o app em Aplicativos para usar isto."
+        case .requiresApproval: return String(localized: "Aprove em Ajustes do Sistema › Itens de Início.")
+        case .notFound: return String(localized: "Instale o app em Aplicativos para usar isto.")
         default: return nil
+        }
+    }
+}
+
+/// Language chosen in Configurações › Geral. System follows System Settings › Language &
+/// Region; the others are written to the app's AppleLanguages and apply on the next launch.
+enum AppLanguage: String, CaseIterable, Identifiable {
+    case system, english = "en", german = "de", spanish = "es", french = "fr", hindi = "hi", portuguese = "pt-BR"
+    var id: String { rawValue }
+
+    /// A tag from AppleLanguages ("de", "pt-BR", "es-419"); unknown ones mean the system's choice.
+    init(tag: String?) {
+        guard let tag else { self = .system; return }
+        let code = Locale(identifier: tag).language.languageCode?.identifier ?? tag
+        self = code == "pt" ? .portuguese : AppLanguage(rawValue: code).flatMap { $0 == .system ? nil : $0 } ?? .system
+    }
+
+    /// Each language by its own name, so it can be found whatever the current one.
+    var title: String {
+        switch self {
+        case .system: return String(localized: "Sistema")
+        case .english: return "English"
+        case .german: return "Deutsch"
+        case .spanish: return "Español"
+        case .french: return "Français"
+        case .hindi: return "हिन्दी"
+        case .portuguese: return "Português"
         }
     }
 }
@@ -204,9 +244,9 @@ enum AppAppearance: String, CaseIterable, Identifiable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .automatic: return "Automático"
-        case .light: return "Claro"
-        case .dark: return "Escuro"
+        case .automatic: return String(localized: "Automático")
+        case .light: return String(localized: "Claro")
+        case .dark: return String(localized: "Escuro")
         }
     }
     /// nil lets every window follow the system appearance.

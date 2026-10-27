@@ -98,10 +98,10 @@ public final class SystemWireGuardHost: WireGuardHost {
     }
 
     public func uapi(interface: String, pid: pid_t, request: String) throws -> String {
-        guard WireGuardTunnel.validInterface(interface) else { throw RuleViolation("Interface inválida.") }
+        guard WireGuardTunnel.validInterface(interface) else { throw RuleViolation(ServiceLanguage.text("Interface inválida.")) }
         let path = uapiDirectory + "/" + interface + ".sock"
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-        guard fd >= 0 else { throw RuleViolation("Socket UAPI indisponível.") }
+        guard fd >= 0 else { throw RuleViolation(ServiceLanguage.text("Socket UAPI indisponível.")) }
         defer { close(fd) }
         var noSignal: Int32 = 1
         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
@@ -111,7 +111,7 @@ public final class SystemWireGuardHost: WireGuardHost {
         var address = sockaddr_un()
         address.sun_family = sa_family_t(AF_UNIX)
         let bytes = Array(path.utf8)
-        guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { throw RuleViolation("Caminho do socket UAPI longo demais.") }
+        guard bytes.count < MemoryLayout.size(ofValue: address.sun_path) else { throw RuleViolation(ServiceLanguage.text("Caminho do socket UAPI longo demais.")) }
         withUnsafeMutableBytes(of: &address.sun_path) { raw in
             raw.copyBytes(from: bytes)
             raw[bytes.count] = 0
@@ -124,14 +124,14 @@ public final class SystemWireGuardHost: WireGuardHost {
         var peer: pid_t = 0
         var length = socklen_t(MemoryLayout<pid_t>.size)
         guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERPID, &peer, &length) == 0, peer == pid else {
-            throw RuleViolation("O socket UAPI de \(interface) não pertence ao wireguard-go desta sessão.")
+            throw RuleViolation(ServiceLanguage.text("O socket UAPI de \(interface) não pertence ao wireguard-go desta sessão."))
         }
         let data = Array(request.utf8)
         var written = 0
         while written < data.count {
             let count = data[written...].withUnsafeBytes { Darwin.write(fd, $0.baseAddress, $0.count) }
             if count < 0 && errno == EINTR { continue }
-            guard count > 0 else { throw RuleViolation("Falha ao escrever no socket UAPI.") }
+            guard count > 0 else { throw RuleViolation(ServiceLanguage.text("Falha ao escrever no socket UAPI.")) }
             written += count
         }
         var response = [UInt8]()
@@ -214,7 +214,7 @@ final class WireGuardTunnel: SessionObserver {
         var dns: DNSChange?
     }
 
-    var cleanupFailure: String? { record.dns != nil || !record.routes.isEmpty ? "Limpeza de rede pendente; registro de recuperação preservado." : nil }
+    var cleanupFailure: String? { record.dns != nil || !record.routes.isEmpty ? ServiceLanguage.text("Limpeza de rede pendente; registro de recuperação preservado.") : nil }
 
     let token: String
     let profile: WireGuardProfile
@@ -301,11 +301,11 @@ final class WireGuardTunnel: SessionObserver {
         let interface = try waitForInterface()
         record.interface = interface
         try saveRecord()
-        emit("[+] Interface do WireGuard: \(interface)")
+        emit(ServiceLanguage.text("[+] Interface do WireGuard: \(interface)"))
         let resolved = try resolveEndpoints()
         let reply = try request(interface, try profile.uapiConfiguration(endpoints: resolved))
-        try checkErrno(reply, "configurar as chaves no wireguard-go")
-        emit("[#] wg setconf \(interface) (chaves e \(profile.peers.count) peer(s) pelo socket UAPI do wireguard-go)")
+        try checkErrno(reply, ServiceLanguage.text("configurar as chaves no wireguard-go"))
+        emit(ServiceLanguage.text("[#] wg setconf \(interface) (chaves e \(profile.peers.count) peer(s) pelo socket UAPI do wireguard-go)"))
         for address in profile.addresses {
             if address.isIPv6 { try command(WireGuardTools.ifconfig, [interface, "inet6", address.text, "alias"]) }
             else { try command(WireGuardTools.ifconfig, [interface, "inet", address.text, address.address, "alias"]) }
@@ -330,11 +330,11 @@ final class WireGuardTunnel: SessionObserver {
     private func waitForInterface() throws -> String {
         let deadline = Date().addingTimeInterval(startupTimeout)
         while Date() < deadline {
-            guard !isEnded else { throw RuleViolation("O wireguard-go encerrou antes de criar a interface.") }
+            guard !isEnded else { throw RuleViolation(ServiceLanguage.text("O wireguard-go encerrou antes de criar a interface.")) }
             if let name = readNameFile() ?? state.withLock({ loggedInterface }) { return name }
             usleep(50_000)
         }
-        throw RuleViolation("O wireguard-go não informou a interface criada em \(Int(startupTimeout)) s.")
+        throw RuleViolation(ServiceLanguage.text("O wireguard-go não informou a interface criada em \(Int(startupTimeout)) s."))
     }
 
     private func readNameFile() -> String? {
@@ -356,17 +356,18 @@ final class WireGuardTunnel: SessionObserver {
         while true {
             do { return try host.uapi(interface: interface, pid: pid, request: text) }
             catch let unavailable as UAPIUnavailable where [ENOENT, ECONNREFUSED].contains(unavailable.code) {
-                guard Date() < deadline, !isEnded else { throw RuleViolation("O socket UAPI do wireguard-go não ficou disponível.") }
+                guard Date() < deadline, !isEnded else { throw RuleViolation(ServiceLanguage.text("O socket UAPI do wireguard-go não ficou disponível.")) }
                 usleep(50_000)
             } catch let unavailable as UAPIUnavailable {
-                throw RuleViolation("Socket UAPI do wireguard-go inacessível (\(String(cString: strerror(unavailable.code)))).")
+                throw RuleViolation(ServiceLanguage.text("Socket UAPI do wireguard-go inacessível (\(String(cString: strerror(unavailable.code))))."))
             }
         }
     }
 
     private func checkErrno(_ reply: String, _ action: String) throws {
         let code = reply.split(separator: "\n").last { $0.hasPrefix("errno=") }.map { String($0.dropFirst(6)) }
-        guard code == "0" else { throw RuleViolation("O wireguard-go recusou \(action) (errno=\(code ?? "?")).") }
+        let errno = code ?? "?"
+        guard code == "0" else { throw RuleViolation(ServiceLanguage.text("O wireguard-go recusou \(action) (errno=\(errno)).")) }
     }
 
     /// Like `wg setconf`: host names are resolved by the helper, IPv4 first.
@@ -378,24 +379,26 @@ final class WireGuardTunnel: SessionObserver {
             if let (literal, _) = WireGuardAddress.canonical(endpoint.host) { addresses = [literal] }
             else { addresses = host.resolve(endpoint.host, port: endpoint.port) }
             guard let chosen = addresses.first(where: { !$0.contains(":") }) ?? addresses.first else {
-                throw RuleViolation("Não foi possível resolver o servidor \(endpoint.host).")
+                throw RuleViolation(ServiceLanguage.text("Não foi possível resolver o servidor \(endpoint.host)."))
             }
             let ipv6 = chosen.contains(":")
             if !endpoints.contains(where: { $0.ip == chosen }) { endpoints.append((chosen, ipv6)) }
-            if chosen != endpoint.host { emit("[+] \(endpoint.host) resolvido para \(chosen)") }
+            if chosen != endpoint.host { emit(ServiceLanguage.text("[+] \(endpoint.host) resolvido para \(chosen)")) }
             return ipv6 ? "[\(chosen)]:\(endpoint.port)" : "\(chosen):\(endpoint.port)"
         }
     }
 
     @discardableResult
     private func command(_ tool: String, _ arguments: [String], required: Bool = true, quiet: Bool = false) throws -> CommandResult {
-        guard !isEnded else { throw RuleViolation("Sessão encerrada.") }
+        guard !isEnded else { throw RuleViolation(ServiceLanguage.text("Sessão encerrada.")) }
         let name = (tool as NSString).lastPathComponent
         if !quiet { emit("[#] \(name) \(arguments.joined(separator: " "))") }
         let result = host.run(tool, arguments)
         if required && result.status != 0 {
             let detail = result.output.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)
-            throw RuleViolation("\(name) \(arguments.joined(separator: " ")) falhou (código \(result.status))\(detail.isEmpty ? "" : ": \(detail)").")
+            let command = "\(name) \(arguments.joined(separator: " "))", status = Int(result.status), output = String(detail)
+            throw RuleViolation(output.isEmpty ? ServiceLanguage.text("\(command) falhou (código \(status)).")
+                                               : ServiceLanguage.text("\(command) falhou (código \(status)): \(output)."))
         }
         return result
     }
@@ -436,13 +439,13 @@ final class WireGuardTunnel: SessionObserver {
         var desired: [Record.Route] = []
         for endpoint in endpoints where profile.allowedIPs.contains(where: { $0.contains(endpoint.ip) }) {
             guard let gateway = endpoint.ipv6 ? gateway6 : gateway4 else {
-                if initial { throw RuleViolation("Sem gateway externo para o endpoint \(endpoint.ip); túnel não configurado.") }
+                if initial { throw RuleViolation(ServiceLanguage.text("Sem gateway externo para o endpoint \(endpoint.ip); túnel não configurado.")) }
                 return false
             }
             desired.append(Record.Route(destination: endpoint.ip, ipv6: endpoint.ipv6, gateway: gateway))
         }
         for route in record.routes where !desired.contains(route) {
-            guard Self.removeOwnedRoute(route, host: host, token: token) else { throw RuleViolation("Limpeza da rota externa pendente.") }
+            guard Self.removeOwnedRoute(route, host: host, token: token) else { throw RuleViolation(ServiceLanguage.text("Limpeza da rota externa pendente.")) }
             record.routes.removeAll { $0 == route }
             try saveRecord()
         }
@@ -457,7 +460,7 @@ final class WireGuardTunnel: SessionObserver {
                 if !matches {
                     let family = route.ipv6 ? "-inet6" : "-inet"
                     try command(WireGuardTools.route, ["-q", "-n", "add", family, route.destination, "-gateway", route.gateway!])
-                    guard Self.routeMatches(route, host: host) else { throw RuleViolation("A rota externa do endpoint não foi confirmada.") }
+                    guard Self.routeMatches(route, host: host) else { throw RuleViolation(ServiceLanguage.text("A rota externa do endpoint não foi confirmada.")) }
                 }
                 Self.routeUsers[key, default: []].insert(token)
             }
@@ -500,11 +503,11 @@ final class WireGuardTunnel: SessionObserver {
             return true
         }
         guard claimed else {
-            throw RuleViolation("Outro túnel WireGuard controla o DNS; desconecte-o antes de usar o DNS deste perfil.")
+            throw RuleViolation(ServiceLanguage.text("Outro túnel WireGuard controla o DNS; desconecte-o antes de usar o DNS deste perfil."))
         }
         guard let service = host.primaryService(), Self.validService(service) else {
             releaseDNS()
-            throw RuleViolation("Nenhum serviço de rede principal; DNS obrigatório do perfil indisponível.")
+            throw RuleViolation(ServiceLanguage.text("Nenhum serviço de rede principal; DNS obrigatório do perfil indisponível."))
         }
         try setDNS(on: service, backup: host.dnsSetup(service: service))
     }
@@ -516,12 +519,13 @@ final class WireGuardTunnel: SessionObserver {
         try saveRecord()
         var value: [String: Any] = ["ServerAddresses": profile.dnsServers]
         if !profile.dnsSearch.isEmpty { value["SearchDomains"] = profile.dnsSearch }
-        let search = profile.dnsSearch.isEmpty ? "" : ", busca \(profile.dnsSearch.joined(separator: " "))"
-        emit("[#] DNS \(profile.dnsServers.joined(separator: " "))\(search) no serviço de rede principal")
+        let servers = profile.dnsServers.joined(separator: " "), search = profile.dnsSearch.joined(separator: " ")
+        emit(profile.dnsSearch.isEmpty ? ServiceLanguage.text("[#] DNS \(servers) no serviço de rede principal")
+                                       : ServiceLanguage.text("[#] DNS \(servers), busca \(search) no serviço de rede principal"))
         if host.setDNSSetup(service: service, value: value) {
             flushDNS()
         } else {
-            throw RuleViolation("Não foi possível aplicar o DNS obrigatório do perfil.")
+            throw RuleViolation(ServiceLanguage.text("Não foi possível aplicar o DNS obrigatório do perfil."))
         }
     }
 
@@ -546,12 +550,12 @@ final class WireGuardTunnel: SessionObserver {
         guard let change = record.dns else { return }
         let primary = host.primaryService()
         if let primary, Self.validService(primary), primary != change.service {
-            guard Self.restore(change, host: host) else { throw RuleViolation("Restauração do DNS anterior pendente.") }
+            guard Self.restore(change, host: host) else { throw RuleViolation(ServiceLanguage.text("Restauração do DNS anterior pendente.")) }
             try setDNS(on: primary, backup: host.dnsSetup(service: primary))
         } else if primary == change.service {
             let current = host.dnsSetup(service: change.service)
             if Self.servers(current) != change.servers {
-                emit("[+] As configurações de rede mudaram; aplicando o DNS do túnel de novo.")
+                emit(ServiceLanguage.text("[+] As configurações de rede mudaram; aplicando o DNS do túnel de novo."))
                 try setDNS(on: change.service, backup: current)
             }
         }
@@ -587,7 +591,7 @@ final class WireGuardTunnel: SessionObserver {
                 guard !self.isEnded else { return }
                 guard resolved.count == named.count else {
                     self.networkSnapshot = nil // Retry on a later tick without resetting a working peer.
-                    self.emit("[!] Resolução do endpoint após mudança de rede pendente.")
+                    self.emit(ServiceLanguage.text("[!] Resolução do endpoint após mudança de rede pendente."))
                     return
                 }
                 do {
@@ -608,8 +612,8 @@ final class WireGuardTunnel: SessionObserver {
                         let key = Data(base64Encoded: self.profile.peers[index].publicKey)!.map { String(format: "%02x", $0) }.joined()
                         request += "public_key=\(key)\nendpoint=\(ip.contains(":") ? "[" + ip + "]" : ip):\(port)\n"
                     }
-                    try self.checkErrno(self.host.uapi(interface: interface, pid: self.pid, request: request + "\n"), "atualizar o endpoint após mudança de rede")
-                    self.emit("[+] Endpoints atualizados após mudança de rede.")
+                    try self.checkErrno(self.host.uapi(interface: interface, pid: self.pid, request: request + "\n"), ServiceLanguage.text("atualizar o endpoint após mudança de rede"))
+                    self.emit(ServiceLanguage.text("[+] Endpoints atualizados após mudança de rede."))
                 } catch {
                     self.emit("\(WireGuardMarkers.failure) \(error.localizedDescription)")
                     self.fail()
@@ -651,7 +655,7 @@ final class WireGuardTunnel: SessionObserver {
                 emit("\(WireGuardMarkers.handshake) com \(server).")
             } else if !handshakeSeen, !warnedNoHandshake, let configuredAt, Date().timeIntervalSince(configuredAt) >= handshakeWarning {
                 warnedNoHandshake = true
-                emit("[!] Nenhum handshake com o servidor após \(Int(handshakeWarning)) s. Confira o endpoint e se o servidor conhece a chave pública deste perfil.")
+                emit(ServiceLanguage.text("[!] Nenhum handshake com o servidor após \(Int(handshakeWarning)) s. Confira o endpoint e se o servidor conhece a chave pública deste perfil."))
             }
         }
         do {
@@ -671,17 +675,17 @@ final class WireGuardTunnel: SessionObserver {
         record.routes = record.routes.filter { !Self.removeOwnedRoute($0, host: host, token: token) }
         if let change = record.dns {
             if Self.restore(change, host: host) {
-                emit("[#] DNS do serviço de rede principal restaurado")
+                emit(ServiceLanguage.text("[#] DNS do serviço de rede principal restaurado"))
                 flushDNS()
                 record.dns = nil
-            } else { emit("[!] Restauração do DNS pendente; registro preservado para recuperação.") }
+            } else { emit(ServiceLanguage.text("[!] Restauração do DNS pendente; registro preservado para recuperação.")) }
         }
         if record.dns == nil { releaseDNS() } // Pending restoration retains DNS ownership.
         unlink(nameFile)
         if record.routes.isEmpty && record.dns == nil { unlink(recordPath) }
         else {
-            do { try saveRecord() } catch { emit("[!] Falha ao atualizar o registro de recuperação: \(error.localizedDescription)") }
-            emit("\(WireGuardMarkers.failure) Limpeza de rede pendente; reinicie o serviço para tentar recuperar.")
+            do { try saveRecord() } catch { emit(ServiceLanguage.text("[!] Falha ao atualizar o registro de recuperação: \(error.localizedDescription)")) }
+            emit(ServiceLanguage.text("\(WireGuardMarkers.failure) Limpeza de rede pendente; reinicie o serviço para tentar recuperar."))
         }
     }
 

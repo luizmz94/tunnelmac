@@ -145,9 +145,9 @@ struct MainView: View {
 
     private func deleteMessage(_ connection: Connection?) -> String {
         switch connection?.kind {
-        case .openvpn: return "A conexão, a senha e o perfil serão removidos."
-        case .wireguard: return "A conexão e o perfil serão removidos."
-        default: return "O cadastro, a senha salva e a sessão SAML guardada serão removidos."
+        case .openvpn: return String(localized: "A conexão, a senha e o perfil serão removidos.")
+        case .wireguard: return String(localized: "A conexão e o perfil serão removidos.")
+        default: return String(localized: "O cadastro, a senha salva e a sessão SAML guardada serão removidos.")
         }
     }
 
@@ -225,19 +225,19 @@ struct MainView: View {
                              manageService: { menuBar.showServiceManagement() })
                 .id(connection.id)
         } else if !model.ready {
-            EmptyStateView(symbol: "exclamationmark.triangle", title: "Não foi possível carregar as conexões",
-                           message: (model.error ?? "O arquivo existente foi preservado.") + " As ações de conexão ficam indisponíveis até o problema ser resolvido.",
+            EmptyStateView(symbol: "exclamationmark.triangle", title: String(localized: "Não foi possível carregar as conexões"),
+                           message: (model.error ?? String(localized: "O arquivo existente foi preservado.")) + String(localized: " As ações de conexão ficam indisponíveis até o problema ser resolvido."),
                            tone: .warning)
         } else if model.data.connections.isEmpty {
-            EmptyStateView(symbol: "network.badge.shield.half.filled", title: "Nenhuma conexão cadastrada",
-                           message: "Adicione uma conexão Fortinet, OpenVPN ou WireGuard.") {
+            EmptyStateView(symbol: "network.badge.shield.half.filled", title: String(localized: "Nenhuma conexão cadastrada"),
+                           message: String(localized: "Adicione uma conexão Fortinet, OpenVPN ou WireGuard.")) {
                 Button { editing = Connection() } label: { Label("Nova conexão", systemImage: "plus") }
                     .adaptiveButtonStyle(prominent: true)
                     .controlSize(.large)
             }
         } else {
-            EmptyStateView(symbol: "sidebar.left", title: "Selecione uma conexão",
-                           message: "Os detalhes, as ações e os logs aparecem aqui.")
+            EmptyStateView(symbol: "sidebar.left", title: String(localized: "Selecione uma conexão"),
+                           message: String(localized: "Os detalhes, as ações e os logs aparecem aqui."))
         }
     }
 }
@@ -334,15 +334,15 @@ struct ConnectionRow: View {
         .onHover { hovering = $0 }
         .animation(Motion.state(reduceMotion), value: session.state)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(connection.name), \(session.state.rawValue)")
+        .accessibilityLabel("\(connection.name), \(session.state.title)")
         .accessibilityAction(named: Text(action.title)) { perform() }
     }
 
     private var subtitle: String {
-        if session.state.active && session.state != .connected { return session.state.rawValue }
-        if session.authenticationRejected { return "Autenticação recusada" }
-        if session.state == .failed { return "Falha · \(connection.endpoint)" }
-        return showsServer ? connection.endpoint : session.state.rawValue
+        if session.state.active && session.state != .connected { return session.state.title }
+        if session.authenticationRejected { return String(localized: "Autenticação recusada") }
+        if session.state == .failed { return String(localized: "Falha · \(connection.endpoint)") }
+        return showsServer ? connection.endpoint : session.state.title
     }
 
     @ViewBuilder private var trailing: some View {
@@ -510,28 +510,28 @@ struct ConnectionDetail: View {
     @ViewBuilder private var notices: some View {
         if !session.state.active, let fix = session.digestFix {
             InlineNotice(tone: .warning, symbol: "wrench.and.screwdriver",
-                         title: "O OpenVPN recusou auth \(fix.from)",
-                         message: "O app pode trocar para auth \(fix.to), se o servidor usar esse algoritmo.") {
+                         title: String(localized: "O OpenVPN recusou auth \(fix.from)"),
+                         message: String(localized: "O app pode trocar para auth \(fix.to), se o servidor usar esse algoritmo.")) {
                 Button("Corrigir perfil…") { confirmingDigestFix = fix }
             }
             .transition(.opacity)
         }
         if !session.state.active, let digest = session.suggestedCertificate {
             InlineNotice(tone: .warning, symbol: "lock.trianglebadge.exclamationmark",
-                         title: "O certificado do servidor precisa ser conferido",
-                         message: "Compare o SHA-256 com o administrador antes de confiar.") {
+                         title: String(localized: "O certificado do servidor precisa ser conferido"),
+                         message: String(localized: "Compare o SHA-256 com o administrador antes de confiar.")) {
                 Button("Conferir certificado…") { certificateToTrust = digest }
             }
             .transition(.opacity)
         }
         if session.authenticationRejected, !session.state.active {
             InlineNotice(tone: .danger, symbol: "person.crop.circle.badge.xmark",
-                         title: "A última autenticação foi recusada",
-                         message: "Confira o usuário e a senha antes de tentar de novo, para evitar o bloqueio da conta.")
+                         title: String(localized: "A última autenticação foi recusada"),
+                         message: String(localized: "Confira o usuário e a senha antes de tentar de novo, para evitar o bloqueio da conta."))
                 .transition(.opacity)
         } else if session.state == .failed, session.suggestedCertificate == nil {
-            InlineNotice(tone: .danger, symbol: "xmark.octagon", title: "A última tentativa falhou",
-                         message: "Os detalhes estão nos logs abaixo.")
+            InlineNotice(tone: .danger, symbol: "xmark.octagon", title: String(localized: "A última tentativa falhou"),
+                         message: String(localized: "Os detalhes estão nos logs abaixo."))
                 .transition(.opacity)
         }
         if let outdated = outdatedClient {
@@ -542,7 +542,7 @@ struct ConnectionDetail: View {
         }
         if !session.state.active && !service.canConnect {
             InlineNotice(tone: service.health.tone == .danger ? .danger : .warning, symbol: service.health.symbol,
-                         title: "Conectar fica disponível quando o serviço privilegiado estiver pronto",
+                         title: String(localized: "Conectar fica disponível quando o serviço privilegiado estiver pronto"),
                          message: service.health.title) {
                 Button("Gerenciar…", action: manageService)
             }
@@ -556,8 +556,8 @@ struct ConnectionDetail: View {
         let kind = connection.kind.runtime
         guard let approved = service.status?.runtime(kind),
               case .updateAvailable(_, let latest) = versions.state(kind, status: service.status) else { return nil }
-        return ("\(kind.title) \(latest) disponível",
-                "Atualize com brew upgrade \(kind.executableName) e aprove de novo em Serviço privilegiado.")
+        return (String(localized: "\(kind.title) \(latest) disponível"),
+                String(localized: "Atualize com brew upgrade \(kind.executableName) e aprove de novo em Serviço privilegiado."))
     }
 
     private var facts: some View {
@@ -575,16 +575,16 @@ struct ConnectionDetail: View {
         let summary = connection.wireGuard
         return VStack(alignment: .leading, spacing: 10) {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 7) {
-                fact("Protocolo", "WireGuard")
-                fact("Servidor", (summary?.endpoints ?? []).isEmpty ? "Sem endpoint" : (summary?.endpoints ?? []).joined(separator: ", "))
-                fact("Endereço", (summary?.addresses ?? []).joined(separator: ", "))
-                fact("Rotas", summary?.routesDescription ?? "—")
-                fact("DNS", (summary?.dns ?? []).isEmpty ? "Não altera o DNS" : (summary?.dns ?? []).joined(separator: ", "))
-                fact("Chave pública", summary?.publicKey ?? "—")
+                fact(String(localized: "Protocolo"), "WireGuard")
+                fact(String(localized: "Servidor"), (summary?.endpoints ?? []).isEmpty ? String(localized: "Sem endpoint") : (summary?.endpoints ?? []).joined(separator: ", "))
+                fact(String(localized: "Endereço"), (summary?.addresses ?? []).joined(separator: ", "))
+                fact(String(localized: "Rotas"), summary?.routesDescription ?? "—")
+                fact("DNS", (summary?.dns ?? []).isEmpty ? String(localized: "Não altera o DNS") : (summary?.dns ?? []).joined(separator: ", "))
+                fact(String(localized: "Chave pública"), summary?.publicKey ?? "—")
             }
             .font(.callout)
             .cardSurface()
-            exposedNotice(summary?.stillExposed ?? [], keys: "O arquivo original com a chave privada")
+            exposedNotice(summary?.stillExposed ?? [], keys: String(localized: "O arquivo original com a chave privada"))
         }
     }
 
@@ -592,9 +592,9 @@ struct ConnectionDetail: View {
     @ViewBuilder private func exposedNotice(_ exposed: [String], keys: String) -> some View {
         if !exposed.isEmpty {
             InlineNotice(tone: .warning, symbol: "lock.open",
-                         title: "\(keys) pode ser lido por outros usuários do Mac",
+                         title: String(localized: "\(keys) pode ser lido por outros usuários do Mac"),
                          message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                            + " ainda está na pasta de origem. Apague o original.") {
+                            + String(localized: " ainda está na pasta de origem. Apague o original.")) {
                 Button("Mostrar no Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                 }
@@ -605,19 +605,19 @@ struct ConnectionDetail: View {
     private var openVPNFacts: some View {
         VStack(alignment: .leading, spacing: 10) {
             Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 7) {
-                fact("Protocolo", "OpenVPN")
-                fact("Servidores", (connection.openVPN?.remotes ?? []).map(\.display).joined(separator: ", "))
-                fact("Usuário", connection.username.isEmpty ? "—" : connection.username)
-                fact("Autenticação", connection.usesPassword ? "Certificado + usuário e senha" : "Certificado")
+                fact(String(localized: "Protocolo"), "OpenVPN")
+                fact(String(localized: "Servidores"), (connection.openVPN?.remotes ?? []).map(\.display).joined(separator: ", "))
+                fact(String(localized: "Usuário"), connection.username.isEmpty ? "—" : connection.username)
+                fact(String(localized: "Autenticação"), connection.usesPassword ? String(localized: "Certificado + usuário e senha") : String(localized: "Certificado"))
             }
             .font(.callout)
             .cardSurface()
             // Only what still applies: originals left in the source folder that others can read.
             if let exposed = connection.openVPN?.stillExposed, !exposed.isEmpty {
                 InlineNotice(tone: .warning, symbol: "lock.open",
-                             title: "Chaves originais legíveis por outros usuários do Mac",
+                             title: String(localized: "Chaves originais legíveis por outros usuários do Mac"),
                              message: exposed.map { ($0 as NSString).lastPathComponent }.joined(separator: ", ")
-                                + " ainda estão na pasta de origem. Apague os originais.") {
+                                + String(localized: " ainda estão na pasta de origem. Apague os originais.")) {
                     Button("Mostrar no Finder") {
                         NSWorkspace.shared.activateFileViewerSelecting(exposed.map { URL(fileURLWithPath: $0) })
                     }
@@ -628,14 +628,14 @@ struct ConnectionDetail: View {
 
     private var fortinetFacts: some View {
         Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 7) {
-            fact("Servidor", connection.endpoint)
-            fact("Usuário", connection.username.isEmpty ? "—" : connection.username)
-            fact("Autenticação", connection.authentication.title)
-            fact("Certificado", connection.trustedCertificate.isEmpty
-                 ? "Validação padrão do sistema"
-                 : "SHA-256 fixado · …\(connection.trustedCertificate.suffix(12))")
+            fact(String(localized: "Servidor"), connection.endpoint)
+            fact(String(localized: "Usuário"), connection.username.isEmpty ? "—" : connection.username)
+            fact(String(localized: "Autenticação"), connection.authentication.title)
+            fact(String(localized: "Certificado"), connection.trustedCertificate.isEmpty
+                 ? String(localized: "Validação padrão do sistema")
+                 : String(localized: "SHA-256 fixado · …\(String(connection.trustedCertificate.suffix(12)))"))
             if let client = connection.clientCertificate {
-                fact("Certificado do cliente", client.name)
+                fact(String(localized: "Certificado do cliente"), client.name)
             }
         }
         .font(.callout)
@@ -655,7 +655,7 @@ struct ConnectionDetail: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("Logs").font(.headline).accessibilityAddTraits(.isHeader)
                 if !session.logs.isEmpty {
-                    Text(session.logs.count == 1 ? "1 linha" : "\(session.logs.count) linhas")
+                    Text("\(session.logs.count) linhas")
                         .font(.caption).foregroundStyle(.secondary).monospacedDigit()
                 }
                 Spacer()
@@ -699,7 +699,7 @@ struct CertificateTrustSheet: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 16) {
                 SheetHeader(symbol: "lock.trianglebadge.exclamationmark", tone: .warning,
-                            title: "Confiar neste certificado?", subtitle: "\(connection.server):\(String(connection.port))")
+                            title: String(localized: "Confiar neste certificado?"), subtitle: "\(connection.server):\(String(connection.port))")
                 VStack(alignment: .leading, spacing: 6) {
                     Text("SHA-256 apresentado pelo servidor").font(.callout.weight(.medium))
                     Text(Self.grouped(digest))
@@ -713,7 +713,7 @@ struct CertificateTrustSheet: View {
                 }
                 if !connection.trustedCertificate.isEmpty {
                     InlineNotice(tone: .warning, symbol: "arrow.triangle.swap",
-                                 title: "Este digest substituirá o certificado confiável já cadastrado.")
+                                 title: String(localized: "Este digest substituirá o certificado confiável já cadastrado."))
                 }
                 Text("Confira o digest com o administrador antes de confiar.")
                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

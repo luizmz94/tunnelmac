@@ -52,6 +52,20 @@ struct QuitRequest: Equatable {
     }
 }
 
+/// Quits through the normal path (active VPNs are confirmed and cleaned up first) and opens
+/// the app again once this process is gone. A cancelled quit leaves everything as it was.
+enum AppRelaunch {
+    @MainActor static func now() {
+        let waiter = Process()
+        waiter.executableURL = URL(fileURLWithPath: "/bin/sh")
+        // Up to 60 s: cleanup of active VPNs may take 30 s before the app exits.
+        waiter.arguments = ["-c", "for _ in $(/usr/bin/jot 600); do /bin/kill -0 \"$1\" 2>/dev/null || exec /usr/bin/open \"$2\"; /bin/sleep 0.1; done",
+                            "relaunch", String(ProcessInfo.processInfo.processIdentifier), Bundle.main.bundlePath]
+        do { try waiter.run() } catch { return }
+        NSApp.terminate(nil)
+    }
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var model: AppModel?
@@ -102,7 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 30) { [weak self] in
             guard let self, self.awaitingTermination else { return }
             self.awaitingTermination = false
-            model.error = "Encerramento e limpeza não confirmados em 30 s. O app permanece aberto; verifique o serviço antes de sair novamente."
+            model.error = String(localized: "Encerramento e limpeza não confirmados em 30 s. O app permanece aberto; verifique o serviço antes de sair novamente.")
             self.menuBar?.installer.quitCancelled()
             self.replyToTermination(false)
         }
@@ -111,10 +125,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private static func askToDisconnect() -> Bool {
         NSApp.activate(ignoringOtherApps: true) // The window may be hidden; keep the alert visible.
         let alert = NSAlert()
-        alert.messageText = "Desconectar e sair?"
-        alert.informativeText = "Há conexões ativas, em andamento ou com reconexão agendada. O app aguardará o encerramento e a limpeza das VPNs antes de sair."
-        alert.addButton(withTitle: "Desconectar e sair")
-        alert.addButton(withTitle: "Cancelar")
+        alert.messageText = String(localized: "Desconectar e sair?")
+        alert.informativeText = String(localized: "Há conexões ativas, em andamento ou com reconexão agendada. O app aguardará o encerramento e a limpeza das VPNs antes de sair.")
+        alert.addButton(withTitle: String(localized: "Desconectar e sair"))
+        alert.addButton(withTitle: String(localized: "Cancelar"))
         return alert.runModal() == .alertFirstButtonReturn
     }
     // Only the local checks runner quits with its window; the app stays in the menu bar.

@@ -17,7 +17,7 @@ struct JSONStore {
         guard FileManager.default.fileExists(atPath: file.path) else { return SavedData() }
         let saved = try JSONDecoder().decode(SavedData.self, from: BoundedFile.read(file, limit: Self.maximumSize))
         guard Set(saved.connections.map(\.id)).count == saved.connections.count else {
-            throw AppFailure("O arquivo de conexões contém identificadores duplicados.")
+            throw AppFailure(String(localized: "O arquivo de conexões contém identificadores duplicados."))
         }
         return saved
     }
@@ -25,7 +25,7 @@ struct JSONStore {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let bytes = try encoder.encode(data)
-        guard bytes.count <= Self.maximumSize else { throw AppFailure("Arquivo de conexões acima do limite de 4 MiB; reduza os cadastros antes de salvar.") }
+        guard bytes.count <= Self.maximumSize else { throw AppFailure(String(localized: "Arquivo de conexões acima do limite de 4 MiB; reduza os cadastros antes de salvar.")) }
         return bytes
     }
     func save(_ data: SavedData) throws { try BoundedFile.replace(file, data: encoded(data)) }

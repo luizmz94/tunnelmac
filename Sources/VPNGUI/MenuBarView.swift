@@ -93,11 +93,11 @@ struct MenuBarView: View {
 
     @ViewBuilder private var content: some View {
         if !model.ready {
-            message(title: "Não foi possível carregar as conexões", symbol: "exclamationmark.triangle", tone: .warning,
-                    detail: (model.error ?? "O arquivo existente foi preservado.") + "\nAs ações de conexão ficam indisponíveis até o problema ser resolvido.")
+            message(title: String(localized: "Não foi possível carregar as conexões"), symbol: "exclamationmark.triangle", tone: .warning,
+                    detail: (model.error ?? String(localized: "O arquivo existente foi preservado.")) + String(localized: "\nAs ações de conexão ficam indisponíveis até o problema ser resolvido."))
         } else if model.data.connections.isEmpty {
-            message(title: "Nenhuma conexão cadastrada", symbol: "network", tone: .neutral,
-                    detail: "Use Abrir TunnelMac para cadastrar uma conexão.")
+            message(title: String(localized: "Nenhuma conexão cadastrada"), symbol: "network", tone: .neutral,
+                    detail: String(localized: "Use Abrir TunnelMac para cadastrar uma conexão."))
         } else {
             let duplicated = menuBar.duplicatedNames
             ScrollView(.vertical) {
@@ -142,7 +142,7 @@ struct MenuBarView: View {
                 if showService {
                     InlineNotice(tone: model.service.health.tone == .danger ? .danger : .warning,
                                  symbol: model.service.health.symbol, title: model.service.health.title,
-                                 message: "Conectar fica indisponível até o serviço estar pronto.") {
+                                 message: String(localized: "Conectar fica indisponível até o serviço estar pronto.")) {
                         Button("Gerenciar…") { menuBar.showServiceManagement() }
                     }
                 }
@@ -246,7 +246,7 @@ struct MenuBarRow: View {
                         .lineLimit(1).truncationMode(.middle)
                 }
                 HStack(spacing: 5) {
-                    Text(session.authenticationRejected && !session.state.active ? "Autenticação recusada" : session.state.rawValue)
+                    Text(session.authenticationRejected && !session.state.active ? String(localized: "Autenticação recusada") : session.state.title)
                     if let start = session.connectedAt, session.state == .connected {
                         Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
                         ElapsedTime(start: start)
@@ -275,7 +275,7 @@ struct MenuBarRow: View {
                         .disabled(!action.enabled)
                         .help(help(for: action))
                         .accessibilityLabel(connection.name)
-                        .accessibilityValue(session.state.rawValue)
+                        .accessibilityValue(session.state.title)
                 }
                 if !session.state.active, session.suggestedCertificate != nil {
                     Button("Conferir certificado…") { menuBar.showMainWindow(selecting: connection.id) }
@@ -293,11 +293,11 @@ struct MenuBarRow: View {
 
     private func help(for action: MenuBarRowAction) -> String {
         switch action {
-        case .connect: return "Conectar \(connection.name)"
-        case .disconnect: return "Desconectar \(connection.name); cancela também reconexões e fila SAML"
-        case .disconnecting: return "Aguardando o encerramento e a limpeza de rotas e DNS"
-        case .review: return "A última autenticação foi recusada. Abra a janela para revisar o cadastro"
-        case .unavailable: return menuBar.model.ready ? "Serviço privilegiado indisponível; use Gerenciar…" : "Os dados não foram carregados"
+        case .connect: return String(localized: "Conectar \(connection.name)")
+        case .disconnect: return String(localized: "Desconectar \(connection.name); cancela também reconexões e fila SAML")
+        case .disconnecting: return String(localized: "Aguardando o encerramento e a limpeza de rotas e DNS")
+        case .review: return String(localized: "A última autenticação foi recusada. Abra a janela para revisar o cadastro")
+        case .unavailable: return menuBar.model.ready ? String(localized: "Serviço privilegiado indisponível; use Gerenciar…") : String(localized: "Os dados não foram carregados")
         }
     }
 

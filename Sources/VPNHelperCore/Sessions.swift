@@ -207,9 +207,9 @@ final class SessionRunner {
                 self.finished = true
                 if let line = self.finalCheck?() { self.pump.enqueue(.line(line)) }
                 if let failure = self.observer?.cleanupFailure { self.pump.enqueue(.failed(failure)) }
-                else if code == 137 { self.pump.enqueue(.failed("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar.")) }
+                else if code == 137 { self.pump.enqueue(.failed(ServiceLanguage.text("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar."))) }
                 else if code >= 0 { self.pump.enqueue(.exited(code: code)) }
-                else { self.pump.enqueue(.failed("O supervisor encerrou sem status confirmado.")) }
+                else { self.pump.enqueue(.failed(ServiceLanguage.text("O supervisor encerrou sem status confirmado."))) }
                 self.onFinish?(self)
             }
         }
@@ -258,7 +258,7 @@ public final class SessionRegistry {
             do {
                 let (data, _) = try SecureFile.read(path, limit: 1024 * 1024)
                 entries = try JSONDecoder().decode([Entry].self, from: data)
-            } catch { persistenceFailure = "Registro de sessões ilegível; recuperação manual necessária: \(error.localizedDescription)" }
+            } catch { persistenceFailure = ServiceLanguage.text("Registro de sessões ilegível; recuperação manual necessária: \(error.localizedDescription)") }
         }
     }
     static func identity(of pid: pid_t) -> (UInt64, UInt64)? {
@@ -270,7 +270,7 @@ public final class SessionRegistry {
         return seconds == entry.startSeconds && micros == entry.startMicroseconds
     }
     public func add(token: String, uid: uid_t, connectionID: UUID, pid: pid_t) throws {
-        guard let (seconds, micros) = Self.identity(of: pid) else { throw failure(.internalError, "Identidade do supervisor não pôde ser registrada.") }
+        guard let (seconds, micros) = Self.identity(of: pid) else { throw failure(.internalError, ServiceLanguage.text("Identidade do supervisor não pôde ser registrada.")) }
         entries.append(Entry(token: token, uid: uid, connectionID: connectionID, pid: pid, startSeconds: seconds, startMicroseconds: micros))
         try persist()
     }
@@ -291,7 +291,7 @@ public final class SessionRegistry {
         catch { persistenceFailure = error.localizedDescription } // Keep in-memory evidence; disk retains earlier entries.
     }
     private func persist() throws {
-        guard let path else { throw failure(.internalError, "Caminho do registro de sessões indisponível.") }
+        guard let path else { throw failure(.internalError, ServiceLanguage.text("Caminho do registro de sessões indisponível.")) }
         try SecureFile.replace(path, data: JSONEncoder().encode(entries), mode: 0o600)
     }
 }

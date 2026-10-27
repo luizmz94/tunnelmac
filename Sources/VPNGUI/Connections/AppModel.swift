@@ -45,7 +45,7 @@ final class AppModel: ObservableObject {
             do {
                 try ConnectionTransaction(store: suppliedStore, passwords: passwords, cookies: cookies).recover()
                 installLoaded(suppliedStore, data: try suppliedStore.load())
-            } catch { self.error = "Falha ao ler os dados. O arquivo existente foi preservado. \(error.localizedDescription)" }
+            } catch { self.error = String(localized: "Falha ao ler os dados. O arquivo existente foi preservado. \(error.localizedDescription)") }
         } else {
             Task {
                 do {
@@ -55,7 +55,7 @@ final class AppModel: ObservableObject {
                         return (store, try store.load())
                     }
                     installLoaded(store, data: saved)
-                } catch { self.error = "Falha ao ler/recuperar os dados. Os arquivos foram preservados. \(error.localizedDescription)" }
+                } catch { self.error = String(localized: "Falha ao ler/recuperar os dados. Os arquivos foram preservados. \(error.localizedDescription)") }
             }
         }
         manager.retry = { [weak self] id in
@@ -74,8 +74,8 @@ final class AppModel: ObservableObject {
     /// `openVPNProfile` is the normalized profile of a new import (or a replacement);
     /// nil keeps the profile already saved for this connection. `wireGuardProfile` likewise.
     func save(_ connection: Connection, password: String, openVPNProfile: String? = nil, wireGuardProfile: String? = nil) throws {
-        guard ready, let store else { throw AppFailure("Os dados não foram carregados; o arquivo foi preservado.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de editar.") }
+        guard ready, let store else { throw AppFailure(String(localized: "Os dados não foram carregados; o arquivo foi preservado.")) }
+        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure(String(localized: "Desconecte antes de editar.")) }
         let updated = try ConnectionSave(store: store, passwords: passwords, cookies: cookies).run(
             current: data, connection: connection, password: password, openVPNProfile: openVPNProfile, wireGuardProfile: wireGuardProfile)
         let c = connection
@@ -85,8 +85,8 @@ final class AppModel: ObservableObject {
     }
     @Published private(set) var writing = false
     func saveAsync(_ connection: Connection, password: String, openVPNProfile: String? = nil, wireGuardProfile: String? = nil) async throws {
-        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de editar.") }
+        guard ready, let store, !writing else { throw AppFailure(String(localized: "Dados indisponíveis ou operação em andamento.")) }
+        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure(String(localized: "Desconecte antes de editar.")) }
         writing = true
         defer { writing = false }
         let useCase = ConnectionSave(store: store, passwords: passwords, cookies: cookies)
@@ -97,15 +97,15 @@ final class AppModel: ObservableObject {
                                 openVPNProfile: openVPNProfile, wireGuardProfile: wireGuardProfile)
             }
         } catch {
-            if error.localizedDescription.hasPrefix("Operação pendente") { ready = false }
+            if AppFailure.isPendingRecovery(error) { ready = false }
             throw error
         }
         manager.session(connection.id).authenticationRejected = false
         manager.session(connection.id).digestFix = nil
     }
     func deleteAsync(_ connection: Connection) async throws {
-        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de excluir.") }
+        guard ready, let store, !writing else { throw AppFailure(String(localized: "Dados indisponíveis ou operação em andamento.")) }
+        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure(String(localized: "Desconecte antes de excluir.")) }
         writing = true
         defer { writing = false }
         var updated = data
@@ -113,13 +113,13 @@ final class AppModel: ObservableObject {
         let transaction = ConnectionTransaction(store: store, passwords: passwords, cookies: cookies)
         let snapshot = updated
         do { try await PersistenceIO.run { try transaction.delete(connection.id, updated: snapshot) } }
-        catch { if error.localizedDescription.hasPrefix("Operação pendente") { ready = false }; throw error }
+        catch { if AppFailure.isPendingRecovery(error) { ready = false }; throw error }
         data = updated
         manager.sessions.removeValue(forKey: connection.id)
     }
     /// Encrypted backup of every connection with its password and profile.
     func exportBackupAsync(password: String, preferences: BackupPreferences?) async throws -> Data {
-        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
+        guard ready, let store, !writing else { throw AppFailure(String(localized: "Dados indisponíveis ou operação em andamento.")) }
         let snapshot = data, passwords = passwords
         return try await PersistenceIO.run {
             try ConfigBackup.export(snapshot, store: store, passwords: passwords, preferences: preferences, password: password)
@@ -137,10 +137,10 @@ final class AppModel: ObservableObject {
     }
     /// Adds the backup's connections and replaces those with the same identifier; the rest stays.
     func importBackupAsync(_ plan: BackupImportPlan) async throws {
-        guard ready, let store, !writing else { throw AppFailure("Dados indisponíveis ou operação em andamento.") }
+        guard ready, let store, !writing else { throw AppFailure(String(localized: "Dados indisponíveis ou operação em andamento.")) }
         let ids = Set(plan.payload.connections.map(\.connection.id))
         if let active = data.connections.first(where: { ids.contains($0.id) && manager.sessions[$0.id]?.state.active == true }) {
-            throw AppFailure("Desconecte \u{201C}\(active.name)\u{201D} antes de importar: o backup substitui essa conexão.")
+            throw AppFailure(String(localized: "Desconecte \u{201C}\(active.name)\u{201D} antes de importar: o backup substitui essa conexão."))
         }
         writing = true
         defer { writing = false }
@@ -152,7 +152,7 @@ final class AppModel: ObservableObject {
         } catch let failure as BackupImportFailure {
             data = failure.saved
             refreshImported(ids)
-            if failure.message.contains("Operação pendente") { ready = false }
+            if failure.pendingRecovery { ready = false }
             throw failure
         }
         refreshImported(ids)
@@ -165,8 +165,8 @@ final class AppModel: ObservableObject {
         }
     }
     func delete(_ connection: Connection) throws {
-        guard ready, let store else { throw AppFailure("Os dados não foram carregados.") }
-        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure("Desconecte antes de excluir.") }
+        guard ready, let store else { throw AppFailure(String(localized: "Os dados não foram carregados.")) }
+        guard manager.sessions[connection.id]?.state.active != true else { throw AppFailure(String(localized: "Desconecte antes de excluir.")) }
         var updated = data
         updated.connections.removeAll { $0.id == connection.id }
         try ConnectionTransaction(store: store, passwords: passwords, cookies: cookies).delete(connection.id, updated: updated)
@@ -176,7 +176,7 @@ final class AppModel: ObservableObject {
     func trustCertificateAsync(_ connection: Connection, digest: String) async throws {
         let session = manager.session(connection.id)
         guard ready, let store, !writing, !session.state.active, session.certificateValidationFailed,
-              session.suggestedCertificate == digest else { throw AppFailure("O certificado sugerido não está mais disponível.") }
+              session.suggestedCertificate == digest else { throw AppFailure(String(localized: "O certificado sugerido não está mais disponível.")) }
         var revised = connection
         revised.trustedCertificate = digest
         let next = revised
@@ -190,7 +190,7 @@ final class AppModel: ObservableObject {
             }
         } catch {
             writing = false
-            if error.localizedDescription.hasPrefix("Operação pendente") { ready = false }
+            if AppFailure.isPendingRecovery(error) { ready = false }
             throw error
         }
         writing = false
@@ -199,14 +199,14 @@ final class AppModel: ObservableObject {
     }
     func applyDigestFixAsync(_ connection: Connection, _ fix: OpenVPNCompatibility.DigestFix) async throws {
         guard ready, let store, !writing, connection.isOpenVPN, !manager.session(connection.id).state.active else {
-            throw AppFailure("Desconecte antes de corrigir o perfil.")
+            throw AppFailure(String(localized: "Desconecte antes de corrigir o perfil."))
         }
         writing = true
         let current = data, passwords = passwords, cookies = cookies
         do {
             data = try await PersistenceIO.run {
                 let profile = try OpenVPNProfile.validated(ProfileStore.openVPN(store).read(connection.id))
-                guard OpenVPNCompatibility.digestFix(for: profile) == fix else { throw AppFailure("A correção sugerida não se aplica mais ao perfil.") }
+                guard OpenVPNCompatibility.digestFix(for: profile) == fix else { throw AppFailure(String(localized: "A correção sugerida não se aplica mais ao perfil.")) }
                 let password = connection.usesPassword ? try passwords.read(connection.id) ?? "" : ""
                 return try ConnectionSave(store: store, passwords: passwords, cookies: cookies).run(
                     current: current, connection: connection, password: password,
@@ -214,7 +214,7 @@ final class AppModel: ObservableObject {
             }
         } catch {
             writing = false
-            if error.localizedDescription.hasPrefix("Operação pendente") { ready = false }
+            if AppFailure.isPendingRecovery(error) { ready = false }
             throw error
         }
         writing = false
@@ -224,8 +224,8 @@ final class AppModel: ObservableObject {
     func trustCertificate(_ connection: Connection, digest: String) throws {
         let session = manager.session(connection.id)
         guard ready, let store, !session.state.active, session.certificateValidationFailed,
-              session.suggestedCertificate == digest else { throw AppFailure("O certificado sugerido não está mais disponível.") }
-        guard let index = data.connections.firstIndex(where: { $0.id == connection.id }) else { throw AppFailure("Conexão não encontrada.") }
+              session.suggestedCertificate == digest else { throw AppFailure(String(localized: "O certificado sugerido não está mais disponível.")) }
+        guard let index = data.connections.firstIndex(where: { $0.id == connection.id }) else { throw AppFailure(String(localized: "Conexão não encontrada.")) }
         var updated = data
         updated.connections[index].trustedCertificate = digest
         _ = try updated.connections[index].validated()
@@ -239,19 +239,19 @@ final class AppModel: ObservableObject {
     /// user confirmed it in the interface, then connects again. The original file is untouched.
     func applyDigestFix(_ connection: Connection, _ fix: OpenVPNCompatibility.DigestFix) throws {
         guard connection.isOpenVPN, let profiles, !manager.session(connection.id).state.active else {
-            throw AppFailure("Desconecte antes de corrigir o perfil.")
+            throw AppFailure(String(localized: "Desconecte antes de corrigir o perfil."))
         }
         let profile: OpenVPNProfile
         do { profile = try OpenVPNProfile.validated(try profiles.read(connection.id)) }
         catch let violation as RuleViolation { throw AppFailure(violation.message) }
-        guard OpenVPNCompatibility.digestFix(for: profile) == fix else { throw AppFailure("A correção sugerida não se aplica mais a este perfil.") }
+        guard OpenVPNCompatibility.digestFix(for: profile) == fix else { throw AppFailure(String(localized: "A correção sugerida não se aplica mais a este perfil.")) }
         try profiles.write(OpenVPNCompatibility.apply(fix, to: profile).text, id: connection.id)
         manager.session(connection.id).digestFix = nil
         connect(connection)
     }
     func connect(_ connection: Connection, retrying: Bool = false) {
-        guard !writing else { error = "Aguarde a gravação dos dados antes de conectar."; return }
-        guard ready else { error = "Aguarde a leitura dos dados."; return }
+        guard !writing else { error = String(localized: "Aguarde a gravação dos dados antes de conectar."); return }
+        guard ready else { error = String(localized: "Aguarde a leitura dos dados."); return }
         if !retrying { onUserConnect?() }
         if manager.harness == nil {
             prepareConnection(connection, retrying: retrying)
@@ -259,23 +259,23 @@ final class AppModel: ObservableObject {
         }
         do {
             guard !manager.session(connection.id).authenticationRejected else {
-                throw AppFailure("A última autenticação foi recusada. Edite a conexão e confirme as credenciais antes de tentar novamente, para evitar bloquear o usuário.")
+                throw AppFailure(String(localized: "A última autenticação foi recusada. Edite a conexão e confirme as credenciais antes de tentar novamente, para evitar bloquear o usuário."))
             }
             let password = connection.usesPassword ? try passwords.read(connection.id) : nil
             if connection.usesPassword && (password?.isEmpty ?? true) {
-                throw AppFailure("Senha não encontrada no Keychain. Edite a conexão e salve a senha novamente.")
+                throw AppFailure(String(localized: "Senha não encontrada no Keychain. Edite a conexão e salve a senha novamente."))
             }
             var profile: String?
             if connection.isOpenVPN {
-                guard let profiles else { throw AppFailure("Pasta de perfis indisponível.") }
+                guard let profiles else { throw AppFailure(String(localized: "Pasta de perfis indisponível.")) }
                 profile = try profiles.read(connection.id)
             }
             if connection.isWireGuard {
-                guard let wireGuardProfiles else { throw AppFailure("Pasta de perfis indisponível.") }
+                guard let wireGuardProfiles else { throw AppFailure(String(localized: "Pasta de perfis indisponível.")) }
                 profile = try wireGuardProfiles.read(connection.id)
             }
             // Fail locally instead of looping on a service that cannot run the session.
-            if service.blockNewSessions { throw AppFailure("O serviço está sendo removido ou atualizado; novas conexões aguardam.") }
+            if service.blockNewSessions { throw AppFailure(String(localized: "O serviço está sendo removido ou atualizado; novas conexões aguardam.")) }
             if manager.harness == nil, let reason = service.unavailableReason(for: connection.kind.runtime) { throw AppFailure(reason) }
             manager.connect(connection, password: password, retrying: retrying, profile: profile)
         } catch {
@@ -286,16 +286,16 @@ final class AppModel: ObservableObject {
     private func prepareConnection(_ connection: Connection, retrying: Bool) {
         let session = manager.session(connection.id)
         guard !session.state.active || (retrying && session.state == .reconnecting) else { return }
-        guard !session.authenticationRejected else { error = "Confira as credenciais antes de tentar novamente."; return }
+        guard !session.authenticationRejected else { error = String(localized: "Confira as credenciais antes de tentar novamente."); return }
         if let reason = service.unavailableReason(for: connection.kind.runtime) { error = reason; return }
-        session.begin(retrying: retrying, client: "Lendo credenciais e perfil")
+        session.begin(retrying: retrying, client: String(localized: "Lendo credenciais e perfil"))
         let generation = session.generation
         let passwords = passwords, profiles = profiles, wireGuardProfiles = wireGuardProfiles
         Task {
             do {
                 let (password, profile) = try await Task.detached {
                     let password = connection.usesPassword ? try passwords.read(connection.id) : nil
-                    if connection.usesPassword && (password?.isEmpty ?? true) { throw AppFailure("Senha não encontrada no Keychain. Edite e salve novamente.") }
+                    if connection.usesPassword && (password?.isEmpty ?? true) { throw AppFailure(String(localized: "Senha não encontrada no Keychain. Edite e salve novamente.")) }
                     let profile = connection.isOpenVPN ? try profiles?.read(connection.id)
                         : connection.isWireGuard ? try wireGuardProfiles?.read(connection.id) : nil
                     return (password, profile)

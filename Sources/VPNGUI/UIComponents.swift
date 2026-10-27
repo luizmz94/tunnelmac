@@ -118,7 +118,7 @@ struct StatePill: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(state.tone.color).frame(width: 7, height: 7).accessibilityHidden(true)
-            Text(state.rawValue)
+            Text(state.title)
             if let connectedAt, state == .connected {
                 Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
                 ElapsedTime(start: connectedAt)

@@ -32,13 +32,13 @@ public struct WireGuardCIDR: Codable, Equatable, Hashable, Sendable {
     public static func parse(_ value: String) throws -> WireGuardCIDR {
         let parts = value.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
         guard parts.count <= 2, let (address, isIPv6) = WireGuardAddress.canonical(parts[0]) else {
-            throw RuleViolation("Endereço IP inválido: \(value)")
+            throw RuleViolation(ServiceLanguage.text("Endereço IP inválido: \(value)"))
         }
         let maximum = isIPv6 ? 128 : 32
         var prefix = maximum
         if parts.count == 2 {
             guard parts[1].count <= 3, parts[1].allSatisfy({ $0.isASCII && $0.isNumber }), let number = Int(parts[1]), number <= maximum else {
-                throw RuleViolation("Prefixo inválido em \(value)")
+                throw RuleViolation(ServiceLanguage.text("Prefixo inválido em \(value)"))
             }
             prefix = number
         }
@@ -78,15 +78,15 @@ public struct WireGuardEndpoint: Codable, Equatable, Sendable {
         let host: String, portText: String
         if value.hasPrefix("[") {
             guard let close = value.firstIndex(of: "]"), value[value.index(after: close)...].hasPrefix(":") else {
-                throw RuleViolation("Endpoint inválido: \(value)")
+                throw RuleViolation(ServiceLanguage.text("Endpoint inválido: \(value)"))
             }
             host = String(value[value.index(after: value.startIndex)..<close])
             portText = String(value[value.index(close, offsetBy: 2)...])
-            guard let (canonical, isIPv6) = WireGuardAddress.canonical(host), isIPv6 else { throw RuleViolation("Endpoint inválido: \(value)") }
+            guard let (canonical, isIPv6) = WireGuardAddress.canonical(host), isIPv6 else { throw RuleViolation(ServiceLanguage.text("Endpoint inválido: \(value)")) }
             return try WireGuardEndpoint(host: canonical, port: port(portText, value))
         }
         guard let colon = value.lastIndex(of: ":"), !value[..<colon].contains(":") else {
-            throw RuleViolation("Endpoint precisa ter servidor e porta (servidor:porta): \(value)")
+            throw RuleViolation(ServiceLanguage.text("Endpoint precisa ter servidor e porta (servidor:porta): \(value)"))
         }
         host = String(value[..<colon])
         portText = String(value[value.index(after: colon)...])
@@ -94,14 +94,14 @@ public struct WireGuardEndpoint: Codable, Equatable, Sendable {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
         guard !host.isEmpty, host.count <= 253, host.unicodeScalars.allSatisfy(allowed.contains), !host.hasPrefix("-"), !host.hasPrefix("."),
               !host.contains("..") else {
-            throw RuleViolation("Servidor inválido no endpoint: \(value)")
+            throw RuleViolation(ServiceLanguage.text("Servidor inválido no endpoint: \(value)"))
         }
         return try WireGuardEndpoint(host: host.lowercased(), port: port(portText, value))
     }
 
     private static func port(_ text: String, _ value: String) throws -> Int {
         guard (1...5).contains(text.count), text.allSatisfy({ $0.isASCII && $0.isNumber }), let port = Int(text), (1...65535).contains(port) else {
-            throw RuleViolation("Porta inválida no endpoint: \(value)")
+            throw RuleViolation(ServiceLanguage.text("Porta inválida no endpoint: \(value)"))
         }
         return port
     }
@@ -142,12 +142,12 @@ public struct WireGuardProfile: Equatable, Sendable {
 
     /// Keys removed at import, with the reason shown to the user.
     public static let dropped: [String: String] = [
-        "preup": "comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil",
-        "postup": "comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil",
-        "predown": "comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil",
-        "postdown": "comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil",
-        "saveconfig": "o TunnelMac nunca regrava o perfil a partir da interface",
-        "fwmark": "marcação de pacotes não existe no macOS"
+        "preup": ServiceLanguage.text("comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil"),
+        "postup": ServiceLanguage.text("comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil"),
+        "predown": ServiceLanguage.text("comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil"),
+        "postdown": ServiceLanguage.text("comandos executados como root pelo wg-quick; o TunnelMac não executa scripts do perfil"),
+        "saveconfig": ServiceLanguage.text("o TunnelMac nunca regrava o perfil a partir da interface"),
+        "fwmark": ServiceLanguage.text("marcação de pacotes não existe no macOS")
     ]
 
     public init(privateKey: String, listenPort: Int? = nil, addresses: [WireGuardCIDR], dnsServers: [String] = [],
@@ -166,14 +166,15 @@ public struct WireGuardProfile: Equatable, Sendable {
     public static func validated(_ text: String) throws -> WireGuardProfile {
         let parsed = try parse(text)
         guard parsed.dropped.isEmpty else {
-            throw RuleViolation("O perfil WireGuard contém \(parsed.dropped.joined(separator: ", ")), que o serviço não aceita.")
+            let names = parsed.dropped.joined(separator: ", ")
+            throw RuleViolation(ServiceLanguage.text("O perfil WireGuard contém \(names), que o serviço não aceita."))
         }
         return parsed.profile
     }
 
     public static func parse(_ text: String) throws -> Parsed {
-        guard text.utf8.count <= maximumSize else { throw RuleViolation("O perfil WireGuard passa de 64 KB.") }
-        guard !text.unicodeScalars.contains(where: { $0.value == 0 }) else { throw RuleViolation("O perfil WireGuard contém bytes nulos.") }
+        guard text.utf8.count <= maximumSize else { throw RuleViolation(ServiceLanguage.text("O perfil WireGuard passa de 64 KB.")) }
+        guard !text.unicodeScalars.contains(where: { $0.value == 0 }) else { throw RuleViolation(ServiceLanguage.text("O perfil WireGuard contém bytes nulos.")) }
         enum Section { case none, interface, peer }
         var section = Section.none
         var interfaceSeen = false
@@ -190,7 +191,7 @@ public struct WireGuardProfile: Equatable, Sendable {
         var entries = 0
         func finishPeer() throws {
             guard let peer = current else { return }
-            guard currentHasKey else { throw RuleViolation("Um [Peer] do perfil não tem PublicKey.") }
+            guard currentHasKey else { throw RuleViolation(ServiceLanguage.text("Um [Peer] do perfil não tem PublicKey.")) }
             peers.append(peer)
             current = nil; currentHasKey = false
         }
@@ -199,7 +200,7 @@ public struct WireGuardProfile: Equatable, Sendable {
         }
         func count(_ added: Int) throws {
             entries += added
-            guard entries <= maximumEntries else { throw RuleViolation("O perfil WireGuard tem entradas demais.") }
+            guard entries <= maximumEntries else { throw RuleViolation(ServiceLanguage.text("O perfil WireGuard tem entradas demais.")) }
         }
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n").split(separator: "\n", omittingEmptySubsequences: false)
         for (index, raw) in lines.enumerated() {
@@ -208,26 +209,26 @@ public struct WireGuardProfile: Equatable, Sendable {
                 .trimmingCharacters(in: .whitespaces)
             if line.isEmpty { continue }
             guard !line.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) && $0 != "\t" }) else {
-                throw RuleViolation("Linha \(number): caracteres de controle não são aceitos.")
+                throw RuleViolation(ServiceLanguage.text("Linha \(number): caracteres de controle não são aceitos."))
             }
             if line.hasPrefix("[") {
                 switch line.lowercased() {
                 case "[interface]":
-                    guard !interfaceSeen else { throw RuleViolation("Linha \(number): o perfil tem mais de uma seção [Interface].") }
+                    guard !interfaceSeen else { throw RuleViolation(ServiceLanguage.text("Linha \(number): o perfil tem mais de uma seção [Interface].")) }
                     try finishPeer()
                     interfaceSeen = true
                     section = .interface
                 case "[peer]":
                     try finishPeer()
-                    guard peers.count < maximumPeers else { throw RuleViolation("O perfil WireGuard tem peers demais.") }
+                    guard peers.count < maximumPeers else { throw RuleViolation(ServiceLanguage.text("O perfil WireGuard tem peers demais.")) }
                     current = WireGuardPeer(publicKey: "")
                     section = .peer
                 default:
-                    throw RuleViolation("Linha \(number): seção \(line) desconhecida.")
+                    throw RuleViolation(ServiceLanguage.text("Linha \(number): seção \(line) desconhecida."))
                 }
                 continue
             }
-            guard let equals = line.firstIndex(of: "=") else { throw RuleViolation("Linha \(number): esperado Chave = Valor.") }
+            guard let equals = line.firstIndex(of: "=") else { throw RuleViolation(ServiceLanguage.text("Linha \(number): esperado Chave = Valor.")) }
             let name = line[..<equals].trimmingCharacters(in: .whitespaces)
             let value = line[line.index(after: equals)...].trimmingCharacters(in: .whitespaces)
             let key = name.lowercased()
@@ -237,15 +238,15 @@ public struct WireGuardProfile: Equatable, Sendable {
             }
             switch section {
             case .none:
-                throw RuleViolation("Linha \(number): \(name) fora de uma seção [Interface] ou [Peer].")
+                throw RuleViolation(ServiceLanguage.text("Linha \(number): \(name) fora de uma seção [Interface] ou [Peer]."))
             case .interface:
                 switch key {
                 case "privatekey":
-                    guard privateKey == nil else { throw RuleViolation("Linha \(number): PrivateKey repetida.") }
+                    guard privateKey == nil else { throw RuleViolation(ServiceLanguage.text("Linha \(number): PrivateKey repetida.")) }
                     privateKey = try WireGuardKey.check(value, label: "PrivateKey")
                 case "listenport":
                     guard let port = Int(value), (0...65535).contains(port), value.allSatisfy({ $0.isASCII && $0.isNumber }) else {
-                        throw RuleViolation("Linha \(number): ListenPort inválida.")
+                        throw RuleViolation(ServiceLanguage.text("Linha \(number): ListenPort inválida."))
                     }
                     listenPort = port
                 case "address":
@@ -261,30 +262,30 @@ public struct WireGuardProfile: Equatable, Sendable {
                     }
                 case "mtu":
                     guard let number = Int(value), (576...9000).contains(number), value.allSatisfy({ $0.isASCII && $0.isNumber }) else {
-                        throw RuleViolation("Linha \(number): MTU deve estar entre 576 e 9000.")
+                        throw RuleViolation(ServiceLanguage.text("Linha \(number): MTU deve estar entre 576 e 9000."))
                     }
                     mtu = number
                 case "table":
                     switch value.lowercased() {
                     case "auto", "main": table = .auto
                     case "off": table = .off
-                    default: throw RuleViolation("Linha \(number): Table = \(value) não é suportado no macOS (use auto, main ou off).")
+                    default: throw RuleViolation(ServiceLanguage.text("Linha \(number): Table = \(value) não é suportado no macOS (use auto, main ou off)."))
                     }
                 default:
-                    throw RuleViolation("Linha \(number): \(name) não é uma opção de [Interface] que o app suporte.")
+                    throw RuleViolation(ServiceLanguage.text("Linha \(number): \(name) não é uma opção de [Interface] que o app suporte."))
                 }
             case .peer:
                 guard var peer = current else { continue }
                 switch key {
                 case "publickey":
-                    guard !currentHasKey else { throw RuleViolation("Linha \(number): PublicKey repetida no mesmo [Peer].") }
+                    guard !currentHasKey else { throw RuleViolation(ServiceLanguage.text("Linha \(number): PublicKey repetida no mesmo [Peer].")) }
                     peer.publicKey = try WireGuardKey.check(value, label: "PublicKey")
                     currentHasKey = true
                 case "presharedkey":
-                    guard peer.presharedKey == nil else { throw RuleViolation("Linha \(number): PresharedKey repetida.") }
+                    guard peer.presharedKey == nil else { throw RuleViolation(ServiceLanguage.text("Linha \(number): PresharedKey repetida.")) }
                     peer.presharedKey = try WireGuardKey.check(value, label: "PresharedKey")
                 case "endpoint":
-                    guard peer.endpoint == nil else { throw RuleViolation("Linha \(number): Endpoint repetido no mesmo [Peer].") }
+                    guard peer.endpoint == nil else { throw RuleViolation(ServiceLanguage.text("Linha \(number): Endpoint repetido no mesmo [Peer].")) }
                     peer.endpoint = try WireGuardEndpoint.parse(value)
                 case "allowedips":
                     let items = list(value)
@@ -293,20 +294,20 @@ public struct WireGuardProfile: Equatable, Sendable {
                 case "persistentkeepalive":
                     if value.lowercased() == "off" { peer.persistentKeepalive = nil; break }
                     guard let seconds = Int(value), (0...65535).contains(seconds), value.allSatisfy({ $0.isASCII && $0.isNumber }) else {
-                        throw RuleViolation("Linha \(number): PersistentKeepalive inválido.")
+                        throw RuleViolation(ServiceLanguage.text("Linha \(number): PersistentKeepalive inválido."))
                     }
                     peer.persistentKeepalive = seconds == 0 ? nil : seconds
                 default:
-                    throw RuleViolation("Linha \(number): \(name) não é uma opção de [Peer] que o app suporte.")
+                    throw RuleViolation(ServiceLanguage.text("Linha \(number): \(name) não é uma opção de [Peer] que o app suporte."))
                 }
                 current = peer
             }
         }
         try finishPeer()
-        guard interfaceSeen, let privateKey else { throw RuleViolation("O perfil não tem [Interface] com PrivateKey; não parece um perfil WireGuard.") }
-        guard !peers.isEmpty else { throw RuleViolation("O perfil não tem nenhum [Peer].") }
-        guard Set(peers.map(\.publicKey)).count == peers.count else { throw RuleViolation("Dois [Peer] usam a mesma PublicKey.") }
-        guard !addresses.isEmpty else { throw RuleViolation("O perfil não tem Address em [Interface].") }
+        guard interfaceSeen, let privateKey else { throw RuleViolation(ServiceLanguage.text("O perfil não tem [Interface] com PrivateKey; não parece um perfil WireGuard.")) }
+        guard !peers.isEmpty else { throw RuleViolation(ServiceLanguage.text("O perfil não tem nenhum [Peer].")) }
+        guard Set(peers.map(\.publicKey)).count == peers.count else { throw RuleViolation(ServiceLanguage.text("Dois [Peer] usam a mesma PublicKey.")) }
+        guard !addresses.isEmpty else { throw RuleViolation(ServiceLanguage.text("O perfil não tem Address em [Interface].")) }
         let profile = WireGuardProfile(privateKey: privateKey, listenPort: listenPort, addresses: addresses, dnsServers: dnsServers,
                                        dnsSearch: dnsSearch, mtu: mtu, table: table, peers: peers)
         return Parsed(profile: profile, dropped: dropped)
@@ -315,7 +316,7 @@ public struct WireGuardProfile: Equatable, Sendable {
     static func checkDomain(_ value: String, line: Int) throws -> String {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_")
         guard !value.isEmpty, value.count <= 253, value.unicodeScalars.allSatisfy(allowed.contains), !value.hasPrefix("-"), !value.hasPrefix(".") else {
-            throw RuleViolation("Linha \(line): DNS \(value) não é um IP nem um domínio de busca válido.")
+            throw RuleViolation(ServiceLanguage.text("Linha \(line): DNS \(value) não é um IP nem um domínio de busca válido."))
         }
         return value.lowercased()
     }
@@ -349,7 +350,7 @@ public struct WireGuardProfile: Equatable, Sendable {
     /// Configuration for wireguard-go's UAPI socket ("set=1" request). Endpoints must
     /// already be resolved to literal addresses, in peer order (nil for peers without one).
     public func uapiConfiguration(endpoints: [String?]) throws -> String {
-        guard endpoints.count == peers.count else { throw RuleViolation("Endpoints resolvidos não correspondem aos peers.") }
+        guard endpoints.count == peers.count else { throw RuleViolation(ServiceLanguage.text("Endpoints resolvidos não correspondem aos peers.")) }
         var lines = ["set=1", "private_key=" + (try WireGuardKey.hex(privateKey))]
         if let listenPort { lines.append("listen_port=\(listenPort)") }
         lines.append("replace_peers=true")
@@ -372,11 +373,11 @@ public enum WireGuardKey {
         return data
     }
     static func check(_ value: String, label: String) throws -> String {
-        guard decode(value) != nil else { throw RuleViolation("\(label) não é uma chave WireGuard válida (base64 de 32 bytes).") }
+        guard decode(value) != nil else { throw RuleViolation(ServiceLanguage.text("\(label) não é uma chave WireGuard válida (base64 de 32 bytes).")) }
         return value
     }
     public static func hex(_ value: String) throws -> String {
-        guard let data = decode(value) else { throw RuleViolation("Chave WireGuard inválida.") }
+        guard let data = decode(value) else { throw RuleViolation(ServiceLanguage.text("Chave WireGuard inválida.")) }
         return data.map { String(format: "%02x", $0) }.joined()
     }
     /// Short form used by wireguard-go's log ("ZTJk…f2Tw"), never the private key.

@@ -18,15 +18,12 @@ enum GatewayAddress {
         if let split = HostPortInput.split(value) {
             host = split.host; port = split.port
         } else if value.filter({ $0 == ":" }).count == 1 {
-            throw AppFailure("Porta inválida. Use vpn.exemplo.com ou vpn.exemplo.com:10443.")
+            throw AppFailure(String(localized: "Porta inválida. Use vpn.exemplo.com ou vpn.exemplo.com:10443."))
         }
-        do {
-            host = try ConnectionRules.normalizedHost(host)
-            try ConnectionRules.checkRealm(realm)
-        } catch let violation as RuleViolation {
-            throw AppFailure(host.isEmpty || violation.message.hasPrefix("Informe")
-                             ? "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:10443." : violation.message)
+        do { host = try ConnectionRules.normalizedHost(host) } catch {
+            throw AppFailure(String(localized: "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:10443."))
         }
+        do { try ConnectionRules.checkRealm(realm) } catch let violation as RuleViolation { throw AppFailure(violation.message) }
         return (host, port, realm)
     }
 
@@ -58,12 +55,17 @@ import VPNHelperShared
 
 struct AppFailure: LocalizedError {
     let message: String
-    init(_ message: String) { self.message = message }
+    /// A journaled write stopped halfway; the data stays read-only until the app restarts.
+    var pendingRecovery = false
+    init(_ message: String, pendingRecovery: Bool = false) { self.message = message; self.pendingRecovery = pendingRecovery }
     var errorDescription: String? { message }
+    static func isPendingRecovery(_ error: Error) -> Bool {
+        (error as? AppFailure)?.pendingRecovery == true || (error as? BackupImportFailure)?.pendingRecovery == true
+    }
 }
 
 extension Authentication {
-    var title: String { self == .password ? "Senha" : "SAML (navegador)" }
+    var title: String { self == .password ? String(localized: "Senha") : "SAML (navegador)" }
 }
 
 /// VPN protocol of a saved connection. Existing cadastros (no key) are Fortinet.
@@ -114,8 +116,11 @@ struct WireGuardSummary: Codable, Equatable {
     var stillExposed: [String] { ExposedFiles.stillExposed(exposedOriginals) }
     /// "Todo o tráfego" or the routed networks.
     var routesDescription: String {
-        if fullTunnel { return "Todo o tráfego (\(allowedIPs.filter { $0.hasSuffix("/0") }.joined(separator: ", ")))" }
-        return allowedIPs.isEmpty ? "Nenhuma rota" : allowedIPs.joined(separator: ", ")
+        if fullTunnel {
+            let defaults = allowedIPs.filter { $0.hasSuffix("/0") }.joined(separator: ", ")
+            return String(localized: "Todo o tráfego (\(defaults))")
+        }
+        return allowedIPs.isEmpty ? String(localized: "Nenhuma rota") : allowedIPs.joined(separator: ", ")
     }
 }
 
@@ -184,9 +189,9 @@ struct Connection: Codable, Identifiable, Equatable {
         // Same rules the helper applies again to every request.
         var value = self
         value.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.name.isEmpty else { throw AppFailure("Informe um nome.") }
+        guard !value.name.isEmpty else { throw AppFailure(String(localized: "Informe um nome.")) }
         if isWireGuard {
-            guard wireGuard != nil else { throw AppFailure("Perfil WireGuard ausente; importe-o novamente.") }
+            guard wireGuard != nil else { throw AppFailure(String(localized: "Perfil WireGuard ausente; importe-o novamente.")) }
             value.server = ""
             value.trustedCertificate = ""
             value.clientCertificate = nil
@@ -197,7 +202,7 @@ struct Connection: Codable, Identifiable, Equatable {
             return value
         }
         if isOpenVPN {
-            guard let summary = openVPN else { throw AppFailure("Perfil OpenVPN ausente; importe-o novamente.") }
+            guard let summary = openVPN else { throw AppFailure(String(localized: "Perfil OpenVPN ausente; importe-o novamente.")) }
             value.server = ""
             value.trustedCertificate = ""
             value.clientCertificate = nil
@@ -205,8 +210,8 @@ struct Connection: Codable, Identifiable, Equatable {
             value.authentication = .password
             value.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
             if summary.requiresCredentials {
-                guard !value.username.isEmpty else { throw AppFailure("Informe o usuário.") }
-                do { try OpenVPNRules.checkCredential(value.username, label: "Usuário") }
+                guard !value.username.isEmpty else { throw AppFailure(String(localized: "Informe o usuário.")) }
+                do { try OpenVPNRules.checkCredential(value.username, label: String(localized: "Usuário")) }
                 catch let violation as RuleViolation { throw AppFailure(violation.message) }
             } else { value.username = "" }
             return value
@@ -215,12 +220,12 @@ struct Connection: Codable, Identifiable, Equatable {
             value.server = try ConnectionRules.normalizedHost(server)
             try ConnectionRules.checkPort(port)
             try ConnectionRules.checkRealm(realm)
-            try ConnectionRules.checkConfigValue(username, label: "Usuário")
+            try ConnectionRules.checkConfigValue(username, label: String(localized: "Usuário"))
             value.trustedCertificate = try ConnectionRules.normalizedCertificate(trustedCertificate)
         } catch let violation as RuleViolation { throw AppFailure(violation.message) }
-        guard authentication != .password || !username.isEmpty else { throw AppFailure("Informe o usuário.") }
+        guard authentication != .password || !username.isEmpty else { throw AppFailure(String(localized: "Informe o usuário.")) }
         if let reference = clientCertificate, !ClientCertificateReference.isValidHash(reference.sha1) {
-            throw AppFailure("Certificado do cliente inválido; escolha-o de novo.")
+            throw AppFailure(String(localized: "Certificado do cliente inválido; escolha-o de novo."))
         }
         return value
     }

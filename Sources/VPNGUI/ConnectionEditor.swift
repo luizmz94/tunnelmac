@@ -7,9 +7,9 @@ import VPNHelperShared
 enum OpenVPNImportPanel {
     @MainActor static func choose() -> [URL]? {
         let panel = NSOpenPanel()
-        panel.title = "Importar perfil OpenVPN"
-        panel.message = "Escolha o .ovpn, a pasta .visc (ou o .zip) ou o .ovpn com os certificados (⌘-clique)."
-        panel.prompt = "Importar"
+        panel.title = String(localized: "Importar perfil OpenVPN")
+        panel.message = String(localized: "Escolha o .ovpn, a pasta .visc (ou o .zip) ou o .ovpn com os certificados (⌘-clique).")
+        panel.prompt = String(localized: "Importar")
         panel.canChooseFiles = true
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = true
@@ -22,9 +22,9 @@ enum OpenVPNImportPanel {
 enum WireGuardImportPanel {
     @MainActor static func choose() -> [URL]? {
         let panel = NSOpenPanel()
-        panel.title = "Importar perfil WireGuard"
-        panel.message = "Escolha o arquivo .conf do WireGuard."
-        panel.prompt = "Importar"
+        panel.title = String(localized: "Importar perfil WireGuard")
+        panel.message = String(localized: "Escolha o arquivo .conf do WireGuard.")
+        panel.prompt = String(localized: "Importar")
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
@@ -38,7 +38,7 @@ struct ImportCleanup: Equatable {
     /// A .visc folder whose every visible entry was used: trashed as a whole.
     var folder: URL?
     var holdsPrivateKey = false
-    var names: [String] { folder.map { [$0.lastPathComponent + " (pasta inteira)"] } ?? files.map(\.lastPathComponent) }
+    var names: [String] { folder.map { [$0.lastPathComponent + String(localized: " (pasta inteira)")] } ?? files.map(\.lastPathComponent) }
     func trash() -> [String] {
         var failed: [String] = []
         for url in folder.map({ [$0] }) ?? files {
@@ -108,17 +108,17 @@ struct ConnectionEditor: View {
 
     private var kindChooser: some View {
         VStack(spacing: 0) {
-            SheetHeader(symbol: "plus.circle", tone: .neutral, title: "Nova conexão", subtitle: "Escolha o tipo de VPN", brand: true)
+            SheetHeader(symbol: "plus.circle", tone: .neutral, title: String(localized: "Nova conexão"), subtitle: String(localized: "Escolha o tipo de VPN"), brand: true)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(spacing: 12) {
                 ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
-                             subtitle: "Gateway FortiGate, o mesmo usado pelo FortiClient.",
+                             subtitle: String(localized: "Gateway FortiGate, o mesmo usado pelo FortiClient."),
                              status: clientStatus(.fortinet)) { choose(.fortinet) }
                 ProtocolCard(kind: .openvpn, title: "OpenVPN",
-                             subtitle: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip).",
+                             subtitle: String(localized: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip)."),
                              status: clientStatus(.openvpn)) { choose(.openvpn) }
                 ProtocolCard(kind: .wireguard, title: "WireGuard",
-                             subtitle: "Arquivo .conf do servidor ou do app WireGuard.",
+                             subtitle: String(localized: "Arquivo .conf do servidor ou do app WireGuard."),
                              status: clientStatus(.wireguard)) { choose(.wireguard) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)
@@ -132,9 +132,9 @@ struct ConnectionEditor: View {
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {
-        guard let status = model.service.status else { return "Usa o \(kind.runtime.title)" }
-        if let runtime = status.runtime(kind.runtime) { return "\(kind.runtime.title) \(runtime.version) aprovado" }
-        return "\(kind.runtime.title) ainda não aprovado no serviço"
+        guard let status = model.service.status else { return String(localized: "Usa o \(kind.runtime.title)") }
+        if let runtime = status.runtime(kind.runtime) { return String(localized: "\(kind.runtime.title) \(runtime.version) aprovado") }
+        return String(localized: "\(kind.runtime.title) ainda não aprovado no serviço")
     }
 
     private func choose(_ kind: VPNProtocol) {
@@ -149,7 +149,7 @@ struct ConnectionEditor: View {
         let kind = connection.kind
         let wireGuard = kind == .wireguard
         return VStack(spacing: 0) {
-            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: "Importar perfil \(kind.title)", kind: kind)
+            SheetHeader(symbol: "doc.badge.gearshape", tone: .neutral, title: String(localized: "Importar perfil \(kind.title)"), kind: kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
             VStack(alignment: .leading, spacing: 16) {
                 VStack(spacing: 10) {
@@ -272,9 +272,9 @@ struct ConnectionEditor: View {
     private var cleanupMessage: String {
         guard let cleanup else { return "" }
         let intro = cleanup.holdsPrivateKey
-            ? "O app já guardou o perfil. O original não é mais necessário e ainda contém a chave privada:\n\n"
-            : "O app já guardou o perfil e as chaves. Os originais não são mais necessários:\n\n"
-        return intro + cleanup.names.joined(separator: "\n") + "\n\nEles vão para a Lixeira; esvazie-a para apagá-los de vez."
+            ? String(localized: "O app já guardou o perfil. O original não é mais necessário e ainda contém a chave privada:\n\n")
+            : String(localized: "O app já guardou o perfil e as chaves. Os originais não são mais necessários:\n\n")
+        return intro + cleanup.names.joined(separator: "\n") + String(localized: "\n\nEles vão para a Lixeira; esvazie-a para apagá-los de vez.")
     }
 
     private func finishCleanup(trash: Bool) {
@@ -282,7 +282,10 @@ struct ConnectionEditor: View {
         cleanup = nil
         if trash {
             let failed = pending.trash()
-            if !failed.isEmpty { model.error = "Não foi possível mover para a Lixeira: \(failed.joined(separator: ", ")). A conexão foi salva normalmente." }
+            if !failed.isEmpty {
+                let names = failed.joined(separator: ", ")
+                model.error = String(localized: "Não foi possível mover para a Lixeira: \(names). A conexão foi salva normalmente.")
+            }
         }
         saved(); dismiss()
     }
@@ -290,7 +293,7 @@ struct ConnectionEditor: View {
     private var formContent: some View {
         VStack(spacing: 0) {
             SheetHeader(symbol: connection.usesProfile ? "doc.badge.gearshape" : "network.badge.shield.half.filled", tone: .neutral,
-                        title: isNew ? (connection.usesProfile ? "Importar perfil \(connection.kind.title)" : "Nova conexão") : "Editar conexão",
+                        title: isNew ? (connection.usesProfile ? String(localized: "Importar perfil \(connection.kind.title)") : String(localized: "Nova conexão")) : String(localized: "Editar conexão"),
                         subtitle: isNew ? (connection.usesProfile ? nil : connection.kind.title) : "\(connection.name) · \(connection.kind.title)",
                         kind: connection.kind)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
@@ -323,7 +326,7 @@ struct ConnectionEditor: View {
             gatewayText = GatewayAddress.display(host: connection.server, port: connection.port, realm: connection.realm)
             if model.manager.session(connection.id).authenticationRejected {
                 password = ""
-                error = "A última autenticação foi recusada. Confira o usuário e digite a senha novamente para evitar um bloqueio."
+                error = String(localized: "A última autenticação foi recusada. Confira o usuário e digite a senha novamente para evitar um bloqueio.")
                 loaded = true
             } else if let pendingImport, isNew {
                 password = pendingImport.password
@@ -342,7 +345,7 @@ struct ConnectionEditor: View {
                 let profiles = model.profiles, id = connection.id
                 Task {
                     if let profile = try? await Task.detached(operation: {
-                        guard let profiles else { throw AppFailure("Perfis indisponíveis.") }
+                        guard let profiles else { throw AppFailure(String(localized: "Perfis indisponíveis.")) }
                         return try OpenVPNProfile.validated(profiles.read(id))
                     }).value {
                         savedProfile = profile
@@ -434,7 +437,7 @@ struct ConnectionEditor: View {
     private func identityLabel(_ identity: ClientIdentity) -> String {
         var label = identity.name
         if !identity.issuer.isEmpty && identity.issuer != identity.name { label += " — \(identity.issuer)" }
-        if identity.expired { label += " (expirado)" }
+        if identity.expired { label += String(localized: " (expirado)") }
         return label
     }
 
@@ -442,19 +445,19 @@ struct ConnectionEditor: View {
     /// only for the import and never saved.
     private func importCertificate() {
         let panel = NSOpenPanel()
-        panel.title = "Importar certificado do cliente"
-        panel.message = "Escolha o arquivo .p12 ou .pfx."
-        panel.prompt = "Continuar"
+        panel.title = String(localized: "Importar certificado do cliente")
+        panel.message = String(localized: "Escolha o arquivo .p12 ou .pfx.")
+        panel.prompt = String(localized: "Continuar")
         panel.allowedContentTypes = [.pkcs12]
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let alert = NSAlert()
-        alert.messageText = "Senha do certificado"
-        alert.informativeText = "Digite a senha de \(url.lastPathComponent)."
+        alert.messageText = String(localized: "Senha do certificado")
+        alert.informativeText = String(localized: "Digite a senha de \(url.lastPathComponent).")
         let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         alert.accessoryView = field
-        alert.addButton(withTitle: "Importar")
-        alert.addButton(withTitle: "Cancelar")
+        alert.addButton(withTitle: String(localized: "Importar"))
+        alert.addButton(withTitle: String(localized: "Cancelar"))
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         let passphrase = field.stringValue
@@ -487,7 +490,7 @@ struct ConnectionEditor: View {
             if let summary = wireGuardSummary {
                 LabeledContent("Servidor") {
                     VStack(alignment: .trailing, spacing: 2) {
-                        ForEach(summary.endpoints.isEmpty ? ["Sem endpoint"] : summary.endpoints, id: \.self) { endpoint in
+                        ForEach(summary.endpoints.isEmpty ? [String(localized: "Sem endpoint")] : summary.endpoints, id: \.self) { endpoint in
                             Text(endpoint).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
                         }
                     }

@@ -10,11 +10,11 @@ enum BackupPassword {
         static func < (a: Strength, b: Strength) -> Bool { a.rawValue < b.rawValue }
         var title: String {
             switch self {
-            case .veryWeak: return "Muito fraca"
-            case .weak: return "Fraca"
-            case .fair: return "Razoável"
-            case .strong: return "Forte"
-            case .veryStrong: return "Muito forte"
+            case .veryWeak: return String(localized: "Muito fraca")
+            case .weak: return String(localized: "Fraca")
+            case .fair: return String(localized: "Razoável")
+            case .strong: return String(localized: "Forte")
+            case .veryStrong: return String(localized: "Muito forte")
             }
         }
     }
@@ -41,7 +41,7 @@ enum BackupPassword {
 
     static func evaluate(_ password: String) -> Evaluation {
         let characters = Array(password)
-        guard !characters.isEmpty else { return Evaluation(bits: 0, strength: .veryWeak, hints: ["Digite uma senha."]) }
+        guard !characters.isEmpty else { return Evaluation(bits: 0, strength: .veryWeak, hints: [String(localized: "Digite uma senha.")]) }
         var hints: [String] = []
 
         let hasLower = characters.contains { $0.isLowercase }, hasUpper = characters.contains { $0.isUppercase }
@@ -121,14 +121,14 @@ enum BackupPassword {
             bits += perCharacter
         }
 
-        if characters.count < minimumLength { hints.append("Use pelo menos \(minimumLength) caracteres.") }
-        if wordsFound > 0 { hints.append("Evite palavras e senhas comuns, como \u{201C}senha\u{201D}, \u{201C}123456\u{201D} ou anos.") }
+        if characters.count < minimumLength { hints.append(String(localized: "Use pelo menos \(minimumLength) caracteres.")) }
+        if wordsFound > 0 { hints.append(String(localized: "Evite palavras e senhas comuns, como \u{201C}senha\u{201D}, \u{201C}123456\u{201D} ou anos.")) }
         if dictionaryWords > 0 && bits < 70 {
-            hints.append("Palavras inteiras valem pouco: acrescente mais palavras ou troque letras por números e símbolos no meio delas.")
+            hints.append(String(localized: "Palavras inteiras valem pouco: acrescente mais palavras ou troque letras por números e símbolos no meio delas."))
         }
-        if repeats + sequences >= 2 { hints.append("Evite repetições e sequências, como \u{201C}aaa\u{201D}, \u{201C}abc\u{201D} ou \u{201C}qwe\u{201D}.") }
+        if repeats + sequences >= 2 { hints.append(String(localized: "Evite repetições e sequências, como \u{201C}aaa\u{201D}, \u{201C}abc\u{201D} ou \u{201C}qwe\u{201D}.")) }
         if [hasLower, hasUpper, hasDigit, hasSymbol || hasOther].filter({ $0 }).count < 3 {
-            hints.append("Misture letras maiúsculas e minúsculas, números e símbolos.")
+            hints.append(String(localized: "Misture letras maiúsculas e minúsculas, números e símbolos."))
         }
 
         var strength: Strength
@@ -147,7 +147,7 @@ enum BackupPassword {
     static func check(_ password: String) throws {
         let evaluation = evaluate(password)
         guard evaluation.acceptable else {
-            throw AppFailure("Senha \(evaluation.strength.title.lowercased()) para o backup. " + (evaluation.hints.first ?? "Use uma senha mais longa."))
+            throw AppFailure(String(localized: "Senha \(evaluation.strength.title.lowercased()) para o backup. ") + (evaluation.hints.first ?? String(localized: "Use uma senha mais longa.")))
         }
     }
 

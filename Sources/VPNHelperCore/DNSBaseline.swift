@@ -70,12 +70,12 @@ public final class DNSBaseline {
     static func message(_ outcome: Outcome?) -> String? {
         switch outcome {
         case .restored(let servers):
-            let value = servers.isEmpty ? "automático (da rede)" : servers.joined(separator: ", ")
-            return "[#] DNS de antes da VPN restaurado: \(value)."
+            let value = servers.isEmpty ? ServiceLanguage.text("automático (da rede)") : servers.joined(separator: ", ")
+            return ServiceLanguage.text("[#] DNS de antes da VPN restaurado: \(value).")
         case .keptUserChange:
-            return "[i] O DNS foi alterado nos Ajustes do Sistema durante a VPN; a nova configuração foi mantida."
+            return ServiceLanguage.text("[i] O DNS foi alterado nos Ajustes do Sistema durante a VPN; a nova configuração foi mantida.")
         case .failed:
-            return "[!] Não foi possível restaurar o DNS de antes da VPN; o serviço tenta novamente."
+            return ServiceLanguage.text("[!] Não foi possível restaurar o DNS de antes da VPN; o serviço tenta novamente.")
         case .unchanged, nil:
             return nil
         }

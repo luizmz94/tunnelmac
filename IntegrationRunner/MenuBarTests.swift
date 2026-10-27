@@ -49,7 +49,7 @@ enum MenuBarTests {
             try require(menuBar.summary == .idle && menuBar.connectedCount == 0, "Estado inicial incorreto")
             for state in [ConnectionState.authorizing, .connecting, .authenticating, .waitingForSAML, .reconnecting, .disconnecting] {
                 first.state = state
-                try require(menuBar.summary == .transitioning && menuBar.connectedCount == 0, "\(state.rawValue) apareceu como conectada")
+                try require(menuBar.summary == .transitioning && menuBar.connectedCount == 0, "\(state.title) apareceu como conectada")
             }
             try require(notifications >= 6, "Mudança dentro da sessão não atualizou o indicador")
             notifications = 0

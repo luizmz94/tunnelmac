@@ -23,7 +23,7 @@ enum BackupCipher {
 
     static func checkPassword(_ password: String) throws {
         guard password.count >= minimumPassword else {
-            throw AppFailure("Use uma senha de pelo menos \(minimumPassword) caracteres.")
+            throw AppFailure(String(localized: "Use uma senha de pelo menos \(minimumPassword) caracteres."))
         }
     }
 
@@ -38,20 +38,20 @@ enum BackupCipher {
         let key = try derive(password, salt: salt, iterations: iterations)
         let box = try AES.GCM.seal(plaintext, using: key, nonce: AES.GCM.Nonce(data: nonce), authenticating: header)
         let sealed = header + box.ciphertext + box.tag
-        guard sealed.count <= maximumSize else { throw AppFailure("Backup acima do limite de 32 MiB.") }
+        guard sealed.count <= maximumSize else { throw AppFailure(String(localized: "Backup acima do limite de 32 MiB.")) }
         return sealed
     }
 
     static func open(_ file: Data, password: String) throws -> Data {
         let file = Data(file) // Zero-based indices.
         guard file.count >= headerSize + tagSize, file.count <= maximumSize, file.prefix(magic.count) == magic else {
-            throw AppFailure("O arquivo escolhido não é um backup do TunnelMac.")
+            throw AppFailure(String(localized: "O arquivo escolhido não é um backup do TunnelMac."))
         }
         guard file[magic.count] == version else {
-            throw AppFailure("Backup criado por uma versão mais nova do TunnelMac; atualize o app para importá-lo.")
+            throw AppFailure(String(localized: "Backup criado por uma versão mais nova do TunnelMac; atualize o app para importá-lo."))
         }
         let iterations = file[(magic.count + 1)..<(magic.count + 5)].reduce(UInt32(0)) { $0 << 8 | UInt32($1) }
-        guard acceptedIterations.contains(iterations) else { throw AppFailure("Backup com parâmetros de proteção inválidos.") }
+        guard acceptedIterations.contains(iterations) else { throw AppFailure(String(localized: "Backup com parâmetros de proteção inválidos.")) }
         let saltStart = magic.count + 5
         let salt = file[saltStart..<(saltStart + saltSize)]
         let nonce = file[(saltStart + saltSize)..<headerSize]
@@ -61,21 +61,21 @@ enum BackupCipher {
             let box = try AES.GCM.SealedBox(nonce: AES.GCM.Nonce(data: nonce), ciphertext: body.dropLast(tagSize), tag: body.suffix(tagSize))
             return try AES.GCM.open(box, using: derive(password, salt: Data(salt), iterations: iterations), authenticating: header)
         } catch {
-            throw AppFailure("Senha incorreta ou arquivo de backup danificado.")
+            throw AppFailure(String(localized: "Senha incorreta ou arquivo de backup danificado."))
         }
     }
 
     /// NFC first, so the same password typed with a different keyboard layout still opens the file.
     static func derive(_ password: String, salt: Data, iterations: UInt32) throws -> SymmetricKey {
         let secret = password.precomposedStringWithCanonicalMapping
-        guard !secret.isEmpty, !salt.isEmpty else { throw AppFailure("Senha incorreta ou arquivo de backup danificado.") }
+        guard !secret.isEmpty, !salt.isEmpty else { throw AppFailure(String(localized: "Senha incorreta ou arquivo de backup danificado.")) }
         var key = [UInt8](repeating: 0, count: 32)
         let status = salt.withUnsafeBytes { saltBytes in
             CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), secret, secret.utf8.count,
                                  saltBytes.bindMemory(to: UInt8.self).baseAddress, salt.count,
                                  CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), iterations, &key, key.count)
         }
-        guard status == kCCSuccess else { throw AppFailure("Não foi possível derivar a chave do backup.") }
+        guard status == kCCSuccess else { throw AppFailure(String(localized: "Não foi possível derivar a chave do backup.")) }
         defer { key.withUnsafeMutableBytes { _ = memset_s($0.baseAddress, $0.count, 0, $0.count) } }
         return SymmetricKey(data: key)
     }
@@ -83,7 +83,7 @@ enum BackupCipher {
     private static func random(_ count: Int) throws -> Data {
         var bytes = [UInt8](repeating: 0, count: count)
         guard SecRandomCopyBytes(kSecRandomDefault, count, &bytes) == errSecSuccess else {
-            throw AppFailure("Não foi possível gerar dados aleatórios para o backup.")
+            throw AppFailure(String(localized: "Não foi possível gerar dados aleatórios para o backup."))
         }
         return Data(bytes)
     }

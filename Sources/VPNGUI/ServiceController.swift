@@ -59,32 +59,32 @@ final class ServiceController: ObservableObject, SessionTransport {
 
         var title: String {
             switch self {
-            case .checking: return "Verificando o serviço…"
-            case .unsigned: return "Assinatura necessária"
-            case .notRegistered: return "Serviço não ativado"
-            case .requiresApproval: return "Aprovação pendente em Ajustes"
-            case .notFound: return "Serviço não encontrado no app"
-            case .unresponsive: return "Serviço não responde"
-            case .incompatible: return "Serviço incompatível"
-            case .outdated: return "Atualização do serviço necessária"
-            case .runtimeMissing: return "Nenhum cliente VPN aprovado"
-            case .userNotAuthorized: return "Usuário não autorizado"
-            case .ready: return "Serviço pronto"
+            case .checking: return String(localized: "Verificando o serviço…")
+            case .unsigned: return String(localized: "Assinatura necessária")
+            case .notRegistered: return String(localized: "Serviço não ativado")
+            case .requiresApproval: return String(localized: "Aprovação pendente em Ajustes")
+            case .notFound: return String(localized: "Serviço não encontrado no app")
+            case .unresponsive: return String(localized: "Serviço não responde")
+            case .incompatible: return String(localized: "Serviço incompatível")
+            case .outdated: return String(localized: "Atualização do serviço necessária")
+            case .runtimeMissing: return String(localized: "Nenhum cliente VPN aprovado")
+            case .userNotAuthorized: return String(localized: "Usuário não autorizado")
+            case .ready: return String(localized: "Serviço pronto")
             }
         }
         var detail: String {
             switch self {
-            case .checking: return "Consultando o registro e o serviço privilegiado."
-            case .unsigned(let reason): return reason + " Veja o guia de ativação no README."
-            case .notRegistered: return "Use Ativar serviço e aprove em Ajustes do Sistema › Itens de Início."
-            case .requiresApproval: return "Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano."
-            case .notFound: return "O bundle não contém o LaunchDaemon esperado. Use o app gerado por scripts/build.sh."
-            case .unresponsive(let reason): return "O serviço está habilitado, mas o handshake autenticado falhou: \(reason)"
+            case .checking: return String(localized: "Consultando o registro e o serviço privilegiado.")
+            case .unsigned(let reason): return reason + String(localized: " Veja o guia de ativação no README.")
+            case .notRegistered: return String(localized: "Use Ativar serviço e aprove em Ajustes do Sistema › Itens de Início.")
+            case .requiresApproval: return String(localized: "Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano.")
+            case .notFound: return String(localized: "O bundle não contém o LaunchDaemon esperado. Use o app gerado por scripts/build.sh.")
+            case .unresponsive(let reason): return String(localized: "O serviço está habilitado, mas o handshake autenticado falhou: \(reason)")
             case .incompatible(let reason): return reason
-            case .outdated(let version): return "O serviço registrado é \(version); este app é \(HelperConstants.fullVersion). Use Atualizar serviço (desconecta antes)."
-            case .runtimeMissing(let reason): return reason + " Aprove o cliente VPN que você usa."
-            case .userNotAuthorized: return "Aprove um cliente VPN (pede senha de administrador)."
-            case .ready: return "Conectar não pede senha de administrador."
+            case .outdated(let version): return String(localized: "O serviço registrado é \(version); este app é \(HelperConstants.fullVersion). Use Atualizar serviço (desconecta antes).")
+            case .runtimeMissing(let reason): return reason + String(localized: " Aprove o cliente VPN que você usa.")
+            case .userNotAuthorized: return String(localized: "Aprove um cliente VPN (pede senha de administrador).")
+            case .ready: return String(localized: "Conectar não pede senha de administrador.")
             }
         }
         var symbol: String {
@@ -134,7 +134,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         client?.onLost = { [weak self] in
             guard let self else { return }
             self.manager?.transportLost()
-            if self.health == .ready { self.health = .unresponsive("conexão perdida; use Verificar novamente.") }
+            if self.health == .ready { self.health = .unresponsive(String(localized: "conexão perdida; use Verificar novamente.")) }
         }
         client?.onEvents = { [weak self] batch in self?.manager?.receive(batch) }
     }
@@ -143,7 +143,7 @@ final class ServiceController: ObservableObject, SessionTransport {
     static func production() -> ServiceController {
         let policy = CodeTrust.localPolicy()
         if MenuBarCoordinator.isLocalChecks {
-            return ServiceController(policy: .unavailable(reason: "Executor de verificações locais: serviço real desativado."), registrar: nil, client: nil)
+            return ServiceController(policy: .unavailable(reason: String(localized: "Executor de verificações locais: serviço real desativado.")), registrar: nil, client: nil)
         }
         if case .trusted(let team) = policy {
             return ServiceController(policy: policy, registrar: DaemonRegistrar(), client: .production(team: team))
@@ -157,22 +157,22 @@ final class ServiceController: ObservableObject, SessionTransport {
         return [.enabled, .requiresApproval].contains(registrar.status)
     }
     var unavailableReason: String? {
-        if blockNewSessions { return "O serviço está sendo removido ou atualizado; novas conexões aguardam." }
+        if blockNewSessions { return String(localized: "O serviço está sendo removido ou atualizado; novas conexões aguardam.") }
         if health == .ready, status?.anyRuntime == true { return nil }
         return "\(health.title). \(health.detail)"
     }
     func unavailableReason(for kind: RuntimeKind) -> String? {
         if let reason = unavailableReason { return reason }
         guard status?.runtime(kind) == nil else { return nil }
-        let problem = status?.runtimeProblem(kind) ?? "Nenhum \(kind.title) aprovado para o serviço."
-        return "\(problem) Em Configurações › Serviço privilegiado, use Aprovar \(kind.title)… (requer administrador)."
+        let problem = status?.runtimeProblem(kind) ?? String(localized: "Nenhum \(kind.title) aprovado para o serviço.")
+        return String(localized: "\(problem) Em Configurações › Serviço privilegiado, use Aprovar \(kind.title)… (requer administrador).")
     }
     var capabilities: RuntimeCapabilities? { status?.runtime?.capabilities }
 
     var bundleLocationWarning: String? {
         let path = Bundle.main.bundleURL.path
         return path.hasPrefix("/Applications/") ? nil :
-            "O app está em \(path). Para uso real, instale-o em /Applications antes de ativar o serviço (o registro aponta para este bundle)."
+            String(localized: "O app está em \(path). Para uso real, instale-o em /Applications antes de ativar o serviço (o registro aponta para este bundle).")
     }
 
     // MARK: Status
@@ -185,12 +185,12 @@ final class ServiceController: ObservableObject, SessionTransport {
         case .requiresApproval: health = .requiresApproval; status = nil
         case .notFound: health = daemonPlistInBundle() ? .notRegistered : .notFound; status = nil
         case .enabled: handshake()
-        @unknown default: health = .unresponsive("estado de registro desconhecido"); status = nil
+        @unknown default: health = .unresponsive(String(localized: "estado de registro desconhecido")); status = nil
         }
     }
 
     private func handshake() {
-        guard let client else { health = .unresponsive("cliente indisponível"); return }
+        guard let client else { health = .unresponsive(String(localized: "cliente indisponível")); return }
         if helperRestart != nil { return } // Waiting for the previous helper to exit.
         if health != .ready { health = .checking }
         client.request(.status) { [weak self] result in
@@ -204,7 +204,7 @@ final class ServiceController: ObservableObject, SessionTransport {
                     return
                 }
                 self.health = failure.code == .incompatibleProtocol ? .incompatible(failure.message) : .unresponsive(failure.message)
-            case .success: self.health = .unresponsive("resposta inesperada")
+            case .success: self.health = .unresponsive(String(localized: "resposta inesperada"))
             }
         }
     }
@@ -225,7 +225,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         self.status = status
         if status.helperVersion != HelperConstants.fullVersion { health = .outdated(status.helperVersion) }
         else if !status.anyRuntime {
-            health = .runtimeMissing(status.runtimeProblem ?? "Nenhum cliente VPN aprovado.")
+            health = .runtimeMissing(status.runtimeProblem ?? String(localized: "Nenhum cliente VPN aprovado."))
         }
         else if !status.userAuthorized { health = .userNotAuthorized }
         else { health = .ready }
@@ -240,23 +240,23 @@ final class ServiceController: ObservableObject, SessionTransport {
         // Same label installed the legacy way would conflict; never touch someone else's file.
         let legacy = "/Library/LaunchDaemons/\(HelperConstants.plistName)"
         if FileManager.default.fileExists(atPath: legacy) {
-            message = "Já existe \(legacy) com o mesmo identificador. Remova esse item manualmente antes de ativar; o app não altera arquivos que não registrou."
+            message = String(localized: "Já existe \(legacy) com o mesmo identificador. Remova esse item manualmente antes de ativar; o app não altera arquivos que não registrou.")
             refresh()
             return
         }
-        let approval = "Serviço registrado. Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano."
+        let approval = String(localized: "Serviço registrado. Ligue o TunnelMac em Ajustes do Sistema › Itens de Início › Permitir em segundo plano.")
         do {
             try registrar.register()
-            message = registrar.status == .requiresApproval ? approval : "Serviço registrado."
+            message = registrar.status == .requiresApproval ? approval : String(localized: "Serviço registrado.")
         } catch {
             let code = (error as NSError).code
             // The first registration of a daemon throws "Operation not permitted" while it
             // waits for the user's approval: that is the expected next step, not a failure.
             if registrar.status == .requiresApproval { message = approval }
             else if code == kSMErrorAlreadyRegistered { message = nil }
-            else if code == kSMErrorLaunchDeniedByUser { message = "O macOS aguarda sua aprovação em Ajustes do Sistema › Itens de Início." }
-            else if code == kSMErrorInvalidSignature { message = "O macOS recusou a assinatura do app. Daemons exigem app assinado com Team ID e notarizado; veja o guia de ativação." }
-            else { message = "Não foi possível registrar o serviço: \(error.localizedDescription)" }
+            else if code == kSMErrorLaunchDeniedByUser { message = String(localized: "O macOS aguarda sua aprovação em Ajustes do Sistema › Itens de Início.") }
+            else if code == kSMErrorInvalidSignature { message = String(localized: "O macOS recusou a assinatura do app. Daemons exigem app assinado com Team ID e notarizado; veja o guia de ativação.") }
+            else { message = String(localized: "Não foi possível registrar o serviço: \(error.localizedDescription)") }
         }
         refresh()
         // Straight to the switch the user has to turn on.
@@ -292,15 +292,15 @@ final class ServiceController: ObservableObject, SessionTransport {
                 self.inspection = inspection
                 if thenApprove {
                     let alert = NSAlert()
-                    alert.messageText = "Aprovar código para execução como administrador?"
-                    alert.informativeText = "Origem: \(inspection.candidatePath)\n\n" + inspection.warnings.joined(separator: "\n") + "\n\nA cópia protegida não comprova a procedência do programa. Aprove somente uma instalação em que você confia."
-                    alert.addButton(withTitle: "Aprovar")
-                    alert.addButton(withTitle: "Cancelar")
+                    alert.messageText = String(localized: "Aprovar código para execução como administrador?")
+                    alert.informativeText = String(localized: "Origem: \(inspection.candidatePath)") + "\n\n" + inspection.warnings.joined(separator: "\n") + String(localized: "\n\nA cópia protegida não comprova a procedência do programa. Aprove somente uma instalação em que você confia.")
+                    alert.addButton(withTitle: String(localized: "Aprovar"))
+                    alert.addButton(withTitle: String(localized: "Cancelar"))
                     if alert.runModal() == .alertFirstButtonReturn { self.approve() }
                     else { self.inspection = nil; self.approvingKind = nil }
                 }
             case .success(.failure(let failure)), .failure(let failure): self.message = failure.message; self.approvingKind = nil
-            case .success: self.message = "Resposta inesperada do serviço."; self.approvingKind = nil
+            case .success: self.message = String(localized: "Resposta inesperada do serviço."); self.approvingKind = nil
             }
         }
     }
@@ -309,7 +309,7 @@ final class ServiceController: ObservableObject, SessionTransport {
     func approve() {
         guard let client, let inspection else { approvingKind = nil; return }
         guard let authorization = AdminAuthorizationHandle() else {
-            message = "Não foi possível preparar a autorização do macOS."; approvingKind = nil; self.inspection = nil; return
+            message = String(localized: "Não foi possível preparar a autorização do macOS."); approvingKind = nil; self.inspection = nil; return
         }
         busy = true
         let kind = inspection.kind
@@ -333,9 +333,10 @@ final class ServiceController: ObservableObject, SessionTransport {
             case .success(.status(let status)):
                 self.inspection = nil
                 self.apply(status)
-                self.message = "\(kind.title) \(status.runtime(kind)?.version ?? "") aprovado e protegido."
+                let version = status.runtime(kind)?.version ?? ""
+                self.message = String(localized: "\(kind.title) \(version) aprovado e protegido.")
             case .success(.failure(let failure)), .failure(let failure): self.message = failure.message
-            case .success: self.message = "Resposta inesperada do serviço."
+            case .success: self.message = String(localized: "Resposta inesperada do serviço.")
             }
         }
     }
@@ -351,23 +352,23 @@ final class ServiceController: ObservableObject, SessionTransport {
         waitForCleanup(deadline: Date().addingTimeInterval(cleanupLimit)) { [weak self] cleaned in
             guard let self else { return }
             guard cleaned else {
-                self.finishAction("As conexões ainda não confirmaram a limpeza; o serviço não foi removido.", completion)
+                self.finishAction(String(localized: "As conexões ainda não confirmaram a limpeza; o serviço não foi removido."), completion)
                 return
             }
             self.confirmHelperIdle { idle in
                 guard idle else {
-                    self.finishAction("A limpeza global não foi confirmada; o serviço não foi removido. Se o helper for antigo, remova o serviço pelo app anterior antes de atualizar.", completion)
+                    self.finishAction(String(localized: "A limpeza global não foi confirmada; o serviço não foi removido. Se o helper for antigo, remova o serviço pelo app anterior antes de atualizar."), completion)
                     return
                 }
                 self.removeFiles(includeManagedFiles) { note in
                     registrar.unregister { error in
                         if error != nil { self.client?.request(.cancelMaintenance) { _ in } }
                         else { self.client?.invalidate() }
-                        var text = error.map { "Falha ao remover o registro: \($0.localizedDescription)" } ?? "Serviço removido. Cadastros e senhas foram preservados."
+                        var text = error.map { String(localized: "Falha ao remover o registro: \($0.localizedDescription)") } ?? String(localized: "Serviço removido. Cadastros e senhas foram preservados.")
                         if let note { text += " " + note }
                         if reRegister && error == nil {
-                            do { try registrar.register(); text = "Serviço atualizado. Se o macOS pedir, aprove novamente em Ajustes." }
-                            catch { text = "Registro removido, mas o novo registro falhou: \(error.localizedDescription)" }
+                            do { try registrar.register(); text = String(localized: "Serviço atualizado. Se o macOS pedir, aprove novamente em Ajustes.") }
+                            catch { text = String(localized: "Registro removido, mas o novo registro falhou: \(error.localizedDescription)") }
                         }
                         self.finishAction(text, completion)
                     }
@@ -422,17 +423,17 @@ final class ServiceController: ObservableObject, SessionTransport {
 
     private func removeFiles(_ include: Bool, _ done: @escaping (String?) -> Void) {
         guard include, let client, registrar?.status == .enabled else {
-            done(include ? "Arquivos gerenciados em \(HelperConstants.stateDirectory) não foram alterados (serviço inacessível)." : nil)
+            done(include ? String(localized: "Arquivos gerenciados em \(HelperConstants.stateDirectory) não foram alterados (serviço inacessível).") : nil)
             return
         }
-        guard let authorization = AdminAuthorizationHandle() else { done("Arquivos gerenciados preservados (autorização indisponível)."); return }
+        guard let authorization = AdminAuthorizationHandle() else { done(String(localized: "Arquivos gerenciados preservados (autorização indisponível).")); return }
         client.request(.removeManagedFiles(authorization: authorization.externalForm), timeout: 600) { result in
             withExtendedLifetime(authorization) {}
             switch result {
-            case .success(.done): done("Arquivos gerenciados do serviço removidos.")
+            case .success(.done): done(String(localized: "Arquivos gerenciados do serviço removidos."))
             case .success(.failure(let failure)), .failure(let failure):
-                done("Arquivos gerenciados preservados em \(HelperConstants.stateDirectory): \(failure.message)")
-            default: done("Arquivos gerenciados preservados.")
+                done(String(localized: "Arquivos gerenciados preservados em \(HelperConstants.stateDirectory): \(failure.message)"))
+            default: done(String(localized: "Arquivos gerenciados preservados."))
             }
         }
     }
@@ -444,50 +445,50 @@ final class ServiceController: ObservableObject, SessionTransport {
 
     func start(_ request: ConnectionRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) {
         guard unavailableReason(for: .openfortivpn) == nil, let client else {
-            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .openfortivpn) ?? "Serviço indisponível."))); return
+            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .openfortivpn) ?? String(localized: "Serviço indisponível.")))); return
         }
         client.request(.start(request), timeout: 30) { result in
             switch result {
             case .success(.started(let token, let plan)): completion(.success((token, plan)))
             case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
-            case .success: completion(.failure(HelperFailure(.invalidRequest, "Resposta inesperada do serviço.")))
+            case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
             }
         }
     }
 
     func startOpenVPN(_ request: OpenVPNRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) {
         guard unavailableReason(for: .openvpn) == nil, let client else {
-            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .openvpn) ?? "Serviço indisponível."))); return
+            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .openvpn) ?? String(localized: "Serviço indisponível.")))); return
         }
         client.request(.startOpenVPN(request), timeout: 30) { result in
             switch result {
             case .success(.started(let token, let plan)): completion(.success((token, plan)))
             case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
-            case .success: completion(.failure(HelperFailure(.invalidRequest, "Resposta inesperada do serviço.")))
+            case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
             }
         }
     }
 
     func startWireGuard(_ request: WireGuardRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) {
         guard unavailableReason(for: .wireguard) == nil, let client else {
-            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .wireguard) ?? "Serviço indisponível."))); return
+            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .wireguard) ?? String(localized: "Serviço indisponível.")))); return
         }
         client.request(.startWireGuard(request), timeout: 30) { result in
             switch result {
             case .success(.started(let token, let plan)): completion(.success((token, plan)))
             case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
-            case .success: completion(.failure(HelperFailure(.invalidRequest, "Resposta inesperada do serviço.")))
+            case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
             }
         }
     }
 
     func stop(_ token: String, completion: @escaping (HelperFailure?) -> Void) {
-        guard let client else { completion(HelperFailure(.unavailable, "Serviço indisponível.")); return }
+        guard let client else { completion(HelperFailure(.unavailable, String(localized: "Serviço indisponível."))); return }
         client.request(.stop(token: token), timeout: 15) { result in
             switch result {
             case .success(.stopped): completion(nil)
             case .success(.failure(let failure)), .failure(let failure): completion(failure)
-            case .success: completion(HelperFailure(.invalidRequest, "Resposta inesperada do serviço."))
+            case .success: completion(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço.")))
             }
         }
     }

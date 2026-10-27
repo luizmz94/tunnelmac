@@ -20,7 +20,7 @@ struct PasswordStore {
         try check(status)
         if (result as? Data)?.isEmpty == true { return nil } // Scrubbed by KeychainItem.delete.
         guard let data = result as? Data, let text = String(data: data, encoding: .utf8) else {
-            throw AppFailure("Senha inválida no Keychain.")
+            throw AppFailure(String(localized: "Senha inválida no Keychain."))
         }
         return text
     }
@@ -39,7 +39,7 @@ struct PasswordStore {
     }
     private func check(_ status: OSStatus) throws {
         guard status == errSecSuccess else {
-            throw AppFailure("Keychain (\(status)): \(SecCopyErrorMessageString(status, nil) as String? ?? String(status))")
+            throw AppFailure(String(localized: "Keychain (\(status)): \(SecCopyErrorMessageString(status, nil) as String? ?? String(status))"))
         }
     }
 }
