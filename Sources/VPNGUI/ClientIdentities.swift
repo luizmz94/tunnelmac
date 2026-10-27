@@ -40,14 +40,14 @@ enum ClientIdentities {
     /// macOS may ask the user to allow TunnelMac to use the key ("Sempre permitir").
     static func export(_ reference: ClientCertificateReference) throws -> ClientCertificate {
         guard let match = identities().first(where: { $0.info.sha1 == reference.sha1.lowercased() }) else {
-            throw AppFailure("O certificado do cliente \"\(reference.name)\" não foi encontrado no Keychain. Edite a conexão e escolha-o de novo.")
+            throw AppFailure(String(localized: "O certificado do cliente \"\(reference.name)\" não foi encontrado no Keychain. Edite a conexão e escolha-o de novo."))
         }
         var key: SecKey?
         var status = SecIdentityCopyPrivateKey(match.identity, &key)
-        guard status == errSecSuccess, let key else { throw failure(status, "Não foi possível ler a chave do certificado") }
+        guard status == errSecSuccess, let key else { throw failure(status, String(localized: "Não foi possível ler a chave do certificado")) }
         var bytes = [UInt8](repeating: 0, count: ClientCertificate.passphraseBytes)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            throw AppFailure("Não foi possível gerar a senha temporária da chave.")
+            throw AppFailure(String(localized: "Não foi possível gerar a senha temporária da chave."))
         }
         let passphrase = bytes.map { String(format: "%02x", $0) }.joined()
         var parameters = SecItemImportExportKeyParameters()
@@ -58,7 +58,7 @@ enum ClientIdentities {
             SecItemExport(key, .formatWrappedPKCS8, .pemArmour, &parameters, &exported)
         }
         guard status == errSecSuccess, let exported, let pem = String(data: exported as Data, encoding: .utf8) else {
-            throw failure(status, "Não foi possível usar a chave do certificado \"\(reference.name)\"")
+            throw failure(status, String(localized: "Não foi possível usar a chave do certificado \"\(reference.name)\""))
         }
         let certificate = try certificateChain(match.certificate).map {
             PEM.encode(SecCertificateCopyData($0) as Data, label: "CERTIFICATE")
@@ -77,11 +77,11 @@ enum ClientIdentities {
         switch status {
         case errSecSuccess: break
         case errSecAuthFailed, errSecPkcs12VerifyFailure, errSecPassphraseRequired:
-            throw AppFailure("Senha do certificado incorreta.")
+            throw AppFailure(String(localized: "Senha do certificado incorreta."))
         case errSecDuplicateItem:
-            throw AppFailure("Este certificado já está no Keychain. Escolha-o na lista \"Certificado do cliente\".")
+            throw AppFailure(String(localized: "Este certificado já está no Keychain. Escolha-o na lista \"Certificado do cliente\"."))
         default:
-            throw failure(status, "Não foi possível importar o arquivo")
+            throw failure(status, String(localized: "Não foi possível importar o arquivo"))
         }
         // Preserve intermediate certificates from PKCS#12 for later offline chain export.
         for item in items as? [[String: Any]] ?? [] {
@@ -92,16 +92,16 @@ enum ClientIdentities {
                 if let keychain = searchList?.first { query[kSecUseKeychain as String] = keychain }
                 let result = SecItemAdd(query as CFDictionary, nil)
                 guard result == errSecSuccess || result == errSecDuplicateItem else {
-                    throw failure(result, "A identidade foi importada, mas não foi possível preservar um certificado intermediário")
+                    throw failure(result, String(localized: "A identidade foi importada, mas não foi possível preservar um certificado intermediário"))
                 }
             }
         }
         let identities = (items as? [[String: Any]] ?? []).compactMap { $0[kSecImportItemIdentity as String] }
-        guard let first = identities.first else { throw AppFailure("O arquivo não contém certificado com chave privada.") }
+        guard let first = identities.first else { throw AppFailure(String(localized: "O arquivo não contém certificado com chave privada.")) }
         let identity = first as! SecIdentity
         var certificate: SecCertificate?
         guard SecIdentityCopyCertificate(identity, &certificate) == errSecSuccess, let certificate else {
-            throw AppFailure("O arquivo não contém certificado com chave privada.")
+            throw AppFailure(String(localized: "O arquivo não contém certificado com chave privada."))
         }
         return info(certificate)
     }
@@ -110,7 +110,7 @@ enum ClientIdentities {
     static func certificateChain(_ leaf: SecCertificate) throws -> [SecCertificate] {
         var trust: SecTrust?
         guard SecTrustCreateWithCertificates(leaf, SecPolicyCreateBasicX509(), &trust) == errSecSuccess,
-              let trust else { throw AppFailure("Não foi possível construir a cadeia do certificado.") }
+              let trust else { throw AppFailure(String(localized: "Não foi possível construir a cadeia do certificado.")) }
         SecTrustSetNetworkFetchAllowed(trust, false)
         if let searchList { SecTrustSetKeychains(trust, searchList as CFArray) }
         _ = SecTrustEvaluateWithError(trust, nil)
@@ -146,7 +146,7 @@ enum ClientIdentities {
     static func info(_ certificate: SecCertificate) -> ClientIdentity {
         let der = SecCertificateCopyData(certificate) as Data
         let sha1 = Insecure.SHA1.hash(data: der).map { String(format: "%02x", $0) }.joined()
-        let name = (SecCertificateCopySubjectSummary(certificate) as String?) ?? "Certificado sem nome"
+        let name = (SecCertificateCopySubjectSummary(certificate) as String?) ?? String(localized: "Certificado sem nome")
         let values = SecCertificateCopyValues(certificate, [kSecOIDX509V1IssuerName, kSecOIDX509V1ValidityNotAfter] as CFArray, nil)
             as? [String: [String: Any]] ?? [:]
         var issuer = ""
@@ -172,9 +172,9 @@ enum ClientIdentities {
 
     private static func failure(_ status: OSStatus, _ message: String) -> AppFailure {
         if status == errSecUserCanceled || status == errSecAuthFailed {
-            return AppFailure("\(message): acesso à chave negado no Keychain.")
+            return AppFailure(String(localized: "\(message): acesso à chave negado no Keychain."))
         }
-        let detail = (SecCopyErrorMessageString(status, nil) as String?) ?? "erro \(status)"
+        let detail = (SecCopyErrorMessageString(status, nil) as String?) ?? String(localized: "erro \(status)")
         return AppFailure("\(message) (\(detail)).")
     }
 }

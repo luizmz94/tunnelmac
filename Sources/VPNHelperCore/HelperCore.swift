@@ -174,22 +174,23 @@ public final class HelperCore {
         let respond: (HelperResponse) -> Void = { reply(MessageCodec.encode($0)) }
         let request: HelperRequest
         do { request = try MessageCodec.decode(HelperRequest.self, from: data, limit: HelperConstants.maximumRequestSize) }
-        catch { respond(.failure(error as? HelperFailure ?? HelperFailure(.invalidRequest, "Mensagem malformada."))); return }
+        catch { respond(.failure(error as? HelperFailure ?? HelperFailure(.invalidRequest, ServiceLanguage.text("Mensagem malformada.")))); return }
         queue.async {
-            guard client.alive else { respond(.failure(HelperFailure(.transport, "Conexão encerrada."))); return }
+            guard client.alive else { respond(.failure(HelperFailure(.transport, ServiceLanguage.text("Conexão encerrada.")))); return }
             if case .hello(let hello) = request {
                 guard hello.protocolVersion == HelperConstants.protocolVersion else {
                     client.handshaken = false
                     respond(.failure(HelperFailure(.incompatibleProtocol,
-                        "Protocolo do app (\(hello.protocolVersion)) diferente do serviço (\(HelperConstants.protocolVersion), versão \(self.configuration.helperVersion)). Atualize o serviço pelo app.")))
+                        ServiceLanguage.text("Protocolo do app (\(hello.protocolVersion)) diferente do serviço (\(HelperConstants.protocolVersion), versão \(self.configuration.helperVersion)). Atualize o serviço pelo app."))))
                     return
                 }
                 client.handshaken = true
+                ServiceLanguage.apply(hello.language)
                 respond(.status(self.status(for: client)))
                 return
             }
             guard client.handshaken else {
-                respond(.failure(HelperFailure(.handshakeRequired, "Handshake obrigatório antes de qualquer operação."))); return
+                respond(.failure(HelperFailure(.handshakeRequired, ServiceLanguage.text("Handshake obrigatório antes de qualquer operação.")))); return
             }
             switch request {
             case .hello: break
@@ -204,12 +205,12 @@ public final class HelperCore {
             case .prepareForMaintenance:
                 guard client.uid != 0, self.maintenanceOwner == nil || self.maintenanceOwner == client.id,
                       self.sessions.isEmpty, self.registry.stale(excluding: []).isEmpty else {
-                    respond(.failure(HelperFailure(.busy, "Há sessões ou supervisores pendentes; manutenção cancelada.")))
+                    respond(.failure(HelperFailure(.busy, ServiceLanguage.text("Há sessões ou supervisores pendentes; manutenção cancelada."))))
                     return
                 }
                 self.recoverWireGuard()
                 guard !self.networkCleanupPending, self.registry.persistenceFailure == nil else {
-                    respond(.failure(HelperFailure(.busy, "Restauração da rede ou persistência pendente; serviço preservado para recuperação.")))
+                    respond(.failure(HelperFailure(.busy, ServiceLanguage.text("Restauração da rede ou persistência pendente; serviço preservado para recuperação."))))
                     return
                 }
                 self.maintenanceOwner = client.id
@@ -270,23 +271,23 @@ public final class HelperCore {
     private func admit(_ connectionID: UUID, for client: Client) -> HelperFailure? {
         recoverWireGuard()
         guard !networkCleanupPending, registry.persistenceFailure == nil else {
-            return HelperFailure(.busy, "Recuperação de rede ou registro pendente. Reinicie o serviço antes de conectar novamente.")
+            return HelperFailure(.busy, ServiceLanguage.text("Recuperação de rede ou registro pendente. Reinicie o serviço antes de conectar novamente."))
         }
-        guard maintenanceOwner == nil else { return HelperFailure(.busy, "Serviço em manutenção.") }
-        guard client.uid != 0 else { return HelperFailure(.userNotAuthorized, "O app não deve rodar como root.") }
+        guard maintenanceOwner == nil else { return HelperFailure(.busy, ServiceLanguage.text("Serviço em manutenção.")) }
+        guard client.uid != 0 else { return HelperFailure(.userNotAuthorized, ServiceLanguage.text("O app não deve rodar como root.")) }
         guard (try? store.loadState().authorizedUsers.contains(client.uid)) == true else {
-            return HelperFailure(.userNotAuthorized, "Este usuário do macOS ainda não foi autorizado por um administrador para usar o serviço.")
+            return HelperFailure(.userNotAuthorized, ServiceLanguage.text("Este usuário do macOS ainda não foi autorizado por um administrador para usar o serviço."))
         }
         // A finished runner (supervisor reaped and cleaned up) only waits for the delivery of its
         // final events; it must not block the next start, e.g. the SAML fallback after a cookie.
         if sessions.values.contains(where: { !$0.finished && $0.uid == client.uid && $0.connectionID == connectionID }) {
-            return HelperFailure(.duplicateSession, "Esta conexão já tem uma sessão ativa ou encerrando.")
+            return HelperFailure(.duplicateSession, ServiceLanguage.text("Esta conexão já tem uma sessão ativa ou encerrando."))
         }
         if registry.stale(excluding: Set(sessions.keys)).contains(where: { $0.uid == client.uid && $0.connectionID == connectionID }) {
-            return HelperFailure(.busy, "A sessão anterior desta conexão ainda está encerrando. Aguarde a limpeza e tente novamente.")
+            return HelperFailure(.busy, ServiceLanguage.text("A sessão anterior desta conexão ainda está encerrando. Aguarde a limpeza e tente novamente."))
         }
         guard sessions.values.filter({ !$0.finished && $0.ownerID == client.id }).count < HelperConstants.maximumSessionsPerClient else {
-            return HelperFailure(.limitReached, "Limite de conexões simultâneas atingido.")
+            return HelperFailure(.limitReached, ServiceLanguage.text("Limite de conexões simultâneas atingido."))
         }
         return nil
     }
@@ -296,7 +297,7 @@ public final class HelperCore {
         let runtime: ActiveRuntime
         do { runtime = try store.loadActive(.openvpn) } catch { return .failure(Self.wrap(error)) }
         guard runtime.dnsScript != nil else {
-            return .failure(HelperFailure(.runtimeRejected, "O runtime OpenVPN não possui dns-updown protegido; reinstale o cliente e aprove novamente para garantir o DNS da VPN."))
+            return .failure(HelperFailure(.runtimeRejected, ServiceLanguage.text("O runtime OpenVPN não possui dns-updown protegido; reinstale o cliente e aprove novamente para garantir o DNS da VPN.")))
         }
         var content: Data
         do {
@@ -354,7 +355,7 @@ public final class HelperCore {
             tunnel.fail = { [weak runner] in queue.async { runner?.stop() } }
             guard let servers = internetServers else { return tunnel }
             guard profile.dnsServers.isEmpty else {
-                tunnel.emit("[i] O perfil WireGuard define o próprio DNS; o DNS da internet do TunnelMac não é usado nesta conexão.")
+                tunnel.emit(ServiceLanguage.text("[i] O perfil WireGuard define o próprio DNS; o DNS da internet do TunnelMac não é usado nesta conexão."))
                 return tunnel
             }
             let hold = InternetDNSHold(token: token, servers: servers, controller: internetDNS, trigger: nil)
@@ -444,7 +445,7 @@ public final class HelperCore {
         }
         guard control >= 0 else {
             _ = settleDNSBaseline()
-            return .failure(HelperFailure(.internalError, "Não foi possível iniciar o supervisor (\(String(cString: strerror(errno))))."))
+            return .failure(HelperFailure(.internalError, ServiceLanguage.text("Não foi possível iniciar o supervisor (\(String(cString: strerror(errno)))).")))
         }
         let pump = EventPump(token: token, sink: client.sink)
         let runner = SessionRunner(token: token, ownerID: client.id, uid: client.uid, connectionID: connectionID,
@@ -476,7 +477,7 @@ public final class HelperCore {
     private func stop(_ token: String, for client: Client) -> HelperResponse {
         // A token of another client is indistinguishable from an unknown one.
         guard let session = sessions[token], session.ownerID == client.id else {
-            return .failure(HelperFailure(.unknownSession, "Sessão desconhecida."))
+            return .failure(HelperFailure(.unknownSession, ServiceLanguage.text("Sessão desconhecida.")))
         }
         session.stop()
         return .stopped(remaining: sessions.values.filter { $0.ownerID == client.id }.count)
@@ -484,16 +485,16 @@ public final class HelperCore {
 
     private func approve(path: String, digest: String, authorization: Data, kind: RuntimeKind, client: Client,
                          respond: @escaping (HelperResponse) -> Void) {
-        guard client.uid != 0 else { respond(.failure(HelperFailure(.userNotAuthorized, "O app não deve rodar como root."))); return }
+        guard client.uid != 0 else { respond(.failure(HelperFailure(.userNotAuthorized, ServiceLanguage.text("O app não deve rodar como root.")))); return }
         let uid = client.uid
         work.async {
             do {
                 let inventory = try RuntimeInspector.inspect(candidate: path, requester: uid, kind: kind)
                 guard inventory.digest == digest else {
-                    throw HelperFailure(.runtimeRejected, "A instalação mudou desde a inspeção. Revise o inventário novamente antes de aprovar.")
+                    throw HelperFailure(.runtimeRejected, ServiceLanguage.text("A instalação mudou desde a inspeção. Revise o inventário novamente antes de aprovar."))
                 }
                 guard self.configuration.authorizer.authorize(authorization, prompt: SystemAdminAuthorizer.approvalPrompt(kind, path: path)) else {
-                    throw HelperFailure(.authorizationDenied, "Aprovação de administrador cancelada ou recusada.")
+                    throw HelperFailure(.authorizationDenied, ServiceLanguage.text("Aprovação de administrador cancelada ou recusada."))
                 }
                 // Serialized with start/status on the core queue. Installing never replaces a
                 // runtime in use: a new directory is created and the previous one is kept.
@@ -501,7 +502,7 @@ public final class HelperCore {
                 self.queue.sync {
                     do {
                         guard self.sessions.isEmpty, self.registry.stale(excluding: []).isEmpty, !self.networkCleanupPending else {
-                            throw HelperFailure(.busy, "Desconecte todas as VPNs e aguarde a limpeza antes de aprovar outro runtime.")
+                            throw HelperFailure(.busy, ServiceLanguage.text("Desconecte todas as VPNs e aguarde a limpeza antes de aprovar outro runtime."))
                         }
                         try self.store.install(inventory, approvedBy: uid)
                     } catch { outcome = .failure(error) }
@@ -514,15 +515,15 @@ public final class HelperCore {
 
     private func removeManagedFiles(authorization: Data, client: Client, respond: @escaping (HelperResponse) -> Void) {
         guard sessions.isEmpty, registry.stale(excluding: []).isEmpty, !networkCleanupPending else {
-            respond(.failure(HelperFailure(.busy, "Há sessões ativas ou encerrando; desconecte antes de remover os arquivos do serviço."))); return
+            respond(.failure(HelperFailure(.busy, ServiceLanguage.text("Há sessões ativas ou encerrando; desconecte antes de remover os arquivos do serviço.")))); return
         }
         work.async {
             guard self.configuration.authorizer.authorize(authorization, prompt: SystemAdminAuthorizer.removalPrompt) else {
-                respond(.failure(HelperFailure(.authorizationDenied, "Aprovação de administrador cancelada ou recusada."))); return
+                respond(.failure(HelperFailure(.authorizationDenied, ServiceLanguage.text("Aprovação de administrador cancelada ou recusada.")))); return
             }
             self.queue.async {
                 guard self.sessions.isEmpty else {
-                    respond(.failure(HelperFailure(.busy, "Uma sessão começou durante a remoção; nada foi apagado."))); return
+                    respond(.failure(HelperFailure(.busy, ServiceLanguage.text("Uma sessão começou durante a remoção; nada foi apagado.")))); return
                 }
                 self.store.removeAll()
                 respond(.done)

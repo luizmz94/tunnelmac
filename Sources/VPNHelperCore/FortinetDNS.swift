@@ -89,16 +89,17 @@ public final class FortinetDNS: SessionObserver {
     private func apply() {
         guard !servers.isEmpty else { return }
         guard !domains.isEmpty else {
-            emit("[!] O gateway não informou domínios de DNS; nomes internos podem não resolver nos apps (só pelo IP).")
+            emit(ServiceLanguage.text("[!] O gateway não informou domínios de DNS; nomes internos podem não resolver nos apps (só pelo IP)."))
             return
         }
         let value: [String: Any] = ["ServerAddresses": servers, "SupplementalMatchDomains": domains]
         if store.set(token: token, value: value) {
             applied = true
             store.flush()
-            emit("[#] DNS da VPN (\(servers.joined(separator: ", "))) para \(domains.joined(separator: ", ")); os demais nomes seguem no DNS atual.")
+            let list = servers.joined(separator: ", "), names = domains.joined(separator: ", ")
+            emit(ServiceLanguage.text("[#] DNS da VPN (\(list)) para \(names); os demais nomes seguem no DNS atual."))
         } else {
-            emit("[!] Não foi possível registrar o DNS da VPN no sistema; nomes internos podem não resolver nos apps.")
+            emit(ServiceLanguage.text("[!] Não foi possível registrar o DNS da VPN no sistema; nomes internos podem não resolver nos apps."))
         }
     }
 

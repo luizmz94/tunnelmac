@@ -39,13 +39,14 @@ public final class InternetDNS {
             holders.append((token, servers))
             startMonitor()
             if otherOwner() {
-                return "[!] Um perfil WireGuard com DNS próprio controla o DNS do sistema; o DNS da internet do TunnelMac fica para depois."
+                return ServiceLanguage.text("[!] Um perfil WireGuard com DNS próprio controla o DNS do sistema; o DNS da internet do TunnelMac fica para depois.")
             }
             guard apply(servers) else {
-                return "[!] Não foi possível definir o DNS da internet; a VPN segue com o DNS atual."
+                return ServiceLanguage.text("[!] Não foi possível definir o DNS da internet; a VPN segue com o DNS atual.")
             }
             startMonitor()
-            return "[#] DNS da internet: \(servers.joined(separator: ", ")) (Configurações do TunnelMac); o anterior volta ao desconectar."
+            let list = servers.joined(separator: ", ")
+            return ServiceLanguage.text("[#] DNS da internet: \(list) (Configurações do TunnelMac); o anterior volta ao desconectar.")
         }
     }
 
@@ -65,7 +66,7 @@ public final class InternetDNS {
             if otherOwner() && record != nil { return nil }
             let restored = restore()
             if record == nil { stopMonitor() }
-            return restored ? "[#] DNS da internet anterior restaurado." : nil
+            return restored ? ServiceLanguage.text("[#] DNS da internet anterior restaurado.") : nil
         }
     }
 
@@ -169,7 +170,7 @@ final class InternetDNSHold: SessionObserver {
     private let servers: [String]
     private let controller: InternetDNS
     private let trigger: String?
-    var cleanupFailure: String? { !held && controller.cleanupPending ? "Restauração do DNS da internet pendente." : nil }
+    var cleanupFailure: String? { !held && controller.cleanupPending ? ServiceLanguage.text("Restauração do DNS da internet pendente.") : nil }
     private var held = false
     var emit: (String) -> Void = { _ in }
 

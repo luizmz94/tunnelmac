@@ -30,10 +30,13 @@ ditto "$bin_dir/Sparkle.framework" "$app/Contents/Frameworks/Sparkle.framework"
 install_name_tool -add_rpath @executable_path/../Frameworks "$app/Contents/MacOS/VPNGUI"
 cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp Resources/Brand/*.png "$app/Contents/Resources/"
+scripts/compile-strings.sh "$app"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array>$(scripts/compile-strings.sh --plist)</array>
 <key>CFBundleExecutable</key><string>VPNGUI</string>
 <key>CFBundleIdentifier</key><string>$identifier</string>
 <key>CFBundleName</key><string>TunnelMac</string>
@@ -56,7 +59,7 @@ fi
 
 captures="$out/captures"
 rm -rf "$captures"
-open -W -n --stdout "$out/showcase.log" --stderr "$out/showcase.log" "$app" --args --showcase-capture "$captures"
+open -W -n --stdout "$out/showcase.log" --stderr "$out/showcase.log" "$app" --args --showcase-capture "$captures" -AppleLanguages "(en)" # The README is in English.
 assets=docs/assets
 mkdir -p "$assets"
 for image in "$captures"/*.png; do cp "$image" "$assets/"; done

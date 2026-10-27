@@ -67,7 +67,7 @@ struct SAMLCookieStore {
     }
     func save(_ cookie: String, for connection: Connection, capturedAt: Date = Date(), knownExpiry: Date? = nil) throws {
         guard connection.authentication == .saml, SAMLCookieRules.isValid(cookie) else {
-            throw AppFailure("Sessão SAML em formato inesperado; não foi armazenada.")
+            throw AppFailure(String(localized: "Sessão SAML em formato inesperado; não foi armazenada."))
         }
         var expiresAt = capturedAt.addingTimeInterval(SAMLCookieRules.maximumAge)
         if let knownExpiry, knownExpiry < expiresAt { expiresAt = knownExpiry }
@@ -103,7 +103,7 @@ struct SAMLCookieStore {
     }
     private func check(_ status: OSStatus) throws {
         guard status == errSecSuccess else {
-            throw AppFailure("Keychain da sessão SAML (\(status)): \(SecCopyErrorMessageString(status, nil) as String? ?? String(status))")
+            throw AppFailure(String(localized: "Keychain da sessão SAML (\(status)): \(SecCopyErrorMessageString(status, nil) as String? ?? String(status))"))
         }
     }
 }

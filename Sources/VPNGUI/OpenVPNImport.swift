@@ -46,7 +46,7 @@ enum OpenVPNImporter {
     /// selection are still looked up next to the profile, with the usual folder rules.
     static func load(_ urls: [URL]) throws -> OpenVPNImport {
         guard urls.count > 1 else {
-            guard let url = urls.first else { throw AppFailure("Nenhum arquivo escolhido.") }
+            guard let url = urls.first else { throw AppFailure(String(localized: "Nenhum arquivo escolhido.")) }
             return try load(url)
         }
         var configs: [URL] = []
@@ -54,17 +54,17 @@ enum OpenVPNImporter {
         for url in urls {
             var isDirectory: ObjCBool = false
             guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else {
-                throw AppFailure("Ao escolher vários itens, escolha só arquivos (o perfil e seus certificados), não pastas.")
+                throw AppFailure(String(localized: "Ao escolher vários itens, escolha só arquivos (o perfil e seus certificados), não pastas."))
             }
             if ["ovpn", "conf"].contains(url.pathExtension.lowercased()) { configs.append(url); continue }
             guard attachments[url.lastPathComponent] == nil else {
-                throw AppFailure("Dois arquivos escolhidos têm o mesmo nome: \(url.lastPathComponent).")
+                throw AppFailure(String(localized: "Dois arquivos escolhidos têm o mesmo nome: \(url.lastPathComponent)."))
             }
             attachments[url.lastPathComponent] = url
         }
         guard configs.count == 1, let config = configs.first else {
-            throw AppFailure(configs.isEmpty ? "Entre os arquivos escolhidos não há um perfil .ovpn ou .conf."
-                                             : "Escolha um único perfil .ovpn ou .conf junto com os certificados.")
+            throw AppFailure(configs.isEmpty ? String(localized: "Entre os arquivos escolhidos não há um perfil .ovpn ou .conf.")
+                                             : String(localized: "Escolha um único perfil .ovpn ou .conf junto com os certificados."))
         }
         return try load(config, attachments: attachments)
     }
@@ -72,18 +72,18 @@ enum OpenVPNImporter {
     static func load(_ url: URL, attachments: [String: URL] = [:]) throws -> OpenVPNImport {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) else {
-            throw AppFailure("Arquivo não encontrado: \(url.path)")
+            throw AppFailure(String(localized: "Arquivo não encontrado: \(url.path)"))
         }
         if !isDirectory.boolValue, isZip(url) { return try loadArchive(url) }
         let file = isDirectory.boolValue ? try configuration(inFolder: url) : url
         let attributes = try FileManager.default.attributesOfItem(atPath: file.path)
         guard (attributes[.type] as? FileAttributeType) == .typeRegular,
               (attributes[.size] as? Int ?? .max) <= OpenVPNConfigText.maximumSize else {
-            throw AppFailure("O perfil precisa ser um arquivo de texto de até 256 KB.")
+            throw AppFailure(String(localized: "O perfil precisa ser um arquivo de texto de até 256 KB."))
         }
         let data = try BoundedFile.read(file, limit: OpenVPNConfigText.maximumSize)
         guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) else {
-            throw AppFailure("O perfil não está em texto legível.")
+            throw AppFailure(String(localized: "O perfil não está em texto legível."))
         }
         let base = file.deletingLastPathComponent()
         var stem = file.deletingPathExtension().lastPathComponent
@@ -118,19 +118,19 @@ enum OpenVPNImporter {
     static func loadArchive(_ archive: URL) throws -> OpenVPNImport {
         let attributes = try FileManager.default.attributesOfItem(atPath: archive.path)
         guard (attributes[.type] as? FileAttributeType) == .typeRegular, (attributes[.size] as? Int ?? .max) <= maximumArchive else {
-            throw AppFailure("O .zip precisa ser um arquivo de até 1 MB.")
+            throw AppFailure(String(localized: "O .zip precisa ser um arquivo de até 1 MB."))
         }
         let names = try tool("/usr/bin/zipinfo", ["-1", archive.path]).split(separator: "\n").map(String.init)
         guard !names.isEmpty, names.count <= maximumArchiveEntries else {
-            throw AppFailure("O .zip precisa conter só o perfil e seus certificados (até \(maximumArchiveEntries) itens).")
+            throw AppFailure(String(localized: "O .zip precisa conter só o perfil e seus certificados (até \(maximumArchiveEntries) itens)."))
         }
         guard names.allSatisfy({ !$0.hasPrefix("/") && !$0.split(separator: "/").contains("..") }) else {
-            throw AppFailure("O .zip contém caminhos fora da própria pasta; nada foi importado.")
+            throw AppFailure(String(localized: "O .zip contém caminhos fora da própria pasta; nada foi importado."))
         }
         let totals = try tool("/usr/bin/zipinfo", ["-t", archive.path])
         guard let match = totals.range(of: #"([0-9]+) bytes uncompressed"#, options: .regularExpression),
               let size = Int(totals[match].split(separator: " ")[0]), size <= maximumExtracted else {
-            throw AppFailure("O conteúdo do .zip passa de 4 MB; não parece um perfil OpenVPN.")
+            throw AppFailure(String(localized: "O conteúdo do .zip passa de 4 MB; não parece um perfil OpenVPN."))
         }
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TunnelMac-import-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
@@ -140,7 +140,7 @@ enum OpenVPNImporter {
         let items = FileManager.default.enumerator(at: temporary, includingPropertiesForKeys: [.isSymbolicLinkKey, .isDirectoryKey])
         while let item = items?.nextObject() as? URL {
             let values = try item.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey])
-            guard values.isSymbolicLink != true else { throw AppFailure("O .zip contém links simbólicos; nada foi importado.") }
+            guard values.isSymbolicLink != true else { throw AppFailure(String(localized: "O .zip contém links simbólicos; nada foi importado.")) }
             chmod(item.path, values.isDirectory == true ? 0o700 : 0o600)
         }
         var imported = try load(try profileFolder(in: temporary))
@@ -151,7 +151,7 @@ enum OpenVPNImporter {
         let mode = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
         if mode & 0o077 != 0, imported.profile.blocks.contains(where: { $0.content.contains("PRIVATE KEY") || $0.content.contains("Static key") }) {
             imported.exposedOriginals = [archive.resolvingSymlinksInPath().path]
-            imported.warnings.append("O arquivo original \(archive.lastPathComponent) contém chaves e pode ser lido por outros usuários do Mac (recomendado: chmod 600). A cópia do app é privada.")
+            imported.warnings.append(String(localized: "O arquivo original \(archive.lastPathComponent) contém chaves e pode ser lido por outros usuários do Mac (recomendado: chmod 600). A cópia do app é privada."))
         }
         return imported
     }
@@ -164,7 +164,7 @@ enum OpenVPNImporter {
         if entries.contains(where: { ["ovpn", "conf"].contains($0.pathExtension.lowercased()) }) { return root }
         let folders = entries.filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
         guard entries.count == 1, let folder = folders.first else {
-            throw AppFailure("O .zip não contém uma pasta .visc nem um perfil .ovpn.")
+            throw AppFailure(String(localized: "O .zip não contém uma pasta .visc nem um perfil .ovpn."))
         }
         return folder
     }
@@ -181,7 +181,7 @@ enum OpenVPNImporter {
         try process.run()
         let data = output.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
-        guard process.terminationStatus == 0 else { throw AppFailure("Não foi possível abrir o .zip (está corrompido?).") }
+        guard process.terminationStatus == 0 else { throw AppFailure(String(localized: "Não foi possível abrir o .zip (está corrompido?).")) }
         return String(decoding: data, as: UTF8.self)
     }
 
@@ -204,8 +204,9 @@ enum OpenVPNImporter {
             .filter { !$0.lastPathComponent.hasPrefix(".") && ["ovpn", "conf"].contains($0.pathExtension.lowercased()) }
         if entries.count == 1 { return entries[0] }
         if let config = entries.first(where: { $0.lastPathComponent.lowercased() == "config.conf" }) { return config }
-        if entries.isEmpty { throw AppFailure("A pasta não contém um perfil .ovpn ou config.conf.") }
-        throw AppFailure("A pasta contém mais de um perfil (\(entries.map(\.lastPathComponent).sorted().joined(separator: ", "))). Escolha o arquivo desejado.")
+        if entries.isEmpty { throw AppFailure(String(localized: "A pasta não contém um perfil .ovpn ou config.conf.")) }
+        let names = entries.map(\.lastPathComponent).sorted().joined(separator: ", ")
+        throw AppFailure(String(localized: "A pasta contém mais de um perfil (\(names)). Escolha o arquivo desejado."))
     }
 
     static func importText(_ text: String, baseDirectory: URL, suggestedName: String, source: String,
@@ -233,7 +234,7 @@ enum OpenVPNImporter {
         var droppedNames = Set<String>()
         var unsupported: [String] = []
         func addBlock(_ tag: String, _ content: String) throws {
-            guard blocks[tag] == nil else { throw AppFailure("O material de <\(tag)> aparece mais de uma vez no perfil.") }
+            guard blocks[tag] == nil else { throw AppFailure(String(localized: "O material de <\(tag)> aparece mais de uma vez no perfil.")) }
             blocks[tag] = content
             order.append(tag)
         }
@@ -246,9 +247,9 @@ enum OpenVPNImporter {
             switch block.tag {
             case _ where OpenVPNRules.blockTags.contains(block.tag): try addBlock(block.tag, block.content)
             case "auth-user-pass": credentials(from: block.content)
-            case "connection": throw AppFailure("Blocos <connection> ainda não são suportados. Use diretivas remote no próprio perfil.")
-            case "pkcs12": throw AppFailure("Certificados PKCS#12 ainda não são suportados; exporte o perfil com ca/cert/key em PEM.")
-            case "http-proxy-user-pass": throw AppFailure("Conexão por proxy ainda não é suportada.")
+            case "connection": throw AppFailure(String(localized: "Blocos <connection> ainda não são suportados. Use diretivas remote no próprio perfil."))
+            case "pkcs12": throw AppFailure(String(localized: "Certificados PKCS#12 ainda não são suportados; exporte o perfil com ca/cert/key em PEM."))
+            case "http-proxy-user-pass": throw AppFailure(String(localized: "Conexão por proxy ainda não é suportada."))
             default: unsupported.append("<\(block.tag)>")
             }
         }
@@ -258,22 +259,22 @@ enum OpenVPNImporter {
             var directive = line.directive
             let name = directive.name
             if OpenVPNRules.blockTags.contains(name) {
-                guard let path = directive.arguments.first else { throw AppFailure("Linha \(line.number): \(name) sem arquivo.") }
+                guard let path = directive.arguments.first else { throw AppFailure(String(localized: "Linha \(line.number): \(name) sem arquivo.")) }
                 if path != "[inline]" {
                     if name == "crl-verify" && directive.arguments.count > 1 {
-                        throw AppFailure("crl-verify com diretório não é suportado.")
+                        throw AppFailure(String(localized: "crl-verify com diretório não é suportado."))
                     }
                     let (content, exposed) = try read(path, line: line.number)
                     try addBlock(name, content)
                     if exposed {
                         if let last = readFiles.last { exposedFiles.append(last.resolvingSymlinksInPath().path) }
-                        warnings.append("O arquivo original \(path) pode ser lido por outros usuários do Mac (recomendado: chmod 600). A cópia do app é privada.")
+                        warnings.append(String(localized: "O arquivo original \(path) pode ser lido por outros usuários do Mac (recomendado: chmod 600). A cópia do app é privada."))
                     }
                 }
                 if name == "tls-auth", directive.arguments.count > 1 {
                     let direction = directive.arguments[1]
-                    guard ["0", "1"].contains(direction) else { throw AppFailure("Linha \(line.number): direção de tls-auth inválida.") }
-                    if let keyDirection, keyDirection != direction { throw AppFailure("key-direction diverge da direção de tls-auth.") }
+                    guard ["0", "1"].contains(direction) else { throw AppFailure(String(localized: "Linha \(line.number): direção de tls-auth inválida.")) }
+                    if let keyDirection, keyDirection != direction { throw AppFailure(String(localized: "key-direction diverge da direção de tls-auth.")) }
                     keyDirection = direction
                 }
                 continue
@@ -281,35 +282,35 @@ enum OpenVPNImporter {
             switch name {
             case "key-direction":
                 if let value = directive.arguments.first {
-                    if let keyDirection, keyDirection != value { throw AppFailure("key-direction diverge da direção de tls-auth.") }
+                    if let keyDirection, keyDirection != value { throw AppFailure(String(localized: "key-direction diverge da direção de tls-auth.")) }
                     keyDirection = value
                 }
                 continue
             case "auth-user-pass":
                 if let file = directive.arguments.first {
-                    guard file != "username-only" else { throw AppFailure("Perfis só com usuário (SSO) ainda não são suportados.") }
+                    guard file != "username-only" else { throw AppFailure(String(localized: "Perfis só com usuário (SSO) ainda não são suportados.")) }
                     let (content, _) = try read(file, line: line.number)
                     credentials(from: content)
-                    warnings.append("Usuário e senha lidos de \(file); a senha passa a ficar no Keychain.")
+                    warnings.append(String(localized: "Usuário e senha lidos de \(file); a senha passa a ficar no Keychain."))
                 }
                 directive.arguments = []
-            case "pkcs12": throw AppFailure("Certificados PKCS#12 ainda não são suportados; exporte o perfil com ca/cert/key em PEM.")
-            case "secret": throw AppFailure("Chave estática (secret) não é suportada; ela foi removida do OpenVPN 2.7.")
-            case "askpass": throw AppFailure("Chave privada protegida por senha ainda não é suportada.")
-            case "config": throw AppFailure("O perfil inclui outro arquivo (config), o que não é suportado.")
-            case "http-proxy", "socks-proxy", "http-proxy-option": throw AppFailure("Conexão por proxy ainda não é suportada.")
+            case "pkcs12": throw AppFailure(String(localized: "Certificados PKCS#12 ainda não são suportados; exporte o perfil com ca/cert/key em PEM."))
+            case "secret": throw AppFailure(String(localized: "Chave estática (secret) não é suportada; ela foi removida do OpenVPN 2.7."))
+            case "askpass": throw AppFailure(String(localized: "Chave privada protegida por senha ainda não é suportada."))
+            case "config": throw AppFailure(String(localized: "O perfil inclui outro arquivo (config), o que não é suportado."))
+            case "http-proxy", "socks-proxy", "http-proxy-option": throw AppFailure(String(localized: "Conexão por proxy ainda não é suportada."))
             case "verb":
                 if let value = directive.arguments.first.flatMap(Int.init), value > 3 {
                     directive.arguments = ["3"]
-                    warnings.append("verb \(value) reduzido para 3: níveis maiores despejam toda a configuração no log.")
+                    warnings.append(String(localized: "verb \(value) reduzido para 3: níveis maiores despejam toda a configuração no log."))
                 }
             default: break
             }
             if ["tls-verify", "plugin"].contains(directive.name) {
-                throw AppFailure("\(directive.name) pode validar a identidade do servidor. Solicite um perfil com remote-cert-tls server e verify-x509-name, sem scripts ou plugins; a política não será removida automaticamente.")
+                throw AppFailure(String(localized: "\(directive.name) pode validar a identidade do servidor. Solicite um perfil com remote-cert-tls server e verify-x509-name, sem scripts ou plugins; a política não será removida automaticamente."))
             }
             if let reason = OpenVPNRules.dropped[name] {
-                if droppedNames.insert(name).inserted { warnings.append("Diretiva \(name) removida: \(reason).") }
+                if droppedNames.insert(name).inserted { warnings.append(String(localized: "Diretiva \(name) removida: \(reason).")) }
                 continue
             }
             guard OpenVPNRules.allowed[name] != nil else {
@@ -324,23 +325,24 @@ enum OpenVPNImporter {
                (["cipher", "data-ciphers", "data-ciphers-fallback", "tls-cipher"].contains(directive.name) &&
                 ["DES", "BF-CBC", "RC4", "RC2"].contains(where: arguments.contains)) ||
                (directive.name == "tls-cert-profile" && arguments == "LEGACY") {
-                warnings.append("\(directive.name) usa uma política criptográfica antiga. Confirme a necessidade com o administrador; o app preservou o parâmetro.")
+                warnings.append(String(localized: "\(directive.name) usa uma política criptográfica antiga. Confirme a necessidade com o administrador; o app preservou o parâmetro."))
             }
             if ["compress", "comp-lzo"].contains(directive.name), !["NO", "STUB", "STUB-V2"].contains(arguments) {
-                warnings.append("Compressão do túnel pode expor informações do tráfego. Solicite um perfil sem compressão; o parâmetro foi preservado para compatibilidade.")
+                warnings.append(String(localized: "Compressão do túnel pode expor informações do tráfego. Solicite um perfil sem compressão; o parâmetro foi preservado para compatibilidade."))
             }
         }
         if !unsupported.isEmpty {
-            throw AppFailure("O perfil usa diretivas que o app ainda não suporta: \(Array(Set(unsupported)).sorted().joined(separator: ", ")). Nada foi importado.")
+            let names = Array(Set(unsupported)).sorted().joined(separator: ", ")
+            throw AppFailure(String(localized: "O perfil usa diretivas que o app ainda não suporta: \(names). Nada foi importado."))
         }
         if let keyDirection { directives.append(OpenVPNDirective("key-direction", [keyDirection])) }
         if directives.contains(where: { ["comp-lzo", "compress"].contains($0.name) && !($0.arguments.first ?? "").hasPrefix("stub") && $0.arguments.first != "no" }) {
-            warnings.append("O perfil ativa compressão (comp-lzo/compress), que tem riscos conhecidos de segurança. Ela foi mantida porque o servidor pode exigi-la; prefira desativá-la no servidor.")
+            warnings.append(String(localized: "O perfil ativa compressão (comp-lzo/compress), que tem riscos conhecidos de segurança. Ela foi mantida porque o servidor pode exigi-la; prefira desativá-la no servidor."))
         }
         let profile = OpenVPNProfile(directives: directives, blocks: order.map { OpenVPNBlock(tag: $0, content: blocks[$0]!) })
         do { try profile.check() } catch let violation as RuleViolation { throw AppFailure(violation.message) }
         for unused in Set(attachments.keys).subtracting(used).sorted() {
-            warnings.append("O arquivo escolhido \(unused) não é usado pelo perfil e foi ignorado.")
+            warnings.append(String(localized: "O arquivo escolhido \(unused) não é usado pelo perfil e foi ignorado."))
         }
         let name = suggestedName.lowercased() == "config" ? (parsed.viscosity["name"] ?? suggestedName) : suggestedName
         return OpenVPNImport(profile: profile, name: name, username: username, password: password, warnings: warnings,
@@ -352,33 +354,33 @@ enum OpenVPNImporter {
     /// resolved file (after symlinks) must still be inside the folder.
     static func readReferenced(_ path: String, base: URL, line: Int) throws -> (content: String, exposed: Bool) {
         guard !path.hasPrefix("/"), !path.hasPrefix("~"), !path.split(separator: "/").contains(".."), !path.isEmpty else {
-            throw AppFailure("Linha \(line): \(path) aponta para fora da pasta do perfil. Coloque os arquivos ao lado do .ovpn e use nomes relativos.")
+            throw AppFailure(String(localized: "Linha \(line): \(path) aponta para fora da pasta do perfil. Coloque os arquivos ao lado do .ovpn e use nomes relativos."))
         }
-        guard let baseReal = realpath(base.path, nil) else { throw AppFailure("Pasta do perfil inacessível.") }
+        guard let baseReal = realpath(base.path, nil) else { throw AppFailure(String(localized: "Pasta do perfil inacessível.")) }
         let root = String(cString: baseReal); free(baseReal)
         guard let fileReal = realpath(base.appendingPathComponent(path).path, nil) else {
-            throw AppFailure("Linha \(line): arquivo \(path) não encontrado ao lado do perfil.")
+            throw AppFailure(String(localized: "Linha \(line): arquivo \(path) não encontrado ao lado do perfil."))
         }
         let resolved = String(cString: fileReal); free(fileReal)
         guard resolved.hasPrefix(root + "/") else {
-            throw AppFailure("Linha \(line): \(path) aponta para fora da pasta do perfil.")
+            throw AppFailure(String(localized: "Linha \(line): \(path) aponta para fora da pasta do perfil."))
         }
         return try readFile(URL(fileURLWithPath: resolved), label: path, line: line)
     }
 
     /// Reads one certificate/key file chosen or referenced by the user: regular, ≤ 64 KB, text.
     static func readFile(_ url: URL, label path: String, line: Int) throws -> (content: String, exposed: Bool) {
-        guard let real = realpath(url.path, nil) else { throw AppFailure("Linha \(line): arquivo \(path) não encontrado.") }
+        guard let real = realpath(url.path, nil) else { throw AppFailure(String(localized: "Linha \(line): arquivo \(path) não encontrado.")) }
         let resolved = String(cString: real); free(real)
         let fd = open(resolved, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
-        guard fd >= 0 else { throw AppFailure("Linha \(line): não foi possível ler \(path).") }
+        guard fd >= 0 else { throw AppFailure(String(localized: "Linha \(line): não foi possível ler \(path).")) }
         defer { close(fd) }
         var info = stat()
         guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFREG, info.st_size <= maximumReferencedFile else {
-            throw AppFailure("Linha \(line): \(path) não é um arquivo regular de até 64 KB.")
+            throw AppFailure(String(localized: "Linha \(line): \(path) não é um arquivo regular de até 64 KB."))
         }
         let data = try BoundedFile.read(fd: fd, limit: maximumReferencedFile)
-        guard let text = String(data: data, encoding: .utf8) else { throw AppFailure("Linha \(line): \(path) não está em texto (PEM).") }
+        guard let text = String(data: data, encoding: .utf8) else { throw AppFailure(String(localized: "Linha \(line): \(path) não está em texto (PEM).")) }
         let content = text.replacingOccurrences(of: "\r\n", with: "\n").trimmingCharacters(in: .newlines)
         return (content, info.st_mode & 0o077 != 0 && content.contains("PRIVATE KEY") || (info.st_mode & 0o077 != 0 && content.contains("Static key")))
     }

@@ -21,10 +21,10 @@ enum MenuBarRowAction: Equatable {
     case connect, disconnect, disconnecting, review, unavailable
     var title: String {
         switch self {
-        case .connect, .unavailable: return "Conectar"
-        case .disconnect: return "Desconectar"
-        case .disconnecting: return "Desconectando…"
-        case .review: return "Revisar acesso…"
+        case .connect, .unavailable: return String(localized: "Conectar")
+        case .disconnect: return String(localized: "Desconectar")
+        case .disconnecting: return String(localized: "Desconectando…")
+        case .review: return String(localized: "Revisar acesso…")
         }
     }
     /// Linked chain to connect, broken chain to disconnect.
@@ -55,11 +55,11 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .general: return "Geral"
-        case .updates: return "Atualizações"
-        case .service: return "Serviço privilegiado"
-        case .backup: return "Backup"
-        case .about: return "Sobre"
+        case .general: return String(localized: "Geral")
+        case .updates: return String(localized: "Atualizações")
+        case .service: return String(localized: "Serviço privilegiado")
+        case .backup: return String(localized: "Backup")
+        case .about: return String(localized: "Sobre")
         }
     }
     /// Glyph and color of the tab's tile in the sidebar, as in System Settings.
@@ -119,7 +119,7 @@ final class MenuBarCoordinator: ObservableObject {
         let updates = updates ?? UpdateChecker(preferences: preferences, transport: DisabledUpdateTransport())
         self.updates = updates
         self.installer = installer ?? AppUpdater(checker: updates, enabled: false)
-        self.loginItem = loginItem ?? LoginItemController(service: nil, unavailableReason: "Indisponível neste contexto.")
+        self.loginItem = loginItem ?? LoginItemController(service: nil, unavailableReason: String(localized: "Indisponível neste contexto."))
         connectAction = { [unowned model] in model.connect($0) }
         disconnectAction = { [unowned model] in model.manager.disconnect($0) }
         model.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
@@ -162,16 +162,16 @@ final class MenuBarCoordinator: ObservableObject {
         return .idle
     }
     var summaryText: String {
-        guard model.ready else { return "Dados não carregados" }
+        guard model.ready else { return String(localized: "Dados não carregados") }
         var parts: [String] = []
         let connected = connectedCount, pending = pendingCount
-        if connected > 0 { parts.append(connected == 1 ? "1 conectada" : "\(connected) conectadas") }
-        if pending > 0 { parts.append("\(pending) em andamento") }
-        if parts.isEmpty { return states.contains(.failed) ? "Nenhuma conexão ativa · falha recente" : "Nenhuma conexão ativa" }
+        if connected > 0 { parts.append(String(localized: "\(connected) conectadas")) }
+        if pending > 0 { parts.append(String(localized: "\(pending) em andamento")) }
+        if parts.isEmpty { return states.contains(.failed) ? String(localized: "Nenhuma conexão ativa · falha recente") : String(localized: "Nenhuma conexão ativa") }
         return parts.joined(separator: " · ")
     }
     var accessibilityDescription: String {
-        "TunnelMac: \(summaryText)\(model.error != nil ? ", com erro pendente" : "")"
+        model.error != nil ? String(localized: "TunnelMac: \(summaryText), com erro pendente") : "TunnelMac: \(summaryText)"
     }
 
     /// Names repeated in the list; only these rows show the server to tell them apart.

@@ -295,23 +295,49 @@ struct GeneralSettings: View {
                 AppearancePicker(selection: $preferences.appearance)
             }
             .padding(.horizontal, 14).padding(.vertical, 10)
+            Divider().padding(.leading, 14)
+            HStack(alignment: .center, spacing: 12) {
+                Text("Idioma")
+                Spacer(minLength: 12)
+                Picker("Idioma", selection: $preferences.language) {
+                    Text(AppLanguage.system.title).tag(AppLanguage.system)
+                    Divider()
+                    ForEach(AppLanguage.allCases.filter { $0 != .system }) { language in
+                        Text(verbatim: language.title).tag(language)
+                    }
+                }
+                .labelsHidden().fixedSize()
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            if preferences.language != preferences.launchLanguage {
+                Divider().padding(.leading, 14)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("O novo idioma aparece quando o TunnelMac abrir de novo.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 12)
+                    Button("Reabrir agora") { AppRelaunch.now() }
+                        .controlSize(.small).adaptiveButtonStyle()
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+            }
         }
-        SettingsSection(title: "Aplicativo") {
-            SettingsRow(symbol: "menubar.rectangle", color: .blue, title: "Ícone na barra de menus",
-                        subtitle: "Para conectar rapidamente.") {
-                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch("Ícone na barra de menus")
+        SettingsSection(title: String(localized: "Aplicativo")) {
+            SettingsRow(symbol: "menubar.rectangle", color: .blue, title: String(localized: "Ícone na barra de menus"),
+                        subtitle: String(localized: "Para conectar rapidamente.")) {
+                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch(String(localized: "Ícone na barra de menus"))
             }
             SettingsDivider()
-            SettingsRow(symbol: "dock.rectangle", color: .indigo, title: "Ocultar do Dock ao fechar a janela",
-                        subtitle: "O app continua na barra de menus.",
-                        note: preferences.showMenuBarIcon ? nil : "Precisa do ícone na barra de menus") {
+            SettingsRow(symbol: "dock.rectangle", color: .indigo, title: String(localized: "Ocultar do Dock ao fechar a janela"),
+                        subtitle: String(localized: "O app continua na barra de menus."),
+                        note: preferences.showMenuBarIcon ? nil : String(localized: "Precisa do ícone na barra de menus")) {
                 Toggle("Ocultar do Dock ao fechar a janela",
                        isOn: Binding(get: { preferences.hidesDockOnClose }, set: { preferences.hideDockOnClose = $0 }))
-                    .settingsSwitch("Ocultar do Dock ao fechar a janela")
+                    .settingsSwitch(String(localized: "Ocultar do Dock ao fechar a janela"))
                     .disabled(!preferences.showMenuBarIcon)
             }
             SettingsDivider()
-            SettingsRow(symbol: "power", color: .green, title: "Abrir ao iniciar o Mac", subtitle: loginItem.detail) {
+            SettingsRow(symbol: "power", color: .green, title: String(localized: "Abrir ao iniciar o Mac"), subtitle: loginItem.detail) {
                 HStack(spacing: 8) {
                     if loginItem.status == .requiresApproval && loginItem.available {
                         Button("Abrir Ajustes…") { loginItem.openSystemSettings() }
@@ -320,7 +346,7 @@ struct GeneralSettings: View {
                     }
                     Toggle("Abrir ao iniciar o Mac",
                            isOn: Binding(get: { loginItem.enabled }, set: { loginItem.setEnabled($0) }))
-                        .settingsSwitch("Abrir ao iniciar o Mac")
+                        .settingsSwitch(String(localized: "Abrir ao iniciar o Mac"))
                         .disabled(!loginItem.available)
                 }
             }
@@ -444,9 +470,9 @@ struct InternetDNSSection: View {
     @State private var adding = false
 
     var body: some View {
-        SettingsSection(title: "Rede") {
-            SettingsRow(symbol: "network", color: .teal, title: "DNS da internet",
-                        subtitle: "Usado enquanto uma VPN está conectada.") {
+        SettingsSection(title: String(localized: "Rede")) {
+            SettingsRow(symbol: "network", color: .teal, title: String(localized: "DNS da internet"),
+                        subtitle: String(localized: "Usado enquanto uma VPN está conectada.")) {
                 menu
             }
         }
@@ -459,7 +485,7 @@ struct InternetDNSSection: View {
     }
 
     private var selectedLabel: String {
-        selectedID == InternetDNSOption.offID ? "Não alterar"
+        selectedID == InternetDNSOption.offID ? String(localized: "Não alterar")
             : preferences.internetDNSOptions.first { $0.id == selectedID }?.label ?? InternetDNSOption.cloudflare.label
     }
 
@@ -536,7 +562,7 @@ struct UpdateSettings: View {
     @State private var showsHomebrew = false
 
     var body: some View {
-        SettingsSection(title: "Versão instalada") {
+        SettingsSection(title: String(localized: "Versão instalada")) {
             SettingsRow(symbol: "shippingbox", color: .blue, title: "TunnelMac \(HelperConstants.releaseVersion)",
                         subtitle: lastCheckText) {
                 HStack(spacing: 8) {
@@ -552,42 +578,41 @@ struct UpdateSettings: View {
         if !updates.checking {
             switch updates.outcome {
             case .failed:
-                InlineNotice(tone: .warning, symbol: "wifi.exclamationmark", title: "Não foi possível verificar agora",
-                             message: "Sem internet ou GitHub indisponível. Tenta de novo mais tarde.")
+                InlineNotice(tone: .warning, symbol: "wifi.exclamationmark", title: String(localized: "Não foi possível verificar agora"),
+                             message: String(localized: "Sem internet ou GitHub indisponível. Tenta de novo mais tarde."))
             case .upToDate:
-                InlineNotice(tone: .success, symbol: "checkmark.circle", title: "Você está na versão mais recente")
+                InlineNotice(tone: .success, symbol: "checkmark.circle", title: String(localized: "Você está na versão mais recente"))
             case .none, .available:
                 EmptyView()
             }
         }
         if let offer = updates.offer { offerSection(offer) }
-        SettingsSection(title: "Verificação") {
-            SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: "Verificar automaticamente",
-                        subtitle: "Ao abrir o app e ao conectar.") {
-                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch("Verificar automaticamente")
+        SettingsSection(title: String(localized: "Verificação")) {
+            SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: String(localized: "Verificar automaticamente"),
+                        subtitle: String(localized: "Ao abrir o app e ao conectar.")) {
+                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch(String(localized: "Verificar automaticamente"))
             }
             SettingsDivider()
-            SettingsRow(symbol: "testtube.2", color: .purple, title: "Incluir versões de teste") {
+            SettingsRow(symbol: "testtube.2", color: .purple, title: String(localized: "Incluir versões de teste")) {
                 Toggle("Incluir versões de teste", isOn: Binding(get: { preferences.includePrereleases },
                                                                   set: { preferences.includePrereleases = $0; updates.channelChanged() }))
-                    .settingsSwitch("Incluir versões de teste")
+                    .settingsSwitch(String(localized: "Incluir versões de teste"))
             }
         }
     }
 
     private var lastCheckText: String {
         guard let last = preferences.lastUpdateSuccess else {
-            return preferences.lastUpdateAttempt == nil ? "Ainda não verificado" : "Nenhuma verificação concluída ainda"
+            return preferences.lastUpdateAttempt == nil ? String(localized: "Ainda não verificado") : String(localized: "Nenhuma verificação concluída ainda")
         }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "pt_BR")
         formatter.unitsStyle = .full
         let now = updates.now()
-        return now.timeIntervalSince(last) < 60 ? "Verificado há instantes" : "Verificado \(formatter.localizedString(for: last, relativeTo: now))"
+        return now.timeIntervalSince(last) < 60 ? String(localized: "Verificado há instantes") : String(localized: "Verificado \(formatter.localizedString(for: last, relativeTo: now))")
     }
 
     @ViewBuilder private func offerSection(_ offer: UpdateOffer) -> some View {
-        SettingsSection(title: "Nova versão") {
+        SettingsSection(title: String(localized: "Nova versão")) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 12) {
                     Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 40, height: 40).accessibilityHidden(true)
@@ -617,7 +642,7 @@ struct UpdateSettings: View {
             }
             .padding(14)
         }
-        SettingsSection(title: "Como atualizar") {
+        SettingsSection(title: String(localized: "Como atualizar")) {
             VStack(alignment: .leading, spacing: 12) {
                 if installer.available && installer.awaitingQuit {
                     Button { installer.install(offer) } label: { Label("Instalar e reabrir", systemImage: "arrow.clockwise.circle") }
@@ -662,9 +687,9 @@ struct UpdateSettings: View {
     /// Quit, run the command, reopen: Homebrew refuses to upgrade while the app runs.
     @ViewBuilder private var homebrewSteps: some View {
         VStack(alignment: .leading, spacing: 4) {
-            step(1, "Saia do TunnelMac com Sair (isso desconecta as VPNs).")
-            step(2, "Cole o comando no Terminal.")
-            step(3, "Abra o app de novo.")
+            step(1, String(localized: "Saia do TunnelMac com Sair (isso desconecta as VPNs)."))
+            step(2, String(localized: "Cole o comando no Terminal."))
+            step(3, String(localized: "Abra o app de novo."))
         }
         Text(HomebrewInstall.upgradeCommand)
             .font(.system(.callout, design: .monospaced))
@@ -694,9 +719,10 @@ struct UpdateSettings: View {
     }
 
     private func subtitle(_ offer: UpdateOffer) -> String {
-        var parts = [offer.prerelease ? "Versão de teste" : "Versão estável"]
+        var parts = [offer.prerelease ? String(localized: "Versão de teste") : String(localized: "Versão estável")]
         if let date = offer.publishedAt {
-            parts.append("publicada em " + date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "pt_BR"))))
+            let published = date.formatted(.dateTime.day().month(.wide).year())
+            parts.append(String(localized: "publicada em \(published)"))
         }
         return parts.joined(separator: " · ")
     }
@@ -713,15 +739,15 @@ struct ServiceSettings: View {
     /// Checked against SECURITY.md and VPNHelperCore: XPC peers must carry this app's
     /// identifier and Team ID, the helper only starts the approved, integrity-checked
     /// runtime copy, and passwords reach it per connection through file descriptors.
-    static let explanation = "Cria o túnel da VPN e ajusta rotas e DNS sem pedir sua senha a cada conexão. Só aceita pedidos deste app e não guarda senhas."
+    static let explanation = String(localized: "Cria o túnel da VPN e ajusta rotas e DNS sem pedir sua senha a cada conexão. Só aceita pedidos deste app e não guarda senhas.")
 
     /// What to do first on top (state, approvals, actions); the explanation below.
     var body: some View {
-        SettingsSection(title: "Estado") {
+        SettingsSection(title: String(localized: "Estado")) {
             ServicePanel(model: model).padding(16)
         }
-        SettingsSection(title: "Para que serve",
-                        footer: "Antes de desinstalar o app, use Remover serviço.") {
+        SettingsSection(title: String(localized: "Para que serve"),
+                        footer: String(localized: "Antes de desinstalar o app, use Remover serviço.")) {
             HStack(alignment: .top, spacing: 12) {
                 SettingsIcon(symbol: "lock.shield", color: .blue)
                 Text(Self.explanation).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -745,26 +771,26 @@ struct AboutSettings: View {
             }
         }
         .accessibilityElement(children: .combine)
-        SettingsSection(title: "Links") {
-            link("chevron.left.forwardslash.chevron.right", .gray, "Repositório", "github.com/\(UpdateFeed.repository)", UpdateFeed.repositoryPage)
+        SettingsSection(title: String(localized: "Links")) {
+            link("chevron.left.forwardslash.chevron.right", .gray, String(localized: "Repositório"), "github.com/\(UpdateFeed.repository)", UpdateFeed.repositoryPage)
             SettingsDivider()
-            link("doc.text", .blue, "Notas desta versão", "v\(HelperConstants.releaseVersion) no GitHub",
+            link("doc.text", .blue, String(localized: "Notas desta versão"), String(localized: "v\(HelperConstants.releaseVersion) no GitHub"),
                  UpdateFeed.releasePage(for: HelperConstants.releaseVersion))
             SettingsDivider()
-            link("checkmark.seal", .green, "Licença", "MIT", URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/LICENSE"))
+            link("checkmark.seal", .green, String(localized: "Licença"), "MIT", URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/LICENSE"))
             SettingsDivider()
-            link("list.bullet.rectangle", .orange, "Avisos de terceiros", "THIRD_PARTY_NOTICES.md",
+            link("list.bullet.rectangle", .orange, String(localized: "Avisos de terceiros"), "THIRD_PARTY_NOTICES.md",
                  URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/THIRD_PARTY_NOTICES.md"))
         }
-        SettingsSection(title: "Dependências") {
+        SettingsSection(title: String(localized: "Dependências")) {
             SettingsRow(symbol: "terminal", color: .gray, title: "openfortivpn",
-                        subtitle: "Para Fortinet SSL VPN.")
+                        subtitle: String(localized: "Para Fortinet SSL VPN."))
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "OpenVPN 2.7+",
-                        subtitle: "Para perfis OpenVPN.")
+                        subtitle: String(localized: "Para perfis OpenVPN."))
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "wireguard-go",
-                        subtitle: "Para perfis WireGuard.")
+                        subtitle: String(localized: "Para perfis WireGuard."))
         }
     }
 
@@ -801,7 +827,7 @@ struct UpdateCard: View {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 34, height: 34).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("TunnelMac \(offer.version) disponível").font(.callout.weight(.semibold))
-                Text(summary.isEmpty ? "Uma nova versão está disponível." : summary)
+                Text(summary.isEmpty ? String(localized: "Uma nova versão está disponível.") : summary)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

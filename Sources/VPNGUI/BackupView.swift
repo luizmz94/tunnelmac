@@ -10,9 +10,9 @@ enum BackupPanels {
 
     @MainActor static func chooseDestination(now: Date = Date()) -> URL? {
         let panel = NSSavePanel()
-        panel.title = "Exportar backup do TunnelMac"
-        panel.message = "Protegido pela senha que você escolher."
-        panel.prompt = "Exportar"
+        panel.title = String(localized: "Exportar backup do TunnelMac")
+        panel.message = String(localized: "Protegido pela senha que você escolher.")
+        panel.prompt = String(localized: "Exportar")
         panel.allowedContentTypes = [contentType]
         panel.canCreateDirectories = true
         let day = ISO8601DateFormatter.string(from: now, timeZone: .current, formatOptions: [.withFullDate, .withDashSeparatorInDate])
@@ -22,9 +22,9 @@ enum BackupPanels {
 
     @MainActor static func chooseBackup() -> URL? {
         let panel = NSOpenPanel()
-        panel.title = "Importar backup do TunnelMac"
-        panel.message = "Escolha um arquivo .\(ConfigBackup.fileExtension) exportado pelo TunnelMac."
-        panel.prompt = "Abrir"
+        panel.title = String(localized: "Importar backup do TunnelMac")
+        panel.message = String(localized: "Escolha um arquivo .\(ConfigBackup.fileExtension) exportado pelo TunnelMac.")
+        panel.prompt = String(localized: "Abrir")
         panel.allowedContentTypes = [contentType]
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -42,15 +42,15 @@ struct BackupSettings: View {
 
     var body: some View {
         SettingsSection {
-            SettingsRow(symbol: "square.and.arrow.up", color: .blue, title: "Exportar configurações",
-                        subtitle: "Conexões, senhas e preferências, num arquivo com senha.") {
+            SettingsRow(symbol: "square.and.arrow.up", color: .blue, title: String(localized: "Exportar configurações"),
+                        subtitle: String(localized: "Conexões, senhas e preferências, num arquivo com senha.")) {
                 Button("Exportar…") { notice = nil; exporting = true }
                     .controlSize(.small).adaptiveButtonStyle()
                     .disabled(!model.ready || model.writing)
             }
             SettingsDivider()
-            SettingsRow(symbol: "square.and.arrow.down", color: .green, title: "Importar backup",
-                        subtitle: "Conexões que já existem aqui são substituídas.") {
+            SettingsRow(symbol: "square.and.arrow.down", color: .green, title: String(localized: "Importar backup"),
+                        subtitle: String(localized: "Conexões que já existem aqui são substituídas.")) {
                 Button("Importar…") { chooseImport() }
                     .controlSize(.small).adaptiveButtonStyle()
                     .disabled(!model.ready || model.writing)
@@ -71,7 +71,7 @@ struct BackupSettings: View {
         notice = nil
         guard let url = BackupPanels.chooseBackup() else { return }
         do { importing = BackupFile(name: url.lastPathComponent, data: try BoundedFile.read(url, limit: BackupCipher.maximumSize)) }
-        catch { notice = .failure("Não foi possível ler o backup", error.localizedDescription) }
+        catch { notice = .failure(String(localized: "Não foi possível ler o backup"), error.localizedDescription) }
     }
 }
 
@@ -112,12 +112,12 @@ struct ExportBackupSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Exportar configurações").font(.headline)
-            Text("\(model.data.connections.count) \(model.data.connections.count == 1 ? "conexão" : "conexões") com senhas e perfis. Guarde a senha: sem ela o backup não abre.")
+            Text("\(model.data.connections.count) conexões com senhas e perfis. Guarde a senha: sem ela o backup não abre.")
                 .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Form {
                 Section {
-                    passwordField("Senha do backup", text: $password)
-                    if !generated { passwordField("Confirmar senha", text: $confirmation) }
+                    passwordField(String(localized: "Senha do backup"), text: $password)
+                    if !generated { passwordField(String(localized: "Confirmar senha"), text: $confirmation) }
                 } footer: {
                     VStack(alignment: .leading, spacing: 8) {
                         if !password.isEmpty { PasswordStrengthMeter(evaluation: evaluation) }
@@ -198,8 +198,8 @@ struct ExportBackupSheet: View {
                 let sealed = try await model.exportBackupAsync(password: password, preferences: settings)
                 try await Task.detached { try BoundedFile.replace(url, data: sealed) }.value
                 finished(BackupNotice(tone: .success, symbol: "checkmark.circle.fill",
-                                      title: "Backup exportado: \(count) \(count == 1 ? "conexão" : "conexões")",
-                                      message: "\(url.path)\nGuarde o arquivo em local seguro."))
+                                      title: String(localized: "Backup exportado: \(count) conexões"),
+                                      message: String(localized: "\(url.path)\nGuarde o arquivo em local seguro.")))
                 dismiss()
             } catch {
                 working = false
@@ -259,14 +259,14 @@ struct ImportBackupSheet: View {
         Text("Criado em \(created) pelo TunnelMac \(plan.payload.appVersion).")
             .font(.callout).foregroundStyle(.secondary)
         VStack(alignment: .leading, spacing: 8) {
-            if !plan.adding.isEmpty { line("plus.circle.fill", .green, "Novas: " + plan.adding.joined(separator: ", ")) }
-            if !plan.replacing.isEmpty { line("arrow.triangle.2.circlepath.circle.fill", .orange, "Substituídas: " + plan.replacing.joined(separator: ", ")) }
-            if plan.payload.connections.isEmpty { line("info.circle.fill", .secondary, "O backup não tem conexões.") }
+            if !plan.adding.isEmpty { line("plus.circle.fill", .green, String(localized: "Novas: ") + plan.adding.joined(separator: ", ")) }
+            if !plan.replacing.isEmpty { line("arrow.triangle.2.circlepath.circle.fill", .orange, String(localized: "Substituídas: ") + plan.replacing.joined(separator: ", ")) }
+            if plan.payload.connections.isEmpty { line("info.circle.fill", .secondary, String(localized: "O backup não tem conexões.")) }
             if !plan.missingPasswords.isEmpty {
-                line("key.fill", .orange, "Sem senha (informe ao conectar): " + plan.missingPasswords.joined(separator: ", "))
+                line("key.fill", .orange, String(localized: "Sem senha (informe ao conectar): ") + plan.missingPasswords.joined(separator: ", "))
             }
             if !plan.missingCertificates.isEmpty {
-                line("person.badge.key.fill", .orange, "Certificado do cliente ausente neste Mac: " + plan.missingCertificates.joined(separator: ", "))
+                line("person.badge.key.fill", .orange, String(localized: "Certificado do cliente ausente neste Mac: ") + plan.missingCertificates.joined(separator: ", "))
             }
         }
         if plan.hasPreferences {
@@ -298,17 +298,17 @@ struct ImportBackupSheet: View {
                 try await model.importBackupAsync(plan)
                 if applyPreferences, let saved = plan.payload.preferences { preferences.restore(saved) }
                 var details: [String] = []
-                if !plan.missingPasswords.isEmpty { details.append("Sem senha: " + plan.missingPasswords.joined(separator: ", ") + ".") }
-                if !plan.missingCertificates.isEmpty { details.append("Certificado ausente: " + plan.missingCertificates.joined(separator: ", ") + ".") }
+                if !plan.missingPasswords.isEmpty { details.append(String(localized: "Sem senha: ") + plan.missingPasswords.joined(separator: ", ") + ".") }
+                if !plan.missingCertificates.isEmpty { details.append(String(localized: "Certificado ausente: ") + plan.missingCertificates.joined(separator: ", ") + ".") }
                 finished(BackupNotice(tone: details.isEmpty ? .success : .warning,
                                       symbol: details.isEmpty ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                                      title: "Backup importado: \(count) \(count == 1 ? "conexão" : "conexões")",
+                                      title: String(localized: "Backup importado: \(count) conexões"),
                                       message: details.isEmpty ? nil : details.joined(separator: "\n")))
                 dismiss()
             } catch {
                 working = false
                 if error is BackupImportFailure {
-                    finished(.failure("Importação incompleta", error.localizedDescription))
+                    finished(.failure(String(localized: "Importação incompleta"), error.localizedDescription))
                     dismiss()
                 } else { self.error = error.localizedDescription }
             }

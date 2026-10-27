@@ -32,25 +32,25 @@ public enum CodeTrust {
     public static func localPolicy() -> Policy {
         var code: SecCode?
         guard SecCodeCopySelf([], &code) == errSecSuccess, let code else {
-            return .unavailable(reason: "Não foi possível ler a assinatura deste processo.")
+            return .unavailable(reason: ServiceLanguage.text("Não foi possível ler a assinatura deste processo."))
         }
         var staticCode: SecStaticCode?
         guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else {
-            return .unavailable(reason: "Não foi possível ler a assinatura deste processo.")
+            return .unavailable(reason: ServiceLanguage.text("Não foi possível ler a assinatura deste processo."))
         }
         var info: CFDictionary?
         guard SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
               let values = info as? [String: Any] else {
-            return .unavailable(reason: "Não foi possível ler a assinatura deste processo.")
+            return .unavailable(reason: ServiceLanguage.text("Não foi possível ler a assinatura deste processo."))
         }
         guard let team = values[kSecCodeInfoTeamIdentifier as String] as? String, isValidTeam(team) else {
-            return .unavailable(reason: "Build sem Team ID (assinatura ad hoc). O serviço privilegiado exige assinatura Apple Development ou Developer ID; operações root ficam desabilitadas.")
+            return .unavailable(reason: ServiceLanguage.text("Build sem Team ID (assinatura ad hoc). O serviço privilegiado exige assinatura Apple Development ou Developer ID; operações root ficam desabilitadas."))
         }
         var requirement: SecRequirement?
         let text = "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\""
         guard SecRequirementCreateWithString(text as CFString, [], &requirement) == errSecSuccess, let requirement,
               SecCodeCheckValidity(code, [], requirement) == errSecSuccess else {
-            return .unavailable(reason: "A assinatura deste processo não é emitida pela Apple para o Team \(team).")
+            return .unavailable(reason: ServiceLanguage.text("A assinatura deste processo não é emitida pela Apple para o Team \(team)."))
         }
         return .trusted(team: team)
     }

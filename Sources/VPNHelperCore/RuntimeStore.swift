@@ -116,7 +116,7 @@ enum Probe {
                 vpn_run_probe(path, a.baseAddress, e.baseAddress, uid, gid, timeout, &buffer, buffer.count, &length, &status)
             }
         }
-        guard result == 0 else { throw failure(.internalError, "Não foi possível executar \(path).") }
+        guard result == 0 else { throw failure(.internalError, ServiceLanguage.text("Não foi possível executar \(path).")) }
         let text = buffer.prefix(length).withUnsafeBufferPointer { String(decoding: UnsafeRawBufferPointer($0), as: UTF8.self) }
         return Output(status: status, text: text)
     }
@@ -172,7 +172,7 @@ public final class RuntimeStore {
         try ownership.verifyChain(statePath)
         let (data, _) = try SecureFile.read(statePath, limit: 64 * 1024)
         guard let state = try? JSONDecoder().decode(HelperState.self, from: data), state.format == 1 else {
-            throw failure(.runtimeRejected, "Estado do serviço ilegível; aprove o openfortivpn novamente.")
+            throw failure(.runtimeRejected, ServiceLanguage.text("Estado do serviço ilegível; aprove o openfortivpn novamente."))
         }
         return state
     }
@@ -189,7 +189,7 @@ public final class RuntimeStore {
     public func loadActive(_ kind: RuntimeKind = .openfortivpn) throws -> ActiveRuntime {
         let state = try loadState()
         guard let id = state.active(kind), Self.validID(id) else {
-            throw failure(.runtimeUnavailable, "Nenhum \(kind.title) aprovado para o serviço.")
+            throw failure(.runtimeUnavailable, ServiceLanguage.text("Nenhum \(kind.title) aprovado para o serviço."))
         }
         let base = runtimes + "/" + id
         try ownership.verifyChain(base + "/manifest.json")
@@ -198,17 +198,17 @@ public final class RuntimeStore {
         decoder.dateDecodingStrategy = .secondsSince1970
         guard let manifest = try? decoder.decode(RuntimeManifest.self, from: data), manifest.format == 1, manifest.id == id,
               manifest.runtimeKind == kind else {
-            throw failure(.runtimeRejected, "Manifesto do runtime inválido.")
+            throw failure(.runtimeRejected, ServiceLanguage.text("Manifesto do runtime inválido."))
         }
         for file in manifest.files {
             guard !file.path.hasPrefix("/"), !file.path.split(separator: "/").contains("..") else {
-                throw failure(.runtimeRejected, "Manifesto com caminho inválido.")
+                throw failure(.runtimeRejected, ServiceLanguage.text("Manifesto com caminho inválido."))
             }
             let path = base + "/" + file.path
             try ownership.verifyChain(path)
             let (bytes, info) = try SecureFile.read(path, limit: RuntimeInspector.maximumImageSize)
             guard Digest.sha256(bytes) == file.sha256, UInt16(info.st_mode & 0o7777) == file.mode else {
-                throw failure(.runtimeRejected, "O runtime aprovado foi alterado (\(file.path)); aprove novamente.")
+                throw failure(.runtimeRejected, ServiceLanguage.text("O runtime aprovado foi alterado (\(file.path)); aprove novamente."))
             }
         }
         // dyld loads only the names written into the images, but no extra code may sit
@@ -219,15 +219,15 @@ public final class RuntimeStore {
                 let relative = directory + "/" + entry
                 if ["lib/ossl-modules", "lib/engines"].contains(relative) {
                     let contents = (try? FileManager.default.contentsOfDirectory(atPath: base + "/" + relative)) ?? ["?"]
-                    guard contents.isEmpty else { throw failure(.runtimeRejected, "Conteúdo inesperado em \(relative).") }
+                    guard contents.isEmpty else { throw failure(.runtimeRejected, ServiceLanguage.text("Conteúdo inesperado em \(relative).")) }
                     try ownership.verifyChain(base + "/" + relative)
                     continue
                 }
-                guard listed.contains(relative) else { throw failure(.runtimeRejected, "Arquivo não aprovado no runtime: \(relative)") }
+                guard listed.contains(relative) else { throw failure(.runtimeRejected, ServiceLanguage.text("Arquivo não aprovado no runtime: \(relative)")) }
             }
         }
         let executable = "bin/" + kind.executableName
-        guard listed.contains(executable) else { throw failure(.runtimeRejected, "Manifesto sem o executável \(kind.title).") }
+        guard listed.contains(executable) else { throw failure(.runtimeRejected, ServiceLanguage.text("Manifesto sem o executável \(kind.title).")) }
         return ActiveRuntime(root: base, executable: base + "/" + executable, manifest: manifest)
     }
 
@@ -310,10 +310,10 @@ public final class RuntimeStore {
                 let signed = try Probe.run(codesign, ["--force", "--sign", "-", path],
                                            environment: ["PATH=/usr/bin:/bin"], identity: nil, timeout: 60_000)
                 guard signed.status == 0, CodeTrust.validate(file: URL(fileURLWithPath: path), requirement: nil) else {
-                    throw failure(.runtimeRejected, "Não foi possível assinar ad hoc a cópia gerenciada de \(relative).")
+                    throw failure(.runtimeRejected, ServiceLanguage.text("Não foi possível assinar ad hoc a cópia gerenciada de \(relative)."))
                 }
                 let mode: UInt16 = image.role == .executable ? 0o555 : 0o444
-                guard chmod(path, mode_t(mode)) == 0 else { throw failure(.internalError, "Permissões da cópia gerenciada.") }
+                guard chmod(path, mode_t(mode)) == 0 else { throw failure(.internalError, ServiceLanguage.text("Permissões da cópia gerenciada.")) }
                 let (final, _) = try SecureFile.read(path, limit: RuntimeInspector.maximumImageSize)
                 files.append(ManagedFile(path: relative, sha256: Digest.sha256(final), mode: mode))
             }
@@ -341,11 +341,11 @@ public final class RuntimeStore {
             guard recognized else {
                 let expected: String
                 switch kind {
-                case .openfortivpn: expected = "as opções esperadas do openfortivpn"
-                case .openvpn: expected = "as opções esperadas do OpenVPN 2.7 ou superior (--dns-updown)"
-                case .wireguard: expected = "a versão do wireguard-go para macOS"
+                case .openfortivpn: expected = ServiceLanguage.text("as opções esperadas do openfortivpn")
+                case .openvpn: expected = ServiceLanguage.text("as opções esperadas do OpenVPN 2.7 ou superior (--dns-updown)")
+                case .wireguard: expected = ServiceLanguage.text("a versão do wireguard-go para macOS")
                 }
-                throw failure(.runtimeRejected, "A cópia gerenciada não apresentou \(expected) (código \((help ?? versionOutput).status)).")
+                throw failure(.runtimeRejected, ServiceLanguage.text("A cópia gerenciada não apresentou \(expected) (código \((help ?? versionOutput).status))."))
             }
             var firstLine = versionOutput.text.split(separator: "\n").first.map(String.init)?.trimmingCharacters(in: .whitespaces) ?? ""
             // "OpenVPN 2.7.8 aarch64-apple-darwin… [SSL (OpenSSL)] …"
@@ -368,7 +368,7 @@ public final class RuntimeStore {
             encoder.dateEncodingStrategy = .secondsSince1970
             try SecureFile.create(staging + "/manifest.json", data: try encoder.encode(manifest), mode: 0o444)
             let final = runtimes + "/" + id
-            guard rename(staging, final) == 0 else { throw failure(.internalError, "Não foi possível ativar o runtime.") }
+            guard rename(staging, final) == 0 else { throw failure(.internalError, ServiceLanguage.text("Não foi possível ativar o runtime.")) }
             // The previous runtime stays as rollback until the next approval of the same kind.
             state.activate(id, kind: kind)
             if !state.authorizedUsers.contains(uid) { state.authorizedUsers.append(uid) }
@@ -424,7 +424,7 @@ public final class RuntimeStore {
     /// openfortivpn opens them by path on every TLS connection of the session (login,
     /// tunnel, logout), so they stay until the session ends.
     public func writeClientCertificate(_ certificate: ClientCertificate, token: String) throws -> ClientCertificateFiles {
-        guard UUID(uuidString: token) != nil else { throw HelperFailure(.internalError, "Sessão inválida.") }
+        guard UUID(uuidString: token) != nil else { throw HelperFailure(.internalError, ServiceLanguage.text("Sessão inválida.")) }
         try prepareDirectories()
         try ownership.verifyChain(clientCertificates)
         let paths = clientCertificatePaths(token)
@@ -476,9 +476,9 @@ public final class RuntimeStore {
         try SecureFile.create(temporary, data: data, mode: 0o555)
         guard CodeTrust.validate(file: URL(fileURLWithPath: temporary), requirement: requirement) else {
             SecureFile.removeTree(temporary)
-            throw failure(.runtimeRejected, "O supervisor do bundle não tem a assinatura esperada.")
+            throw failure(.runtimeRejected, ServiceLanguage.text("O supervisor do bundle não tem a assinatura esperada."))
         }
-        guard rename(temporary, target) == 0 else { throw failure(.internalError, "Não foi possível preparar o supervisor.") }
+        guard rename(temporary, target) == 0 else { throw failure(.internalError, ServiceLanguage.text("Não foi possível preparar o supervisor.")) }
         for entry in (try? FileManager.default.contentsOfDirectory(atPath: supervisors)) ?? []
         where entry.hasPrefix("VPNSupervisor-") && supervisors + "/" + entry != target {
             SecureFile.removeTree(supervisors + "/" + entry)

@@ -14,7 +14,7 @@ public enum HelperConstants {
     public static let build = "31"
     public static var fullVersion: String { "\(version) (\(build))" }
     /// Bumped whenever a request, response or event changes shape or meaning.
-    public static let protocolVersion = 7
+    public static let protocolVersion = 8
     /// Gateways commonly return to a fixed localhost:8020. Never random, never configurable by the client.
     public static let samlPort = 8020
     /// OpenVPN profiles carry inline certificates and keys (normalized profile ≤ 96 KB).

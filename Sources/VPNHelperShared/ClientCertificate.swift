@@ -25,19 +25,19 @@ public struct ClientCertificate: Codable, Equatable, Sendable {
     /// decoded DER), so nothing but the validated blocks ever reaches a file.
     public func validated() throws -> ClientCertificate {
         guard certificate.utf8.count <= Self.maximumPEM, key.utf8.count <= Self.maximumPEM else {
-            throw RuleViolation("Certificado do cliente acima do tamanho suportado.")
+            throw RuleViolation(ServiceLanguage.text("Certificado do cliente acima do tamanho suportado."))
         }
         let certificates = try PEM.blocks(certificate, label: "CERTIFICATE")
         guard !certificates.isEmpty, certificates.count <= Self.maximumChain else {
-            throw RuleViolation("Certificado do cliente em formato inesperado.")
+            throw RuleViolation(ServiceLanguage.text("Certificado do cliente em formato inesperado."))
         }
         for der in certificates where SecCertificateCreateWithData(nil, der as CFData) == nil {
-            throw RuleViolation("Certificado do cliente inválido.")
+            throw RuleViolation(ServiceLanguage.text("Certificado do cliente inválido."))
         }
         let keys = try PEM.blocks(key, label: "ENCRYPTED PRIVATE KEY")
-        guard keys.count == 1 else { throw RuleViolation("Chave do certificado do cliente em formato inesperado.") }
+        guard keys.count == 1 else { throw RuleViolation(ServiceLanguage.text("Chave do certificado do cliente em formato inesperado.")) }
         guard passphrase.count == Self.passphraseLength, passphrase.allSatisfy({ $0.isASCII && $0.isHexDigit }) else {
-            throw RuleViolation("Senha temporária da chave em formato inesperado.")
+            throw RuleViolation(ServiceLanguage.text("Senha temporária da chave em formato inesperado."))
         }
         return ClientCertificate(certificate: certificates.map { PEM.encode($0, label: "CERTIFICATE") }.joined(),
                                  key: PEM.encode(keys[0], label: "ENCRYPTED PRIVATE KEY"), passphrase: passphrase)
@@ -66,22 +66,22 @@ public enum PEM {
             if var current = body {
                 if line == end {
                     guard let data = Data(base64Encoded: current.joined()), !data.isEmpty else {
-                        throw RuleViolation("Bloco PEM inválido.")
+                        throw RuleViolation(ServiceLanguage.text("Bloco PEM inválido."))
                     }
                     result.append(data); body = nil
                 } else {
                     guard line.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "+/=".contains($0)) }) else {
-                        throw RuleViolation("Bloco PEM inválido.")
+                        throw RuleViolation(ServiceLanguage.text("Bloco PEM inválido."))
                     }
                     current.append(line); body = current
                 }
             } else if line == begin {
                 body = []
             } else if !line.isEmpty {
-                throw RuleViolation("Conteúdo inesperado no PEM.")
+                throw RuleViolation(ServiceLanguage.text("Conteúdo inesperado no PEM."))
             }
         }
-        guard body == nil else { throw RuleViolation("Bloco PEM incompleto.") }
+        guard body == nil else { throw RuleViolation(ServiceLanguage.text("Bloco PEM incompleto.")) }
         return result
     }
 

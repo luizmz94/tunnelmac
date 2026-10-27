@@ -3,17 +3,22 @@ import AppKit
 import Darwin
 import VPNHelperShared
 
-enum ConnectionState: String {
-    case disconnected = "Desconectada"
-    case authorizing = "Iniciando"
-    case waitingForSAML = "Na fila do SAML"
-    case connecting = "Conectando"
-    case authenticating = "Aguardando SAML"
-    case connected = "Conectada"
-    case reconnecting = "Reconectando"
-    case disconnecting = "Desconectando"
-    case failed = "Falha"
+enum ConnectionState {
+    case disconnected, authorizing, waitingForSAML, connecting, authenticating, connected, reconnecting, disconnecting, failed
     var active: Bool { ![.disconnected, .failed].contains(self) }
+    var title: String {
+        switch self {
+        case .disconnected: return String(localized: "Desconectada")
+        case .authorizing: return String(localized: "Iniciando")
+        case .waitingForSAML: return String(localized: "Na fila do SAML")
+        case .connecting: return String(localized: "Conectando")
+        case .authenticating: return String(localized: "Aguardando SAML")
+        case .connected: return String(localized: "Conectada")
+        case .reconnecting: return String(localized: "Reconectando")
+        case .disconnecting: return String(localized: "Desconectando")
+        case .failed: return String(localized: "Falha")
+        }
+    }
 }
 
 // Gateways commonly return to a fixed localhost:8020, regardless of --saml-login.
@@ -46,28 +51,28 @@ struct OutputRules {
         // never any trailing server response or credential supplied on the original line.
         let diagnostics: [(String, String)] = [
             (#"^ERROR:\s+Could not authenticate to gateway\."#,
-             "ERROR: Falha na autenticação no gateway. Confira usuário, senha e os requisitos de autenticação do servidor."),
+             String(localized: "ERROR: Falha na autenticação no gateway. Confira usuário, senha e os requisitos de autenticação do servidor.")),
             (#"^ERROR:\s+Failed to retrieve SAML cookie"#,
-             "ERROR: Falha ao concluir a autenticação SAML. O callback do navegador não foi recebido corretamente na porta local 8020."),
+             String(localized: "ERROR: Falha ao concluir a autenticação SAML. O callback do navegador não foi recebido corretamente na porta local 8020.")),
             (#"^ERROR:\s+Finally failed to retrieve SAML authentication token"#,
-             "ERROR: O tempo de espera pelo retorno SAML do navegador terminou."),
+             String(localized: "ERROR: O tempo de espera pelo retorno SAML do navegador terminou.")),
             (#"^ERROR:\s+No password given"#,
-             "ERROR: A senha da VPN não foi fornecida."),
+             String(localized: "ERROR: A senha da VPN não foi fornecida.")),
             (#"^ERROR:\s+No cookie given"#,
-             "ERROR: A sessão de autenticação não foi fornecida.")
+             String(localized: "ERROR: A sessão de autenticação não foi fornecida."))
         ]
         for (pattern, diagnostic) in diagnostics {
             if line.range(of: pattern, options: .regularExpression) != nil { return diagnostic }
         }
         let sensitive = #"(?i)(password|passwd|senha|cookie|token|authorization|samlresponse|assertion|secret|credential|bearer|otp\s*[:=])"#
         if line.range(of: sensitive, options: .regularExpression) != nil {
-            return "[mensagem com credenciais ocultada]"
+            return String(localized: "[mensagem com credenciais ocultada]")
         }
         var result = line
-        if let secret, !secret.isEmpty { result = result.replacingOccurrences(of: secret, with: "[oculto]") }
+        if let secret, !secret.isEmpty { result = result.replacingOccurrences(of: secret, with: String(localized: "[oculto]")) }
         // Authentication URLs can contain session material even with an unknown parameter name.
         result = result.replacingOccurrences(of: #"https?://[^\s'\"<>]+"#,
-                                             with: "[URL ocultada]", options: .regularExpression)
+                                             with: String(localized: "[URL ocultada]"), options: .regularExpression)
         return String(result.prefix(4000))
     }
     static func authenticationURL(_ line: String, connection: Connection) -> URL? {
@@ -160,7 +165,8 @@ final class Session: ObservableObject, Identifiable {
         tunnelHandled = false
         digestFix = nil
         setupFailed = false
-        log("Iniciando conexão. Rotas e DNS serão tratados \(routedBy ?? "pelo \(client)"); redes sobrepostas podem gerar conflitos.")
+        let routing = routedBy ?? String(localized: "pelo \(client)")
+        log(String(localized: "Iniciando conexão. Rotas e DNS serão tratados \(routing); redes sobrepostas podem gerar conflitos."))
     }
     /// wireguard-go (verbose) plus the lines the service adds while it configures the tunnel.
     /// WireGuard has no connection to wait for: the tunnel is up once it is configured; the
@@ -176,7 +182,7 @@ final class Session: ObservableObject, Identifiable {
             tunnelUp = true
             state = .connected
         }
-        log(line)
+        log(WireGuardMarkers.display(line))
     }
     /// OpenVPN 2.7 messages (verb 3). openvpn reconnects internally (ping-restart, retries);
     /// the app only marks the state and blocks its own retry after credential/config errors.
@@ -206,10 +212,10 @@ final class Session: ObservableObject, Identifiable {
         }
         log(line)
         if line.contains("AUTH_FAILED") {
-            log("O servidor recusou usuário ou senha. Confira as credenciais antes de tentar de novo.")
+            log(String(localized: "O servidor recusou usuário ou senha. Confira as credenciais antes de tentar de novo."))
         }
         if let fix = digestFix, line.contains("Message hash algorithm") {
-            log("O perfil usa auth \(fix.from), que o OpenVPN não aceita. O app pode corrigir a cópia do perfil para auth \(fix.to).")
+            log(String(localized: "O perfil usa auth \(fix.from), que o OpenVPN não aceita. O app pode corrigir a cópia do perfil para auth \(fix.to)."))
         }
     }
     func accept(_ line: String, connection: Connection, openBrowser: (URL) -> Void) {
@@ -255,7 +261,7 @@ final class Session: ObservableObject, Identifiable {
             state = .disconnected
         } else if exit == 0 && error == nil && !setupFailed { state = .disconnected }
         else { state = .failed }
-        if let exit { log("Processo encerrado (código \(exit)).") }
+        if let exit { log(String(localized: "Processo encerrado (código \(exit)).")) }
         pid = nil
         token = nil
         samlPort = nil
@@ -310,7 +316,7 @@ final class VPNManager: ObservableObject {
         switch connection.kind {
         case .fortinet: session.begin(retrying: retrying, client: "openfortivpn")
         case .openvpn: session.begin(retrying: retrying, client: "OpenVPN")
-        case .wireguard: session.begin(retrying: retrying, client: "WireGuard", routedBy: "pelo serviço do TunnelMac, a partir do perfil WireGuard")
+        case .wireguard: session.begin(retrying: retrying, client: "WireGuard", routedBy: String(localized: "pelo serviço do TunnelMac, a partir do perfil WireGuard"))
         }
         session.secret = password
         if connection.isOpenVPN {
@@ -345,7 +351,7 @@ final class VPNManager: ObservableObject {
     private func reuseCookie(_ cookie: String, connection: Connection, session: Session) {
         session.cookieMode = .reuse
         cookieAttempts[connection.id] = connection
-        session.log("Tentando reaproveitar a sessão SAML recente. Se o gateway recusar, um único login SAML será iniciado.")
+        session.log(String(localized: "Tentando reaproveitar a sessão SAML recente. Se o gateway recusar, um único login SAML será iniciado."))
         start(session, connection: connection, password: nil, cookie: cookie)
     }
     private func savedCookie(for connection: Connection, session: Session) -> String? {
@@ -354,7 +360,7 @@ final class VPNManager: ObservableObject {
         case .cookie(let cookie): return cookie
         case .none: return nil
         case .failure:
-            session.log("Não foi possível consultar a sessão SAML salva no Keychain; usando o login SAML normal.")
+            session.log(String(localized: "Não foi possível consultar a sessão SAML salva no Keychain; usando o login SAML normal."))
             return nil
         }
     }
@@ -362,7 +368,7 @@ final class VPNManager: ObservableObject {
         if connection.authentication == .saml && !samlGate.acquire(connection.id) {
             session.state = .waitingForSAML
             pendingSAML[connection.id] = connection
-            session.log("Aguardando a autenticação SAML anterior liberar o callback local 8020. Túneis já conectados continuam ativos.")
+            session.log(String(localized: "Aguardando a autenticação SAML anterior liberar o callback local 8020. Túneis já conectados continuam ativos."))
             changed?()
             return
         }
@@ -375,10 +381,10 @@ final class VPNManager: ObservableObject {
         if let harness {
             capabilities = RuntimeCapabilities(help: harness.help)
         } else {
-            guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
             if let reason = transport.unavailableReason(for: .openfortivpn) { end(session, exit: nil, error: reason); return }
             guard let available = transport.capabilities else {
-                end(session, exit: nil, error: "O serviço não informou o openfortivpn aprovado."); return
+                end(session, exit: nil, error: String(localized: "O serviço não informou o openfortivpn aprovado.")); return
             }
             capabilities = available
         }
@@ -392,23 +398,23 @@ final class VPNManager: ObservableObject {
             // Incompatible client: keep the cache untouched and use the regular SAML queue.
             session.cookieMode = .none
             cookieAttempts.removeValue(forKey: session.id)
-            session.log("Esta versão do openfortivpn não lê a sessão SAML pela entrada padrão; usando o login SAML normal.")
+            session.log(String(localized: "Esta versão do openfortivpn não lê a sessão SAML pela entrada padrão; usando o login SAML normal."))
             queueOrStart(session, connection: connection, password: password)
             return
         }
         if connection.authentication == .saml {
             if !capabilities.samlPort && plan.mode != .reuse {
-                end(session, exit: nil, error: "Esta versão não documenta --saml-login[=port]; atualize o openfortivpn para usar a porta de callback SAML explícita.")
+                end(session, exit: nil, error: String(localized: "Esta versão não documenta --saml-login[=port]; atualize o openfortivpn para usar a porta de callback SAML explícita."))
                 return
             }
             if plan.mode == .none {
-                session.log("Esta versão do openfortivpn não permite guardar a sessão SAML; cada conexão abrirá o navegador.")
+                session.log(String(localized: "Esta versão do openfortivpn não permite guardar a sessão SAML; cada conexão abrirá o navegador."))
             }
             if plan.mode != .reuse {
                 // The callback port is bound by the original client inside the helper; no
                 // unprivileged pre-check (it could refuse a previous listener in TIME_WAIT).
                 session.samlPort = HelperConstants.samlPort
-                session.log("Autenticação SAML na porta local \(HelperConstants.samlPort).")
+                session.log(String(localized: "Autenticação SAML na porta local \(HelperConstants.samlPort)."))
             }
         }
         let validated: Connection
@@ -419,7 +425,7 @@ final class VPNManager: ObservableObject {
             return
         }
         // Exported off the main thread: macOS may show its Keychain access dialog meanwhile.
-        session.log("Usando o certificado do cliente \"\(reference.name)\" do Keychain. Se o macOS pedir, permita o acesso do TunnelMac à chave.")
+        session.log(String(localized: "Usando o certificado do cliente \"\(reference.name)\" do Keychain. Se o macOS pedir, permita o acesso do TunnelMac à chave."))
         let generation = session.generation
         let exporter = certificateExporter
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -455,21 +461,21 @@ final class VPNManager: ObservableObject {
         session.state = .authorizing
         changed?()
         if harness == nil {
-            guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
             if let reason = transport.unavailableReason(for: .openvpn) { end(session, exit: nil, error: reason); return }
         }
         if session.wantsDisconnect { end(session, exit: 0); return }
         let request: OpenVPNRequest
         do {
             let c = try connection.validated()
-            guard let profile else { throw AppFailure("Perfil OpenVPN indisponível; importe-o novamente.") }
+            guard let profile else { throw AppFailure(String(localized: "Perfil OpenVPN indisponível; importe-o novamente.")) }
             let credentials = c.usesPassword
             request = OpenVPNRequest(connectionID: c.id, profile: profile, username: credentials ? c.username : nil,
                                      password: credentials ? password : nil)
         } catch { end(session, exit: nil, error: error.localizedDescription); return }
         running[session.id] = connection
         if let harness { harness.openVPNLaunched?(session, request); return }
-        guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
         launch(session, plan: LaunchPlan(clientArguments: [], mode: .none)) { completion in
             transport.startOpenVPN(request, completion: completion)
         }
@@ -478,30 +484,30 @@ final class VPNManager: ObservableObject {
         session.state = .authorizing
         changed?()
         if harness == nil {
-            guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
             if let reason = transport.unavailableReason(for: .wireguard) { end(session, exit: nil, error: reason); return }
         }
         if session.wantsDisconnect { end(session, exit: 0); return }
         let request: WireGuardRequest
         do {
             let c = try connection.validated()
-            guard let profile else { throw AppFailure("Perfil WireGuard indisponível; importe-o novamente.") }
+            guard let profile else { throw AppFailure(String(localized: "Perfil WireGuard indisponível; importe-o novamente.")) }
             request = WireGuardRequest(connectionID: c.id, profile: profile, internetDNS: internetDNS())
         } catch { end(session, exit: nil, error: error.localizedDescription); return }
         running[session.id] = connection
         if let harness { harness.wireGuardLaunched?(session, request); return }
-        guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
         launch(session, plan: LaunchPlan(clientArguments: [], mode: .none)) { completion in
             transport.startWireGuard(request, completion: completion)
         }
     }
     private func launch(_ session: Session, request: ConnectionRequest, plan: LaunchPlan) {
-        guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
         launch(session, plan: plan) { completion in transport.start(request, completion: completion) }
     }
     private func launch(_ session: Session, plan: LaunchPlan,
                         send: (@escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) -> Void) {
-        guard let transport else { end(session, exit: nil, error: "Serviço privilegiado indisponível."); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
         let generation = session.generation
         send { [weak self] result in
             guard let self else { return }
@@ -514,7 +520,7 @@ final class VPNManager: ObservableObject {
             case .success((let token, let confirmed)):
                 session.token = token
                 self.tokens[token] = session.id
-                if confirmed != plan { session.log("O serviço ajustou o plano de execução ao openfortivpn aprovado.") }
+                if confirmed != plan { session.log(String(localized: "O serviço ajustou o plano de execução ao openfortivpn aprovado.")) }
                 if session.wantsDisconnect { self.interrupt(session) }
             case .failure(let failure):
                 self.end(session, exit: nil, error: failure.message)
@@ -530,7 +536,7 @@ final class VPNManager: ObservableObject {
             guard session.generation == generation, session.token == batch.token else { return }
             if event.sequence <= session.lastSequence { continue }
             if event.sequence != session.lastSequence + 1 {
-                session.log("[eventos fora de ordem do serviço descartados]")
+                session.log(String(localized: "[eventos fora de ordem do serviço descartados]"))
             }
             session.lastSequence = event.sequence
             switch event.kind {
@@ -542,7 +548,7 @@ final class VPNManager: ObservableObject {
             case .cookie(let cookie): receive(.cookie(cookie), session: session, connection: connection, generation: generation)
             case .overflow: receive(.overflow, session: session, connection: connection, generation: generation)
             case .dropped(let count):
-                session.log("[\(count) linha(s) de log descartada(s): a interface não acompanhou a saída]")
+                session.log(String(localized: "[\(count) linha(s) de log descartada(s): a interface não acompanhou a saída]"))
             case .exited(let code):
                 tokens.removeValue(forKey: batch.token)
                 end(session, exit: code)
@@ -557,7 +563,7 @@ final class VPNManager: ObservableObject {
     func transportLost() {
         for (token, id) in tokens {
             guard let session = sessions[id], session.token == token else { continue }
-            end(session, exit: nil, error: "Canal com o serviço privilegiado perdido. O supervisor encerra o túnel ao perder o canal; nenhuma reconexão automática foi feita.")
+            end(session, exit: nil, error: String(localized: "Canal com o serviço privilegiado perdido. O supervisor encerra o túnel ao perder o canal; nenhuma reconexão automática foi feita."))
         }
         tokens.removeAll()
     }
@@ -566,7 +572,7 @@ final class VPNManager: ObservableObject {
         case .line(let line): receive(line, session: session, connection: connection, generation: generation)
         case .overflow:
             guard session.generation == generation else { return }
-            session.log("[linha excessivamente longa descartada]")
+            session.log(String(localized: "[linha excessivamente longa descartada]"))
         case .cookie(let cookie):
             guard session.generation == generation, session.cookieMode == .capture, !session.tunnelUp else { return }
             if session.cookieConflict { return }
@@ -581,8 +587,8 @@ final class VPNManager: ObservableObject {
         guard session.generation == generation else { return }
         session.accept(line, connection: connection) { url in
             if NSWorkspace.shared.open(url) {
-                session.log("Navegador aberto. Conclua o login; aguardando o retorno local na porta 8020.")
-            } else { session.log("Não foi possível abrir o navegador padrão.") }
+                session.log(String(localized: "Navegador aberto. Conclua o login; aguardando o retorno local na porta 8020."))
+            } else { session.log(String(localized: "Não foi possível abrir o navegador padrão.")) }
         }
         // run_tunnel connects to the gateway only after wait_for_http_request
         // has consumed the callback and closed its listener.
@@ -600,7 +606,7 @@ final class VPNManager: ObservableObject {
         switch session.cookieMode {
         case .reuse:
             cookieAttempts.removeValue(forKey: session.id)
-            session.log("Sessão SAML reaproveitada sem abrir o navegador.")
+            session.log(String(localized: "Sessão SAML reaproveitada sem abrir o navegador."))
         case .capture:
             defer { session.cookieCandidate = nil }
             if let candidate = session.cookieCandidate, !session.cookieConflict {
@@ -613,14 +619,14 @@ final class VPNManager: ObservableObject {
                             try await PersistenceIO.run { try store.save(candidate, for: connection) }
                             guard session.generation == generation else { return }
                             refusedCookies.remove(connection.id)
-                            session.log("Sessão SAML guardada no Keychain por até 30 minutos.")
-                        } catch { session.log("Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.") }
+                            session.log(String(localized: "Sessão SAML guardada no Keychain por até 30 minutos."))
+                        } catch { session.log(String(localized: "Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.")) }
                     }
                 }
             } else if session.cookieConflict {
-                session.log("A saída do openfortivpn informou sessões diferentes; nenhuma foi guardada.")
+                session.log(String(localized: "A saída do openfortivpn informou sessões diferentes; nenhuma foi guardada."))
             } else {
-                session.log("O openfortivpn instalado não informou a sessão SAML; a próxima conexão usará o navegador.")
+                session.log(String(localized: "O openfortivpn instalado não informou a sessão SAML; a próxima conexão usará o navegador."))
             }
         case .none: break
         }
@@ -636,7 +642,7 @@ final class VPNManager: ObservableObject {
         }
         session.wantsDisconnect = true
         session.state = .disconnecting
-        session.log("Solicitando encerramento normal e aguardando a limpeza de rotas e DNS…")
+        session.log(String(localized: "Solicitando encerramento normal e aguardando a limpeza de rotas e DNS…"))
         if session.token != nil { interrupt(session) }
         changed?()
     }
@@ -646,7 +652,7 @@ final class VPNManager: ObservableObject {
         transport.stop(token) { failure in
             guard let failure, session.generation == generation, session.token == token else { return }
             if failure.code == .unknownSession { return } // Already finishing; its exit event follows.
-            session.log("Não foi possível enviar o pedido de encerramento ao serviço (\(failure.message)). Aguardando a saída; tente novamente.")
+            session.log(String(localized: "Não foi possível enviar o pedido de encerramento ao serviço (\(failure.message)). Aguardando a saída; tente novamente."))
             session.wantsDisconnect = false
             self.changed?()
         }
@@ -670,7 +676,7 @@ final class VPNManager: ObservableObject {
         if exit != nil, retry != nil, let delay = session.retryDelay {
             session.reconnectAttempts += 1
             session.state = .reconnecting
-            session.log("Conexão caiu. Nova tentativa \(session.reconnectAttempts)/3 em \(Int(delay)) segundos. Desconectar cancela a reconexão.")
+            session.log(String(localized: "Conexão caiu. Nova tentativa \(session.reconnectAttempts)/3 em \(Int(delay)) segundos. Desconectar cancela a reconexão."))
             let generation = session.generation
             let task = DispatchWorkItem { [weak self, weak session] in
                 guard let self, let session, session.generation == generation,
@@ -690,14 +696,14 @@ final class VPNManager: ObservableObject {
         guard !session.tunnelUp, !session.wantsDisconnect, exit != nil else { return nil }
         if session.cookieRejected && !session.cookieTransportFailure {
             discardCookie(session)
-            session.log("O gateway recusou a sessão SAML salva (expirada ou encerrada). Ela foi descartada; iniciando um login SAML no navegador.")
+            session.log(String(localized: "O gateway recusou a sessão SAML salva (expirada ou encerrada). Ela foi descartada; iniciando um login SAML no navegador."))
             return attempt
         }
         if session.reachedGateway && !session.cookieTransportFailure {
             discardCookie(session)
-            session.log("A sessão SAML salva não foi confirmada pelo gateway e foi descartada. A próxima conexão usará o navegador.")
+            session.log(String(localized: "A sessão SAML salva não foi confirmada pelo gateway e foi descartada. A próxima conexão usará o navegador."))
         } else {
-            session.log("A tentativa com a sessão SAML salva falhou por rede ou TLS; isso não indica sessão inválida.")
+            session.log(String(localized: "A tentativa com a sessão SAML salva falhou por rede ou TLS; isso não indica sessão inválida."))
         }
         return nil
     }
@@ -705,19 +711,19 @@ final class VPNManager: ObservableObject {
         do {
             try cookies.save(candidate, for: connection)
             refusedCookies.remove(connection.id)
-            session.log("Sessão SAML guardada no Keychain por até 30 minutos para a próxima conexão.")
-        } catch { session.log("Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.") }
+            session.log(String(localized: "Sessão SAML guardada no Keychain por até 30 minutos para a próxima conexão."))
+        } catch { session.log(String(localized: "Não foi possível guardar a sessão SAML no Keychain; a próxima conexão usará o navegador.")) }
     }
     private func discardCookie(_ session: Session) {
         refusedCookies.insert(session.id) // Never offer a rejected cookie while deletion waits.
         if harness != nil {
-            do { try cookies.delete(session.id) } catch { session.log("Não foi possível apagar a sessão SAML recusada do Keychain.") }
+            do { try cookies.delete(session.id) } catch { session.log(String(localized: "Não foi possível apagar a sessão SAML recusada do Keychain.")) }
             return
         }
         let store = cookies, id = session.id
         Task {
             do { try await PersistenceIO.run { try store.delete(id) } }
-            catch { session.log("Não foi possível apagar a sessão SAML recusada do Keychain; ela não será reutilizada nesta sessão do app.") }
+            catch { session.log(String(localized: "Não foi possível apagar a sessão SAML recusada do Keychain; ela não será reutilizada nesta sessão do app.")) }
         }
     }
     func retryFailed(_ id: UUID, message: String) {
@@ -736,5 +742,23 @@ final class VPNManager: ObservableObject {
         for id in waiting { disconnect(id) }
         let active = sessions.values.filter { $0.state.active }.map(\.id)
         for id in active { disconnect(id) }
+    }
+}
+
+extension WireGuardMarkers {
+    /// The helper writes its marker lines in Portuguese, the form the app recognizes;
+    /// the log shows them in the app's language.
+    static func display(_ line: String) -> String {
+        func detail(after marker: String, _ joiner: String) -> String? {
+            guard line.hasPrefix(marker + joiner), line.hasSuffix(".") else { return nil }
+            return String(line.dropFirst(marker.count + joiner.count).dropLast())
+        }
+        if let interface = detail(after: ready, " em ") {
+            return String(localized: "[+] TunnelMac: túnel WireGuard configurado em \(interface).")
+        }
+        if let server = detail(after: handshake, " com ") {
+            return String(localized: "[+] TunnelMac: handshake concluído com \(server).")
+        }
+        return line
     }
 }

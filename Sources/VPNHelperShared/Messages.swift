@@ -25,8 +25,10 @@ public enum HelperInterfaces {
 public struct HelloRequest: Codable, Equatable, Sendable {
     public var protocolVersion: Int
     public var appVersion: String
-    public init(protocolVersion: Int = HelperConstants.protocolVersion, appVersion: String) {
-        self.protocolVersion = protocolVersion; self.appVersion = appVersion
+    /// Language the app shows (a tag such as "de" or "pt-BR"); the helper's messages follow it.
+    public var language: String?
+    public init(protocolVersion: Int = HelperConstants.protocolVersion, appVersion: String, language: String? = nil) {
+        self.protocolVersion = protocolVersion; self.appVersion = appVersion; self.language = language
     }
 }
 
@@ -67,24 +69,24 @@ public struct ConnectionRequest: Codable, Equatable, Sendable {
         switch authentication {
         case .password:
             guard let password, !password.isEmpty, !username.isEmpty else {
-                throw RuleViolation("Perfil por senha exige usuário e senha.")
+                throw RuleViolation(ServiceLanguage.text("Perfil por senha exige usuário e senha."))
             }
-            try ConnectionRules.checkConfigValue(password, label: "Senha")
-            guard mode == .none, cookie == nil else { throw RuleViolation("Perfil por senha não usa sessão SAML.") }
+            try ConnectionRules.checkConfigValue(password, label: ServiceLanguage.text("Senha"))
+            guard mode == .none, cookie == nil else { throw RuleViolation(ServiceLanguage.text("Perfil por senha não usa sessão SAML.")) }
         case .saml:
-            guard password == nil else { throw RuleViolation("Perfil SAML não envia senha.") }
+            guard password == nil else { throw RuleViolation(ServiceLanguage.text("Perfil SAML não envia senha.")) }
             if mode == .reuse {
-                guard let cookie, SAMLCookieRules.isValid(cookie) else { throw RuleViolation("Sessão SAML em formato inesperado.") }
-                guard capabilities.cookieOnStdin else { throw RuleViolation("O openfortivpn aprovado não lê a sessão SAML pela entrada padrão.") }
+                guard let cookie, SAMLCookieRules.isValid(cookie) else { throw RuleViolation(ServiceLanguage.text("Sessão SAML em formato inesperado.")) }
+                guard capabilities.cookieOnStdin else { throw RuleViolation(ServiceLanguage.text("O openfortivpn aprovado não lê a sessão SAML pela entrada padrão.")) }
             } else {
-                guard cookie == nil else { throw RuleViolation("Sessão SAML enviada sem modo de reaproveitamento.") }
+                guard cookie == nil else { throw RuleViolation(ServiceLanguage.text("Sessão SAML enviada sem modo de reaproveitamento.")) }
                 guard capabilities.samlPort else {
-                    throw RuleViolation("Esta versão não documenta --saml-login[=port]; atualize o openfortivpn para usar a porta de callback SAML explícita.")
+                    throw RuleViolation(ServiceLanguage.text("Esta versão não documenta --saml-login[=port]; atualize o openfortivpn para usar a porta de callback SAML explícita."))
                 }
             }
         }
         let plan = LaunchPlan.make(authentication: authentication, capabilities: capabilities, cookieAvailable: mode == .reuse)
-        guard plan.mode == mode else { throw RuleViolation("Modo de sessão incompatível com o openfortivpn aprovado.") }
+        guard plan.mode == mode else { throw RuleViolation(ServiceLanguage.text("Modo de sessão incompatível com o openfortivpn aprovado.")) }
         return plan
     }
 }
@@ -308,10 +310,10 @@ public enum MessageCodec {
         return (try? encoder.encode(value)) ?? Data()
     }
     public static func decode<T: Decodable>(_ type: T.Type, from data: Data, limit: Int) throws -> T {
-        guard !data.isEmpty, data.count <= limit else { throw HelperFailure(.invalidRequest, "Mensagem vazia ou acima do limite.") }
+        guard !data.isEmpty, data.count <= limit else { throw HelperFailure(.invalidRequest, ServiceLanguage.text("Mensagem vazia ou acima do limite.")) }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
         do { return try decoder.decode(type, from: data) }
-        catch { throw HelperFailure(.invalidRequest, "Mensagem malformada.") }
+        catch { throw HelperFailure(.invalidRequest, ServiceLanguage.text("Mensagem malformada.")) }
     }
 }
