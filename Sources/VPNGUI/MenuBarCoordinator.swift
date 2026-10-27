@@ -21,10 +21,19 @@ enum MenuBarRowAction: Equatable {
     case connect, disconnect, disconnecting, review, unavailable
     var title: String {
         switch self {
-        case .connect, .unavailable: return "Conectar"
-        case .disconnect: return "Desconectar"
-        case .disconnecting: return "Desconectando…"
-        case .review: return "Revisar acesso…"
+        case .connect, .unavailable: return String(localized: "Conectar")
+        case .disconnect: return String(localized: "Desconectar")
+        case .disconnecting: return String(localized: "Desconectando…")
+        case .review: return String(localized: "Revisar acesso…")
+        }
+    }
+    /// Linked chain to connect, broken chain to disconnect.
+    var symbol: String {
+        switch self {
+        case .connect, .unavailable: return "personalhotspot"
+        case .disconnect: return "personalhotspot.slash"
+        case .disconnecting: return "hourglass"
+        case .review: return "person.crop.circle.badge.exclamationmark"
         }
     }
     var enabled: Bool { ![.disconnecting, .unavailable].contains(self) }
@@ -46,29 +55,29 @@ enum SettingsTab: String, CaseIterable, Identifiable, Hashable {
     var id: String { rawValue }
     var title: String {
         switch self {
-        case .general: return "Geral"
-        case .updates: return "Atualizações"
-        case .service: return "Serviço privilegiado"
-        case .backup: return "Backup"
-        case .about: return "Sobre"
+        case .general: return String(localized: "Geral")
+        case .updates: return String(localized: "Atualizações")
+        case .service: return String(localized: "Serviço privilegiado")
+        case .backup: return String(localized: "Backup")
+        case .about: return String(localized: "Sobre")
         }
     }
-    var subtitle: String {
-        switch self {
-        case .general: return "Barra de menus, Dock e abertura ao iniciar sessão"
-        case .updates: return "Novas versões do GitHub, instaladas pelo próprio app ou pelo Homebrew"
-        case .service: return "O componente do sistema que inicia o openfortivpn, o OpenVPN e o WireGuard por você"
-        case .backup: return "Exporte as conexões para outro Mac ou guarde uma cópia, protegida por senha"
-        case .about: return "Versão, licença e links do projeto"
-        }
-    }
+    /// Glyph and color of the tab's tile in the sidebar, as in System Settings.
     var symbol: String {
         switch self {
-        case .general: return "gearshape"
+        case .general: return "gearshape.fill"
         case .updates: return "arrow.triangle.2.circlepath"
-        case .service: return "lock.shield"
-        case .backup: return "archivebox"
-        case .about: return "info.circle"
+        case .service: return "lock.shield.fill"
+        case .backup: return "archivebox.fill"
+        case .about: return "info"
+        }
+    }
+    var tileColor: Color {
+        switch self {
+        case .general, .about: return .gray
+        case .updates: return .blue
+        case .service: return .green
+        case .backup: return .orange
         }
     }
 }
@@ -110,7 +119,7 @@ final class MenuBarCoordinator: ObservableObject {
         let updates = updates ?? UpdateChecker(preferences: preferences, transport: DisabledUpdateTransport())
         self.updates = updates
         self.installer = installer ?? AppUpdater(checker: updates, enabled: false)
-        self.loginItem = loginItem ?? LoginItemController(service: nil, unavailableReason: "Indisponível neste contexto.")
+        self.loginItem = loginItem ?? LoginItemController(service: nil, unavailableReason: String(localized: "Indisponível neste contexto."))
         connectAction = { [unowned model] in model.connect($0) }
         disconnectAction = { [unowned model] in model.manager.disconnect($0) }
         model.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
@@ -119,6 +128,8 @@ final class MenuBarCoordinator: ObservableObject {
         self.updates.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.installer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
         self.loginItem.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }.store(in: &observers)
+        // Windows, sheets and the menu bar window all take the chosen appearance.
+        preferences.$appearance.sink { NSApp?.appearance = $0.nsAppearance }.store(in: &observers)
         // Turning the menu bar icon off must never leave the app without a Dock icon.
         preferences.$showMenuBarIcon.dropFirst().sink { [weak self] shown in
             if !shown { self?.setActivationPolicy(.regular) }
@@ -151,16 +162,16 @@ final class MenuBarCoordinator: ObservableObject {
         return .idle
     }
     var summaryText: String {
-        guard model.ready else { return "Dados não carregados" }
+        guard model.ready else { return String(localized: "Dados não carregados") }
         var parts: [String] = []
         let connected = connectedCount, pending = pendingCount
-        if connected > 0 { parts.append(connected == 1 ? "1 conectada" : "\(connected) conectadas") }
-        if pending > 0 { parts.append("\(pending) em andamento") }
-        if parts.isEmpty { return states.contains(.failed) ? "Nenhuma conexão ativa · falha recente" : "Nenhuma conexão ativa" }
+        if connected > 0 { parts.append(String(localized: "\(connected) conectadas")) }
+        if pending > 0 { parts.append(String(localized: "\(pending) em andamento")) }
+        if parts.isEmpty { return states.contains(.failed) ? String(localized: "Nenhuma conexão ativa · falha recente") : String(localized: "Nenhuma conexão ativa") }
         return parts.joined(separator: " · ")
     }
     var accessibilityDescription: String {
-        "TunnelMac: \(summaryText)\(model.error != nil ? ", com erro pendente" : "")"
+        model.error != nil ? String(localized: "TunnelMac: \(summaryText), com erro pendente") : "TunnelMac: \(summaryText)"
     }
 
     /// Names repeated in the list; only these rows show the server to tell them apart.

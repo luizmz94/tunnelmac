@@ -82,7 +82,7 @@ struct ConnectionTransaction {
                 if let text = op.wireGuard { try wg.write(text, id: op.id) }
                 try checkpoint("profiles")
                 if op.hasPassword {
-                    guard let password = try secrets.readStaged(op.id) else { throw AppFailure("Senha pendente não encontrada; recuperação exige intervenção.") }
+                    guard let password = try secrets.readStaged(op.id) else { throw AppFailure(String(localized: "Senha pendente não encontrada; recuperação exige intervenção.")) }
                     try secrets.writePassword(password, op.id)
                 } else { try secrets.deletePassword(op.id) }
             }
@@ -112,7 +112,8 @@ struct ConnectionTransaction {
             try secrets.deleteStaged(op.id)
             try FileManager.default.removeItem(at: journal)
         } catch {
-            throw AppFailure("Operação pendente de recuperação; os dados foram preservados. Reinicie o app para repetir: \(error.localizedDescription)")
+            throw AppFailure(String(localized: "Operação pendente de recuperação; os dados foram preservados. Reinicie o app para repetir: \(error.localizedDescription)"),
+                             pendingRecovery: true)
         }
     }
 }

@@ -28,13 +28,17 @@ struct BackupPreferences: Codable, Equatable {
     var includePrereleases: Bool
     var internetDNSSelection: String
     var customInternetDNS: [InternetDNSOption]
+    /// Absent in older backups.
+    var appearance: String?
+    var language: String?
 }
 
 extension AppPreferences {
     var backup: BackupPreferences {
         BackupPreferences(showMenuBarIcon: showMenuBarIcon, hideDockOnClose: hideDockOnClose, checkForUpdates: checkForUpdates,
                           includePrereleases: includePrereleases, internetDNSSelection: internetDNSSelection,
-                          customInternetDNS: customInternetDNS)
+                          customInternetDNS: customInternetDNS, appearance: appearance.rawValue,
+                          language: language.rawValue)
     }
     /// Custom DNS entries are checked with the same rules as typed ones; invalid ones are dropped.
     func restore(_ saved: BackupPreferences) {
@@ -42,6 +46,8 @@ extension AppPreferences {
         hideDockOnClose = saved.hideDockOnClose
         checkForUpdates = saved.checkForUpdates
         includePrereleases = saved.includePrereleases
+        if let saved = saved.appearance.flatMap(AppAppearance.init(rawValue:)) { appearance = saved }
+        if let saved = saved.language.flatMap(AppLanguage.init(rawValue:)) { language = saved }
         var custom: [InternetDNSOption] = []
         for option in saved.customInternetDNS where !custom.contains(where: { $0.id == option.id })
             && !InternetDNSOption.presets.contains(where: { $0.id == option.id }) && option.id != InternetDNSOption.offID {
@@ -94,30 +100,30 @@ enum ConfigBackup {
     static func open(_ file: Data, password: String) throws -> BackupPayload {
         let plaintext = try BackupCipher.open(file, password: password)
         guard let payload = try? JSONDecoder().decode(BackupPayload.self, from: plaintext), payload.format == BackupPayload.format else {
-            throw AppFailure("Conteúdo do backup ilegível.")
+            throw AppFailure(String(localized: "Conteúdo do backup ilegível."))
         }
         guard payload.version == 1 else {
-            throw AppFailure("Backup criado por uma versão mais nova do TunnelMac; atualize o app para importá-lo.")
+            throw AppFailure(String(localized: "Backup criado por uma versão mais nova do TunnelMac; atualize o app para importá-lo."))
         }
         guard Set(payload.connections.map(\.connection.id)).count == payload.connections.count else {
-            throw AppFailure("O backup contém identificadores de conexão duplicados.")
+            throw AppFailure(String(localized: "O backup contém identificadores de conexão duplicados."))
         }
         for entry in payload.connections {
             let name = entry.connection.name
-            func failure(_ message: String) -> AppFailure { AppFailure("Conexão \u{201C}\(name)\u{201D} do backup: \(message)") }
+            func failure(_ message: String) -> AppFailure { AppFailure(String(localized: "Conexão \u{201C}\(name)\u{201D} do backup: \(message)")) }
             do {
                 let connection = try entry.connection.validated()
                 if connection.isOpenVPN {
-                    guard let text = entry.openVPNProfile else { throw AppFailure("perfil OpenVPN ausente.") }
+                    guard let text = entry.openVPNProfile else { throw AppFailure(String(localized: "perfil OpenVPN ausente.")) }
                     _ = try OpenVPNProfile.validated(text)
                 }
                 if connection.isWireGuard {
-                    guard let text = entry.wireGuardProfile else { throw AppFailure("perfil WireGuard ausente.") }
+                    guard let text = entry.wireGuardProfile else { throw AppFailure(String(localized: "perfil WireGuard ausente.")) }
                     _ = try WireGuardProfile.validated(text)
                 }
                 if connection.usesPassword, let password = entry.password, !password.isEmpty {
-                    if connection.isOpenVPN { try OpenVPNRules.checkCredential(password, label: "Senha") }
-                    else { try Connection.checkConfigValue(password, label: "Senha") }
+                    if connection.isOpenVPN { try OpenVPNRules.checkCredential(password, label: String(localized: "Senha")) }
+                    else { try Connection.checkConfigValue(password, label: String(localized: "Senha")) }
                 }
             } catch let violation as RuleViolation { throw failure(violation.message) }
             catch { throw failure(error.localizedDescription) }
@@ -153,8 +159,8 @@ enum ConfigBackup {
                                        wireGuardProfile: entry.connection.isWireGuard ? entry.wireGuardProfile : nil,
                                        requirePassword: false)
             } catch {
-                throw BackupImportFailure(saved: updated, imported: index, message:
-                    "Importação interrompida em \u{201C}\(entry.connection.name)\u{201D} (\(index) de \(payload.connections.count) importadas): \(error.localizedDescription)")
+                throw BackupImportFailure(saved: updated, imported: index, pendingRecovery: AppFailure.isPendingRecovery(error), message:
+                    String(localized: "Importação interrompida em \u{201C}\(entry.connection.name)\u{201D} (\(index) de \(payload.connections.count) importadas): \(error.localizedDescription)"))
             }
         }
         return updated
@@ -165,6 +171,7 @@ enum ConfigBackup {
 struct BackupImportFailure: LocalizedError {
     let saved: SavedData
     let imported: Int
+    let pendingRecovery: Bool
     let message: String
     var errorDescription: String? { message }
 }

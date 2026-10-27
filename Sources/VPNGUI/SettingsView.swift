@@ -41,7 +41,11 @@ struct SettingsSidebar: View {
         List(selection: Binding<SettingsTab?>(get: { menuBar.settingsTab }, set: { if let tab = $0 { menuBar.settingsTab = tab } })) {
             ForEach(SettingsTab.allCases) { tab in
                 HStack(spacing: 8) {
-                    Label(tab.title, systemImage: tab.symbol)
+                    Label {
+                        Text(tab.title)
+                    } icon: {
+                        SidebarIcon(symbol: tab.symbol, color: tab.tileColor)
+                    }
                     Spacer(minLength: 4)
                     indicator(for: tab)
                 }
@@ -49,6 +53,7 @@ struct SettingsSidebar: View {
             }
         }
         .listStyle(.sidebar)
+        .settingsWithoutSidebarToggle()
         .safeAreaInset(edge: .bottom, spacing: 0) {
             Text("Versão \(HelperConstants.releaseVersion) (build \(HelperConstants.build))")
                 .font(.caption).foregroundStyle(.secondary)
@@ -88,10 +93,6 @@ struct SettingsDetail: View {
         let tab = menuBar.settingsTab
         ScrollView(.vertical) {
             VStack(alignment: .leading, spacing: 22) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(tab.title).font(.largeTitle.weight(.semibold)).accessibilityAddTraits(.isHeader)
-                    Text(tab.subtitle).font(.callout).foregroundStyle(.secondary)
-                }
                 switch tab {
                 case .general: GeneralSettings(menuBar: menuBar, preferences: menuBar.preferences, loginItem: menuBar.loginItem)
                 case .updates: UpdateSettings(updates: menuBar.updates, installer: menuBar.installer,
@@ -105,6 +106,7 @@ struct SettingsDetail: View {
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Opaque on every version: the scrolling pane has no backdrop of its own.
         .background(Color(nsColor: .windowBackgroundColor))
         .id(tab) // Each tab starts at the top.
     }
@@ -143,18 +145,88 @@ struct SettingsDivider: View {
     var body: some View { Divider().padding(.leading, 52) }
 }
 
-/// SF Symbol in a colored rounded square.
+/// SF Symbol on a rounded tile that follows the icon style chosen in System Settings ›
+/// Appearance (Default, Dark, Clear or Tinted), like System Settings' own sidebar.
 struct SettingsIcon: View {
     let symbol: String
     let color: Color
     var size: CGFloat = 26
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
+        let style = IconStyle.current(dark: scheme == .dark)
         Image(systemName: symbol)
-            .font(.system(size: size * 0.52, weight: .semibold))
-            .foregroundStyle(.white)
+            .font(.system(size: size * (style == .dark ? 0.54 : 0.5), weight: .semibold))
+            .foregroundStyle(glyph(style))
             .frame(width: size, height: size)
-            .background(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous).fill(color.gradient))
+            .background(shape.fill(tile(style)))
+            .overlay(shape.strokeBorder(Color.white.opacity(style == .dark || style == .tintedDark ? 0.1 : 0), lineWidth: 0.5))
+            // Black tiles keep the bright (dark-mode) colors in a light window, and are flattened
+            // so the light sidebar's vibrancy does not dim the glyph.
+            .environment(\.colorScheme, style == .dark || style == .tintedDark ? .dark : scheme)
+            .compositingGroup()
             .accessibilityHidden(true)
+    }
+
+    private func glyph(_ style: IconStyle) -> AnyShapeStyle {
+        switch style {
+        case .regular, .tinted: return AnyShapeStyle(Color.white)
+        // Neutral tabs read as light gray on black, like System Settings › General.
+        case .dark: return AnyShapeStyle(color == .gray ? Color(white: 0.82) : color)
+        case .tintedDark: return AnyShapeStyle(Color.accentColor)
+        case .clear: return AnyShapeStyle(Color.primary.opacity(0.85))
+        }
+    }
+
+    private func tile(_ style: IconStyle) -> AnyShapeStyle {
+        switch style {
+        case .regular: return AnyShapeStyle(color.gradient)
+        // Almost black in either appearance, so the colored glyph stands out.
+        case .dark, .tintedDark: return AnyShapeStyle(LinearGradient(colors: [Color(white: 0.14), Color(white: 0.02)],
+                                                                     startPoint: .top, endPoint: .bottom))
+        case .tinted: return AnyShapeStyle(Color.accentColor.gradient)
+        case .clear: return AnyShapeStyle(Color.primary.opacity(0.08))
+        }
+    }
+}
+
+/// SettingsIcon drawn into a bitmap for the sidebar. A source list dims and blends the
+/// vector content of its rows (more so in an inactive window); a picture, like System
+/// Settings' own icons, keeps its colors.
+struct SidebarIcon: View {
+    let symbol: String
+    let color: Color
+    var size: CGFloat = 20
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        Group {
+            if let image = render() { Image(nsImage: image) } else { SettingsIcon(symbol: symbol, color: color, size: size) }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+
+    @MainActor private func render() -> NSImage? {
+        let renderer = ImageRenderer(content: SettingsIcon(symbol: symbol, color: color, size: size)
+            .environment(\.colorScheme, scheme))
+        renderer.scale = displayScale
+        return renderer.nsImage
+    }
+}
+
+/// The icon style from System Settings › Appearance (macOS 26+). The key is not documented;
+/// anything unknown falls back to the default, colored tiles.
+enum IconStyle {
+    case regular, dark, clear, tinted, tintedDark
+    static func current(dark: Bool, defaults: UserDefaults = .standard) -> IconStyle {
+        guard let theme = defaults.string(forKey: "AppleIconAppearanceTheme") else { return .regular }
+        // "Automatic" variants follow the light/dark appearance.
+        let darkVariant = theme.hasSuffix("Dark") || (theme.hasSuffix("Automatic") && dark)
+        if theme.hasPrefix("Clear") { return .clear }
+        if theme.hasPrefix("Tinted") { return darkVariant ? .tintedDark : .tinted }
+        return darkVariant ? .dark : .regular
     }
 }
 
@@ -195,9 +267,16 @@ extension SettingsRow where Control == EmptyView {
     }
 }
 
+private extension View {
+    /// The tabs are the whole navigation; hiding them would leave the window without it.
+    @ViewBuilder func settingsWithoutSidebarToggle() -> some View {
+        if #available(macOS 14.0, *) { toolbar(removing: .sidebarToggle) } else { self }
+    }
+}
+
 private extension Toggle {
     func settingsSwitch(_ label: String) -> some View {
-        toggleStyle(.switch).labelsHidden().controlSize(.small).accessibilityLabel(label)
+        toggleStyle(.switch).labelsHidden().controlSize(.mini).accessibilityLabel(label)
     }
 }
 
@@ -209,36 +288,178 @@ struct GeneralSettings: View {
     @ObservedObject var loginItem: LoginItemController
 
     var body: some View {
-        SettingsSection(title: "Aplicativo") {
-            SettingsRow(symbol: "menubar.rectangle", color: .blue, title: "Ícone na barra de menus",
-                        subtitle: "Mostra o TunnelMac na barra de menus para conectar rapidamente.") {
-                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch("Ícone na barra de menus")
+        SettingsSection {
+            HStack(alignment: .center, spacing: 12) {
+                Text("Aparência")
+                Spacer(minLength: 12)
+                AppearancePicker(selection: $preferences.appearance)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            Divider().padding(.leading, 14)
+            HStack(alignment: .center, spacing: 12) {
+                Text("Idioma")
+                Spacer(minLength: 12)
+                Picker("Idioma", selection: $preferences.language) {
+                    Text(AppLanguage.system.title).tag(AppLanguage.system)
+                    Divider()
+                    ForEach(AppLanguage.allCases.filter { $0 != .system }) { language in
+                        Text(verbatim: language.title).tag(language)
+                    }
+                }
+                .labelsHidden().fixedSize()
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            if preferences.language != preferences.launchLanguage {
+                Divider().padding(.leading, 14)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("O novo idioma aparece quando o TunnelMac abrir de novo.")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 12)
+                    Button("Reabrir agora") { AppRelaunch.now() }
+                        .controlSize(.small).adaptiveButtonStyle()
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+            }
+        }
+        SettingsSection(title: String(localized: "Aplicativo")) {
+            SettingsRow(symbol: "menubar.rectangle", color: .blue, title: String(localized: "Ícone na barra de menus"),
+                        subtitle: String(localized: "Para conectar rapidamente.")) {
+                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch(String(localized: "Ícone na barra de menus"))
             }
             SettingsDivider()
-            SettingsRow(symbol: "dock.rectangle", color: .indigo, title: "Ocultar do Dock ao fechar a janela",
-                        subtitle: "Ao fechar a janela, o app continua rodando só na barra de menus.",
-                        note: preferences.showMenuBarIcon ? nil : "Necessário enquanto o ícone da barra de menus estiver desligado") {
+            SettingsRow(symbol: "dock.rectangle", color: .indigo, title: String(localized: "Ocultar do Dock ao fechar a janela"),
+                        subtitle: String(localized: "O app continua na barra de menus."),
+                        note: preferences.showMenuBarIcon ? nil : String(localized: "Precisa do ícone na barra de menus")) {
                 Toggle("Ocultar do Dock ao fechar a janela",
                        isOn: Binding(get: { preferences.hidesDockOnClose }, set: { preferences.hideDockOnClose = $0 }))
-                    .settingsSwitch("Ocultar do Dock ao fechar a janela")
+                    .settingsSwitch(String(localized: "Ocultar do Dock ao fechar a janela"))
                     .disabled(!preferences.showMenuBarIcon)
             }
             SettingsDivider()
-            SettingsRow(symbol: "power", color: .green, title: "Abrir ao iniciar sessão", subtitle: loginItem.detail) {
+            SettingsRow(symbol: "power", color: .green, title: String(localized: "Abrir ao iniciar o Mac"), subtitle: loginItem.detail) {
                 HStack(spacing: 8) {
                     if loginItem.status == .requiresApproval && loginItem.available {
                         Button("Abrir Ajustes…") { loginItem.openSystemSettings() }
                             .controlSize(.small).adaptiveButtonStyle()
                             .help("Ajustes do Sistema › Geral › Itens de Início")
                     }
-                    Toggle("Abrir ao iniciar sessão",
+                    Toggle("Abrir ao iniciar o Mac",
                            isOn: Binding(get: { loginItem.enabled }, set: { loginItem.setEnabled($0) }))
-                        .settingsSwitch("Abrir ao iniciar sessão")
+                        .settingsSwitch(String(localized: "Abrir ao iniciar o Mac"))
                         .disabled(!loginItem.available)
                 }
             }
         }
         InternetDNSSection(preferences: preferences)
+    }
+}
+
+/// Light, Dark and Automatic as window thumbnails, like System Settings › Appearance.
+struct AppearancePicker: View {
+    @Binding var selection: AppAppearance
+    var body: some View {
+        HStack(spacing: 14) {
+            ForEach(AppAppearance.allCases) { option in
+                Button { selection = option } label: {
+                    VStack(spacing: 5) {
+                        AppearanceThumbnail(option: option)
+                            .padding(2)
+                            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .strokeBorder(selection == option ? Color.accentColor : .clear, lineWidth: 2.5))
+                        Text(option.title).font(.caption)
+                            .fontWeight(selection == option ? .semibold : .regular)
+                            .foregroundStyle(selection == option ? .primary : .secondary)
+                            .fixedSize()
+                    }
+                    .frame(minWidth: 72)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(option.title)
+                .accessibilityAddTraits(selection == option ? [.isButton, .isSelected] : .isButton)
+            }
+        }
+    }
+}
+
+/// A tiny window: title bar, accent bar and traffic lights; Automatic is half light, half dark.
+struct AppearanceThumbnail: View {
+    let option: AppAppearance
+    private let size = CGSize(width: 67, height: 44)
+
+    /// The same pictures System Settings › Appearance shows, read from the system at run time
+    /// (nothing is copied into the app). The location is not public, so a drawing stands in
+    /// when they are missing.
+    private static let systemPane = Bundle(path: "/System/Library/ExtensionKit/Extensions/Appearance.appex")
+    private var systemImage: NSImage? {
+        let name: String
+        switch option {
+        case .light: name = "AppearanceLight"
+        case .dark: name = "AppearanceDark"
+        case .automatic: name = "AppearanceAuto"
+        }
+        return Self.systemPane?.image(forResource: name)
+    }
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        Group {
+            if let systemImage {
+                Image(nsImage: systemImage).resizable().interpolation(.high)
+            } else {
+                drawing
+            }
+        }
+        .frame(width: size.width, height: size.height)
+        .clipShape(shape)
+        .accessibilityHidden(true)
+    }
+
+    private var drawing: some View {
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        return Group {
+            switch option {
+            case .light: window(dark: false)
+            case .dark: window(dark: true)
+            case .automatic:
+                ZStack {
+                    window(dark: false)
+                    window(dark: true).mask(DiagonalHalf())
+                }
+            }
+        }
+        .overlay(shape.strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
+    }
+
+    private func window(dark: Bool) -> some View {
+        ZStack(alignment: .topLeading) {
+            Rectangle().fill(dark ? Color(white: 0.14) : Color(white: 0.97))
+            VStack(alignment: .leading, spacing: 4) {
+                RoundedRectangle(cornerRadius: 2).fill(Color.accentColor).frame(width: 30, height: 5)
+                RoundedRectangle(cornerRadius: 2).fill(Color.gray.opacity(dark ? 0.5 : 0.3)).frame(width: 22, height: 4)
+                Spacer(minLength: 0)
+                HStack(spacing: 3) {
+                    Circle().fill(Color.red)
+                    Circle().fill(Color.yellow)
+                    Circle().fill(Color.green)
+                }
+                .frame(height: 5)
+            }
+            .padding(6)
+        }
+    }
+}
+
+/// Lower-right triangle, for the dark half of the Automatic thumbnail.
+private struct DiagonalHalf: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.maxX * 0.62, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.maxX * 0.38, y: rect.maxY))
+            path.closeSubpath()
+        }
     }
 }
 
@@ -249,9 +470,9 @@ struct InternetDNSSection: View {
     @State private var adding = false
 
     var body: some View {
-        SettingsSection(title: "Rede") {
-            SettingsRow(symbol: "network", color: .teal, title: "DNS da internet",
-                        subtitle: "Aplicado com uma VPN conectada; o anterior volta ao desconectar.") {
+        SettingsSection(title: String(localized: "Rede")) {
+            SettingsRow(symbol: "network", color: .teal, title: String(localized: "DNS da internet"),
+                        subtitle: String(localized: "Usado enquanto uma VPN está conectada.")) {
                 menu
             }
         }
@@ -264,7 +485,7 @@ struct InternetDNSSection: View {
     }
 
     private var selectedLabel: String {
-        selectedID == InternetDNSOption.offID ? "Não alterar"
+        selectedID == InternetDNSOption.offID ? String(localized: "Não alterar")
             : preferences.internetDNSOptions.first { $0.id == selectedID }?.label ?? InternetDNSOption.cloudflare.label
     }
 
@@ -341,7 +562,7 @@ struct UpdateSettings: View {
     @State private var showsHomebrew = false
 
     var body: some View {
-        SettingsSection(title: "Versão instalada") {
+        SettingsSection(title: String(localized: "Versão instalada")) {
             SettingsRow(symbol: "shippingbox", color: .blue, title: "TunnelMac \(HelperConstants.releaseVersion)",
                         subtitle: lastCheckText) {
                 HStack(spacing: 8) {
@@ -357,43 +578,41 @@ struct UpdateSettings: View {
         if !updates.checking {
             switch updates.outcome {
             case .failed:
-                InlineNotice(tone: .warning, symbol: "wifi.exclamationmark", title: "Não foi possível verificar agora",
-                             message: "Sem conexão ou limite da API do GitHub. A próxima verificação programada tenta de novo.")
+                InlineNotice(tone: .warning, symbol: "wifi.exclamationmark", title: String(localized: "Não foi possível verificar agora"),
+                             message: String(localized: "Sem internet ou GitHub indisponível. Tenta de novo mais tarde."))
             case .upToDate:
-                InlineNotice(tone: .success, symbol: "checkmark.circle", title: "Você está na versão mais recente")
+                InlineNotice(tone: .success, symbol: "checkmark.circle", title: String(localized: "Você está na versão mais recente"))
             case .none, .available:
                 EmptyView()
             }
         }
         if let offer = updates.offer { offerSection(offer) }
-        SettingsSection(title: "Verificação", footer: "Consulta as versões públicas do app no GitHub e dos clientes VPN no Homebrew. Sem credenciais ou dados das conexões. Desativar bloqueia ambas as consultas automáticas; a verificação manual continua disponível.") {
-            SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: "Verificar automaticamente",
-                        subtitle: "Ao abrir o app e ao conectar, no máximo a cada 4 horas.") {
-                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch("Verificar automaticamente")
+        SettingsSection(title: String(localized: "Verificação")) {
+            SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: String(localized: "Verificar automaticamente"),
+                        subtitle: String(localized: "Ao abrir o app e ao conectar.")) {
+                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch(String(localized: "Verificar automaticamente"))
             }
             SettingsDivider()
-            SettingsRow(symbol: "testtube.2", color: .purple, title: "Incluir versões de teste (release candidates)",
-                        subtitle: "Também oferece versões candidatas, antes da versão estável.") {
+            SettingsRow(symbol: "testtube.2", color: .purple, title: String(localized: "Incluir versões de teste")) {
                 Toggle("Incluir versões de teste", isOn: Binding(get: { preferences.includePrereleases },
                                                                   set: { preferences.includePrereleases = $0; updates.channelChanged() }))
-                    .settingsSwitch("Incluir versões de teste")
+                    .settingsSwitch(String(localized: "Incluir versões de teste"))
             }
         }
     }
 
     private var lastCheckText: String {
         guard let last = preferences.lastUpdateSuccess else {
-            return preferences.lastUpdateAttempt == nil ? "Ainda não verificado" : "Nenhuma verificação concluída ainda"
+            return preferences.lastUpdateAttempt == nil ? String(localized: "Ainda não verificado") : String(localized: "Nenhuma verificação concluída ainda")
         }
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "pt_BR")
         formatter.unitsStyle = .full
         let now = updates.now()
-        return now.timeIntervalSince(last) < 60 ? "Verificado há instantes" : "Verificado \(formatter.localizedString(for: last, relativeTo: now))"
+        return now.timeIntervalSince(last) < 60 ? String(localized: "Verificado há instantes") : String(localized: "Verificado \(formatter.localizedString(for: last, relativeTo: now))")
     }
 
     @ViewBuilder private func offerSection(_ offer: UpdateOffer) -> some View {
-        SettingsSection(title: "Nova versão") {
+        SettingsSection(title: String(localized: "Nova versão")) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .center, spacing: 12) {
                     Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 40, height: 40).accessibilityHidden(true)
@@ -423,12 +642,12 @@ struct UpdateSettings: View {
             }
             .padding(14)
         }
-        SettingsSection(title: "Como atualizar") {
+        SettingsSection(title: String(localized: "Como atualizar")) {
             VStack(alignment: .leading, spacing: 12) {
                 if installer.available && installer.awaitingQuit {
                     Button { installer.install(offer) } label: { Label("Instalar e reabrir", systemImage: "arrow.clockwise.circle") }
                         .adaptiveButtonStyle(prominent: true).controlSize(.small)
-                    Text("A versão \(offer.version) já foi baixada e conferida. Ela é instalada quando o TunnelMac é encerrado; as VPNs conectadas são desconectadas antes.")
+                    Text("A versão \(offer.version) já foi baixada. Ela é instalada quando você fechar o app.")
                         .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 } else if installer.available {
                     HStack(spacing: 10) {
@@ -439,12 +658,12 @@ struct UpdateSettings: View {
                             Text("Acompanhe na janela de atualização.").font(.caption).foregroundStyle(.secondary)
                         }
                     }
-                    Text("O TunnelMac baixa a versão \(offer.version), confere a assinatura e reinicia sozinho. VPNs conectadas são desconectadas antes da instalação; perfis, senhas e o serviço privilegiado são mantidos.")
+                    Text("Baixa a versão \(offer.version) e reabre o app. As VPNs são desconectadas; conexões e senhas ficam.")
                         .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     if installedByHomebrew {
                         DisclosureGroup("Prefiro atualizar pelo Homebrew", isExpanded: $showsHomebrew) {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("As duas formas funcionam. O Homebrew normalmente ignora apps que se atualizam sozinhos; use o comando abaixo para pedir a atualização deste app.")
+                                Text("Use o comando abaixo; o Homebrew não atualiza este app sozinho.")
                                     .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                                 homebrewSteps
                             }
@@ -455,7 +674,7 @@ struct UpdateSettings: View {
                 } else if installedByHomebrew {
                     homebrewSteps
                 } else {
-                    Text("Este app não foi instalado pelo Homebrew. Baixe a nova versão na página do GitHub e substitua o app com o TunnelMac fechado.")
+                    Text("Baixe a nova versão no GitHub e substitua o app com ele fechado.")
                         .font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     Button { open(offer) } label: { Label("Baixar no GitHub", systemImage: "arrow.down.circle") }
                         .adaptiveButtonStyle(prominent: true).controlSize(.small)
@@ -468,9 +687,9 @@ struct UpdateSettings: View {
     /// Quit, run the command, reopen: Homebrew refuses to upgrade while the app runs.
     @ViewBuilder private var homebrewSteps: some View {
         VStack(alignment: .leading, spacing: 4) {
-            step(1, "Saia do TunnelMac com Sair (isso desconecta as VPNs).")
-            step(2, "Cole o comando no Terminal.")
-            step(3, "Abra o app de novo.")
+            step(1, String(localized: "Saia do TunnelMac com Sair (isso desconecta as VPNs)."))
+            step(2, String(localized: "Cole o comando no Terminal."))
+            step(3, String(localized: "Abra o app de novo."))
         }
         Text(HomebrewInstall.upgradeCommand)
             .font(.system(.callout, design: .monospaced))
@@ -500,9 +719,10 @@ struct UpdateSettings: View {
     }
 
     private func subtitle(_ offer: UpdateOffer) -> String {
-        var parts = [offer.prerelease ? "Versão de teste" : "Versão estável"]
+        var parts = [offer.prerelease ? String(localized: "Versão de teste") : String(localized: "Versão estável")]
         if let date = offer.publishedAt {
-            parts.append("publicada em " + date.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "pt_BR"))))
+            let published = date.formatted(.dateTime.day().month(.wide).year())
+            parts.append(String(localized: "publicada em \(published)"))
         }
         return parts.joined(separator: " · ")
     }
@@ -519,15 +739,15 @@ struct ServiceSettings: View {
     /// Checked against SECURITY.md and VPNHelperCore: XPC peers must carry this app's
     /// identifier and Team ID, the helper only starts the approved, integrity-checked
     /// runtime copy, and passwords reach it per connection through file descriptors.
-    static let explanation = "O openfortivpn, o OpenVPN e o WireGuard precisam de privilégios de administrador para criar a interface da VPN e ajustar rotas e DNS. Em vez de pedir sua senha a cada conexão ou rodar o app como root, o TunnelMac registra um pequeno serviço do sistema que só aceita pedidos deste app assinado, só executa as cópias do openfortivpn, do OpenVPN e do wireguard-go que você aprovou e não guarda senhas: elas ficam no seu Keychain e são entregues só ao conectar. Você pode removê-lo aqui a qualquer momento."
+    static let explanation = String(localized: "Cria o túnel da VPN e ajusta rotas e DNS sem pedir sua senha a cada conexão. Só aceita pedidos deste app e não guarda senhas.")
 
     /// What to do first on top (state, approvals, actions); the explanation below.
     var body: some View {
-        SettingsSection(title: "Estado") {
+        SettingsSection(title: String(localized: "Estado")) {
             ServicePanel(model: model).padding(16)
         }
-        SettingsSection(title: "Por que este serviço existe",
-                        footer: "Antes de desinstalar com brew uninstall, use Remover serviço acima.") {
+        SettingsSection(title: String(localized: "Para que serve"),
+                        footer: String(localized: "Antes de desinstalar o app, use Remover serviço.")) {
             HStack(alignment: .top, spacing: 12) {
                 SettingsIcon(symbol: "lock.shield", color: .blue)
                 Text(Self.explanation).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
@@ -551,26 +771,26 @@ struct AboutSettings: View {
             }
         }
         .accessibilityElement(children: .combine)
-        SettingsSection(title: "Links") {
-            link("chevron.left.forwardslash.chevron.right", .gray, "Repositório", "github.com/\(UpdateFeed.repository)", UpdateFeed.repositoryPage)
+        SettingsSection(title: String(localized: "Links")) {
+            link("chevron.left.forwardslash.chevron.right", .gray, String(localized: "Repositório"), "github.com/\(UpdateFeed.repository)", UpdateFeed.repositoryPage)
             SettingsDivider()
-            link("doc.text", .blue, "Notas desta versão", "v\(HelperConstants.releaseVersion) no GitHub",
+            link("doc.text", .blue, String(localized: "Notas desta versão"), String(localized: "v\(HelperConstants.releaseVersion) no GitHub"),
                  UpdateFeed.releasePage(for: HelperConstants.releaseVersion))
             SettingsDivider()
-            link("checkmark.seal", .green, "Licença", "MIT", URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/LICENSE"))
+            link("checkmark.seal", .green, String(localized: "Licença"), "MIT", URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/LICENSE"))
             SettingsDivider()
-            link("list.bullet.rectangle", .orange, "Avisos de terceiros", "THIRD_PARTY_NOTICES.md",
+            link("list.bullet.rectangle", .orange, String(localized: "Avisos de terceiros"), "THIRD_PARTY_NOTICES.md",
                  URL(string: "https://github.com/\(UpdateFeed.repository)/blob/main/THIRD_PARTY_NOTICES.md"))
         }
-        SettingsSection(title: "Dependências") {
+        SettingsSection(title: String(localized: "Dependências")) {
             SettingsRow(symbol: "terminal", color: .gray, title: "openfortivpn",
-                        subtitle: "Para Fortinet SSL VPN. Dependência externa, instalada pelo Homebrew e mantida pelo próprio projeto. Não é distribuída com o TunnelMac.")
+                        subtitle: String(localized: "Para Fortinet SSL VPN."))
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "OpenVPN 2.7+",
-                        subtitle: "Para perfis OpenVPN (brew install openvpn). Dependência externa, não distribuída com o TunnelMac.")
+                        subtitle: String(localized: "Para perfis OpenVPN."))
             SettingsDivider()
             SettingsRow(symbol: "terminal", color: .gray, title: "wireguard-go",
-                        subtitle: "Para perfis WireGuard (brew install wireguard-go). Dependência externa, não distribuída com o TunnelMac; o wg-quick não é usado.")
+                        subtitle: String(localized: "Para perfis WireGuard."))
         }
     }
 
@@ -607,7 +827,7 @@ struct UpdateCard: View {
             Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 34, height: 34).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text("TunnelMac \(offer.version) disponível").font(.callout.weight(.semibold))
-                Text(summary.isEmpty ? "Uma nova versão está disponível." : summary)
+                Text(summary.isEmpty ? String(localized: "Uma nova versão está disponível.") : summary)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             .frame(maxWidth: .infinity, alignment: .leading)

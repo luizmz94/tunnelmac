@@ -507,7 +507,7 @@ enum SettingsTests {
             menuBar.installUpdate()
             try require(menuBar.settingsTab == .updates && !menuBar.installer.available, "Atualizar sem Sparkle não mostrou como atualizar")
             window.orderOut(nil)
-            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape", "arrow.triangle.2.circlepath", "lock.shield", "archivebox", "info.circle"], "Ícones das abas")
+            try require(Set(SettingsTab.allCases.map(\.symbol)) == ["gearshape.fill", "arrow.triangle.2.circlepath", "lock.shield.fill", "archivebox.fill", "info"], "Ícones das abas")
             for symbol in SettingsTab.allCases.map(\.symbol) + ["menubar.rectangle", "dock.rectangle", "power", "rectangle.portrait.and.arrow.right",
                            "shippingbox", "clock.arrow.circlepath", "testtube.2", "wifi.exclamationmark", "checkmark.circle", "arrow.up.right.square",
                            "doc.on.doc", "terminal", "arrow.down.circle", "chevron.left.forwardslash.chevron.right", "doc.text", "checkmark.seal",
@@ -519,7 +519,7 @@ enum SettingsTests {
             }
         }
 
-        test("Abrir ao iniciar sessão: estado real, aprovação e indisponível sem registrar") {
+        test("Abrir ao iniciar o Mac: estado real, aprovação e indisponível sem registrar") {
             let unavailable = LoginItemController(service: nil, unavailableReason: "ad hoc")
             unavailable.setEnabled(true)
             try require(!unavailable.available && !unavailable.enabled && unavailable.detail == "ad hoc", "Indisponível")
@@ -527,14 +527,14 @@ enum SettingsTests {
             let controller = LoginItemController(service: fake)
             fake.afterRegister = .requiresApproval
             controller.setEnabled(true)
-            try require(controller.status == .requiresApproval && controller.enabled && controller.detail.contains("Itens de Início"), "Aprovação pendente")
+            try require(controller.status == .requiresApproval && controller.enabled && controller.detail?.contains("Itens de Início") == true, "Aprovação pendente")
             controller.openSystemSettings()
             fake.status = .enabled; controller.refresh()
             controller.setEnabled(false)
             try require(fake.events == ["register", "settings", "unregister"] && controller.status == .notRegistered, "Eventos: \(fake.events)")
             fake.error = AppFailure("negado")
             controller.setEnabled(true)
-            try require(controller.message?.contains("negado") == true && controller.detail.contains("negado"), "Erro sem mensagem")
+            try require(controller.message?.contains("negado") == true && controller.detail?.contains("negado") == true, "Erro sem mensagem")
             try require(LoginItemController.production().available == false, "Executor de verificações poderia registrar um item de início")
         }
 

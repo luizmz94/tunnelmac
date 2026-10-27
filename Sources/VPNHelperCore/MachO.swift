@@ -44,24 +44,24 @@ public struct MachOImage {
         let thin = try Self.hostSlice(file)
         data = thin
         guard thin.count >= 32, Self.u32(thin, 0) == 0xfeedfacf else {
-            throw failure(.runtimeRejected, "Somente executáveis Mach-O de 64 bits são aceitos.")
+            throw failure(.runtimeRejected, ServiceLanguage.text("Somente executáveis Mach-O de 64 bits são aceitos."))
         }
-        guard Self.u32(thin, 4) == Self.hostCPU else { throw failure(.runtimeRejected, "Arquitetura diferente da deste Mac.") }
+        guard Self.u32(thin, 4) == Self.hostCPU else { throw failure(.runtimeRejected, ServiceLanguage.text("Arquitetura diferente da deste Mac.")) }
         fileType = Self.u32(thin, 12)
         let count = Int(Self.u32(thin, 16)), total = Int(Self.u32(thin, 20))
-        guard count > 0, count < 4096, 32 + total <= thin.count else { throw failure(.runtimeRejected, "Cabeçalho Mach-O inválido.") }
+        guard count > 0, count < 4096, 32 + total <= thin.count else { throw failure(.runtimeRejected, ServiceLanguage.text("Cabeçalho Mach-O inválido.")) }
         var offset = 32
         for _ in 0..<count {
-            guard offset + 8 <= 32 + total else { throw failure(.runtimeRejected, "Comandos Mach-O truncados.") }
+            guard offset + 8 <= 32 + total else { throw failure(.runtimeRejected, ServiceLanguage.text("Comandos Mach-O truncados.")) }
             let raw = Self.u32(thin, offset), size = Int(Self.u32(thin, offset + 4))
-            guard size >= 8, size % 8 == 0, offset + size <= 32 + total else { throw failure(.runtimeRejected, "Comando Mach-O inválido.") }
+            guard size >= 8, size % 8 == 0, offset + size <= 32 + total else { throw failure(.runtimeRejected, ServiceLanguage.text("Comando Mach-O inválido.")) }
             if let command = Command(rawValue: raw) {
-                guard size >= 16 else { throw failure(.runtimeRejected, "Comando Mach-O curto.") }
+                guard size >= 16 else { throw failure(.runtimeRejected, ServiceLanguage.text("Comando Mach-O curto.")) }
                 let stringOffset = Int(Self.u32(thin, offset + 8))
-                guard stringOffset >= 12, stringOffset < size else { throw failure(.runtimeRejected, "Texto de comando Mach-O inválido.") }
+                guard stringOffset >= 12, stringOffset < size else { throw failure(.runtimeRejected, ServiceLanguage.text("Texto de comando Mach-O inválido.")) }
                 let start = offset + stringOffset, end = offset + size
                 let bytes = thin[start..<end]
-                guard let terminator = bytes.firstIndex(of: 0) else { throw failure(.runtimeRejected, "Texto de comando Mach-O sem terminador.") }
+                guard let terminator = bytes.firstIndex(of: 0) else { throw failure(.runtimeRejected, ServiceLanguage.text("Texto de comando Mach-O sem terminador.")) }
                 let value = String(decoding: thin[start..<terminator], as: UTF8.self)
                 strings.append(StringCommand(command: command, offset: offset, size: size, stringOffset: stringOffset, value: value))
             }
@@ -77,7 +77,7 @@ public struct MachOImage {
             let capacity = entry.size - entry.stringOffset
             let bytes = Array(replacement.utf8)
             guard bytes.count + 1 <= capacity, !bytes.contains(0) else {
-                throw failure(.runtimeRejected, "Caminho de dependência não cabe no comando Mach-O: \(entry.value)")
+                throw failure(.runtimeRejected, ServiceLanguage.text("Caminho de dependência não cabe no comando Mach-O: \(entry.value)"))
             }
             let start = entry.offset + entry.stringOffset
             data.replaceSubrange(start..<(start + capacity), with: bytes + [UInt8](repeating: 0, count: capacity - bytes.count))
@@ -98,22 +98,22 @@ public struct MachOImage {
     static func be64(_ data: Data, _ offset: Int) -> UInt64 { UInt64(be32(data, offset)) << 32 | UInt64(be32(data, offset + 4)) }
 
     static func hostSlice(_ file: Data) throws -> Data {
-        guard file.count >= 8 else { throw failure(.runtimeRejected, "Arquivo Mach-O inválido.") }
+        guard file.count >= 8 else { throw failure(.runtimeRejected, ServiceLanguage.text("Arquivo Mach-O inválido.")) }
         let magic = be32(file, 0)
         guard magic == 0xcafebabe || magic == 0xcafebabf else { return Data(file) }
         let count = Int(be32(file, 4))
         let wide = magic == 0xcafebabf
         let entry = wide ? 32 : 20
-        guard count > 0, count < 32, 8 + count * entry <= file.count else { throw failure(.runtimeRejected, "Cabeçalho universal inválido.") }
+        guard count > 0, count < 32, 8 + count * entry <= file.count else { throw failure(.runtimeRejected, ServiceLanguage.text("Cabeçalho universal inválido.")) }
         for index in 0..<count {
             let base = 8 + index * entry
             guard be32(file, base) == hostCPU else { continue }
             guard let offset = Int(exactly: wide ? be64(file, base + 8) : UInt64(be32(file, base + 8))),
                   let size = Int(exactly: wide ? be64(file, base + 16) : UInt64(be32(file, base + 12))),
-                  offset >= 8 + count * entry, size > 0, offset <= file.count, size <= file.count - offset else { throw failure(.runtimeRejected, "Fatia universal inválida.") }
+                  offset >= 8 + count * entry, size > 0, offset <= file.count, size <= file.count - offset else { throw failure(.runtimeRejected, ServiceLanguage.text("Fatia universal inválida.")) }
             return file.subdata(in: (file.startIndex + offset)..<(file.startIndex + offset + size))
         }
-        throw failure(.runtimeRejected, "O arquivo não contém a arquitetura deste Mac.")
+        throw failure(.runtimeRejected, ServiceLanguage.text("O arquivo não contém a arquitetura deste Mac."))
     }
 
     public static func isMachO(_ file: Data) -> Bool {

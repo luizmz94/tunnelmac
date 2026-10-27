@@ -539,7 +539,7 @@ enum HelperTests {
             try model.save(a, password: "fixturePASSvalue42"); try model.save(b, password: "fixturePASSvalue42")
             model.connect(a); model.connect(b)
             let sa = model.manager.session(a.id), sb = model.manager.session(b.id)
-            try require(spin(15) { sa.state == .connected && sb.state == .connected }, "Túneis fictícios não conectaram: \(sa.state) \(sb.state) \(sa.logs.suffix(3))")
+            try require(spin(15) { sa.state == .connected && sb.state == .connected }, "Túneis fictícios não conectaram: \(sa.state) \(sb.state) \(sa.logs.suffix(3)) \(sb.logs.suffix(5))")
             try require(fixture.core.sessionCount == 2 && sa.pid != sb.pid, "Sessões não independentes")
             let oldToken = sa.token
             model.manager.disconnect(a.id)

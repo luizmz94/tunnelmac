@@ -21,15 +21,16 @@ public final class SystemAdminAuthorizer: AdminAuthorizing {
     static let description = "TunnelMac quer aprovar ou remover a cópia protegida de um cliente VPN (openfortivpn, OpenVPN ou wireguard-go)."
 
     public static func approvalPrompt(_ kind: RuntimeKind, path: String) -> String {
-        let client: String
         switch kind {
-        case .openfortivpn: client = "o openfortivpn (Fortinet)"
-        case .openvpn: client = "o OpenVPN"
-        case .wireguard: client = "o wireguard-go (WireGuard)"
+        case .openfortivpn:
+            return ServiceLanguage.text("TunnelMac quer aprovar o openfortivpn (Fortinet) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
+        case .openvpn:
+            return ServiceLanguage.text("TunnelMac quer aprovar o OpenVPN para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
+        case .wireguard:
+            return ServiceLanguage.text("TunnelMac quer aprovar o wireguard-go (WireGuard) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
         }
-        return "TunnelMac quer aprovar \(client) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path)."
     }
-    public static let removalPrompt = "TunnelMac quer remover as cópias protegidas dos clientes VPN e os arquivos do serviço."
+    public static var removalPrompt: String { ServiceLanguage.text("TunnelMac quer remover as cópias protegidas dos clientes VPN e os arquivos do serviço.") }
 
     /// Rights created by older builds keep their first description ("VPN GUI …").
     static func descriptionIsCurrent(_ definition: [String: Any]?) -> Bool {

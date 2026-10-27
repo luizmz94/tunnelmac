@@ -44,6 +44,7 @@ rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Library/LaunchDaemons" "$app/Contents/Resources" "$app/Contents/Frameworks"
 cp Resources/AppIcon.icns "$app/Contents/Resources/AppIcon.icns"
 cp Resources/Brand/*.png "$app/Contents/Resources/"
+scripts/compile-strings.sh "$app"
 cp "$bin_dir"/VPNGUI "$app/Contents/MacOS/VPNGUI"
 cp "$bin_dir"/VPNHelper "$app/Contents/MacOS/VPNHelper"
 cp "$bin_dir"/VPNSupervisor "$app/Contents/MacOS/VPNSupervisor"
@@ -58,8 +59,8 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleDevelopmentRegion</key><string>pt-BR</string>
-<key>CFBundleLocalizations</key><array><string>pt-BR</string></array>
+<key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleLocalizations</key><array>$(scripts/compile-strings.sh --plist)</array>
 <key>CFBundleExecutable</key><string>VPNGUI</string>
 <key>CFBundleIdentifier</key><string>com.luiz.vpngui</string>
 <key>CFBundleName</key><string>TunnelMac</string>

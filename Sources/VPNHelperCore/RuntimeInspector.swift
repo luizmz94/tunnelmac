@@ -66,12 +66,12 @@ public enum RuntimeInspector {
         var current = path
         while true {
             var info = stat()
-            guard lstat(current, &info) == 0 else { throw failure(.runtimeRejected, "Caminho inacessível: \(current)") }
+            guard lstat(current, &info) == 0 else { throw failure(.runtimeRejected, ServiceLanguage.text("Caminho inacessível: \(current)")) }
             guard info.st_uid == 0 || info.st_uid == requester else {
-                throw failure(.runtimeRejected, "\(current) pertence a outro usuário (uid \(info.st_uid)); não é aceito.")
+                throw failure(.runtimeRejected, ServiceLanguage.text("\(current) pertence a outro usuário (uid \(info.st_uid)); não é aceito."))
             }
             if (info.st_mode & S_IFMT) == S_IFDIR, info.st_mode & S_IWOTH != 0, info.st_mode & S_ISVTX == 0 {
-                throw failure(.runtimeRejected, "\(current) pode ser alterado por qualquer usuário; não é aceito.")
+                throw failure(.runtimeRejected, ServiceLanguage.text("\(current) pode ser alterado por qualquer usuário; não é aceito."))
             }
             if current == "/" { return }
             current = (current as NSString).deletingLastPathComponent
@@ -83,11 +83,11 @@ public enum RuntimeInspector {
         let name = kind.executableName
         guard candidate.hasPrefix("/"), candidate.utf8.count <= 1024, !candidate.contains("\0"),
               (candidate as NSString).lastPathComponent == name else {
-            throw failure(.invalidRequest, "Indique o caminho absoluto de um executável chamado \(name).")
+            throw failure(.invalidRequest, ServiceLanguage.text("Indique o caminho absoluto de um executável chamado \(name)."))
         }
         let resolved = try SecureFile.realPath(candidate)
         guard (resolved as NSString).lastPathComponent == name else {
-            throw failure(.runtimeRejected, "O caminho resolve para outro arquivo: \(resolved)")
+            throw failure(.runtimeRejected, ServiceLanguage.text("O caminho resolve para outro arquivo: \(resolved)"))
         }
         var images: [InspectedImage] = []
         var indexByPath: [String: Int] = [:]
@@ -96,17 +96,17 @@ public enum RuntimeInspector {
         while !queue.isEmpty {
             let (path, role) = queue.removeFirst()
             guard indexByPath[path] == nil else { continue }
-            guard images.count < maximumImages else { throw failure(.runtimeRejected, "Dependências demais para uma cópia gerenciada.") }
+            guard images.count < maximumImages else { throw failure(.runtimeRejected, ServiceLanguage.text("Dependências demais para uma cópia gerenciada.")) }
             try checkForeignControl(path, requester: requester)
             let (data, info) = try SecureFile.read(path, limit: maximumImageSize)
-            guard MachOImage.isMachO(data) else { throw failure(.runtimeRejected, "Não é Mach-O: \(path)") }
+            guard MachOImage.isMachO(data) else { throw failure(.runtimeRejected, ServiceLanguage.text("Não é Mach-O: \(path)")) }
             let image = try MachOImage(file: data)
             guard image.fileType == (role == .executable ? MachOImage.executable : MachOImage.dylib) else {
-                throw failure(.runtimeRejected, "Tipo Mach-O inesperado: \(path)")
+                throw failure(.runtimeRejected, ServiceLanguage.text("Tipo Mach-O inesperado: \(path)"))
             }
-            guard !image.hasDyldEnvironment else { throw failure(.runtimeRejected, "LC_DYLD_ENVIRONMENT não é aceito: \(path)") }
+            guard !image.hasDyldEnvironment else { throw failure(.runtimeRejected, ServiceLanguage.text("LC_DYLD_ENVIRONMENT não é aceito: \(path)")) }
             if role == .executable, image.dylinker != "/usr/lib/dyld" {
-                throw failure(.runtimeRejected, "Carregador dinâmico inesperado em \(path).")
+                throw failure(.runtimeRejected, ServiceLanguage.text("Carregador dinâmico inesperado em \(path)."))
             }
             var entry = InspectedImage(role: role, resolvedPath: path, original: data, image: image,
                                        sha256: Digest.sha256(data), ownerUID: info.st_uid,
@@ -129,7 +129,7 @@ public enum RuntimeInspector {
         for library in images.dropFirst() {
             let leaf = (library.resolvedPath as NSString).lastPathComponent
             guard leaf.range(of: #"^[A-Za-z0-9._+-]+\.dylib$"#, options: .regularExpression) != nil, leaves.insert(leaf).inserted else {
-                throw failure(.runtimeRejected, "Nome de biblioteca inválido ou repetido: \(leaf)")
+                throw failure(.runtimeRejected, ServiceLanguage.text("Nome de biblioteca inválido ou repetido: \(leaf)"))
             }
         }
         let package = kegVersion(resolved)
@@ -137,12 +137,12 @@ public enum RuntimeInspector {
         var notes: [String] = []
         if kind == .openvpn {
             if let script = try dnsScript(for: resolved, requester: requester) { scripts.append(script) }
-            else { notes.append("Script dns-updown do OpenVPN não encontrado junto ao executável: o túnel funcionará, mas o DNS da VPN não será configurado.") }
+            else { notes.append(ServiceLanguage.text("Script dns-updown do OpenVPN não encontrado junto ao executável: o túnel funcionará, mas o DNS da VPN não será configurado.")) }
         }
         let warnings = images.filter(\.mutableLocation).map {
-            "\($0.resolvedPath) está em local alterável sem senha de administrador (dono uid \($0.ownerUID)). A aprovação congela exatamente estes bytes numa cópia protegida; confira a origem antes de aprovar."
+            ServiceLanguage.text("\($0.resolvedPath) está em local alterável sem senha de administrador (dono uid \($0.ownerUID)). A aprovação congela exatamente estes bytes numa cópia protegida; confira a origem antes de aprovar.")
         } + scripts.filter(\.mutableLocation).map {
-            "\($0.resolvedPath) (script de DNS executado como root) está em local alterável sem senha de administrador. A aprovação congela estes bytes."
+            ServiceLanguage.text("\($0.resolvedPath) (script de DNS executado como root) está em local alterável sem senha de administrador. A aprovação congela estes bytes.")
         } + notes
         let listing = (images.map { "\($0.role.rawValue)\t\($0.resolvedPath)\t\($0.sha256)" }
                        + scripts.map { "script\t\($0.relativePath)\t\($0.resolvedPath)\t\($0.sha256)" })
@@ -166,7 +166,7 @@ public enum RuntimeInspector {
         let (data, info) = try SecureFile.read(path, limit: maximumScriptSize)
         let firstLine = data.prefix(64).split(separator: 10).first.map { String(decoding: $0, as: UTF8.self) } ?? ""
         guard ["#!/bin/bash", "#!/bin/sh"].contains(firstLine.trimmingCharacters(in: .whitespaces)) else {
-            throw failure(.runtimeRejected, "O script dns-updown não usa um interpretador do sistema (/bin/bash ou /bin/sh).")
+            throw failure(.runtimeRejected, ServiceLanguage.text("O script dns-updown não usa um interpretador do sistema (/bin/bash ou /bin/sh)."))
         }
         return InspectedScript(relativePath: "libexec/dns-updown", resolvedPath: path, data: data, sha256: Digest.sha256(data),
                                ownerUID: info.st_uid, mutableLocation: SecureFile.mutableLocation(path))
@@ -190,7 +190,7 @@ public enum RuntimeInspector {
         for candidate in candidates where candidate.hasPrefix("/") {
             if let real = try? SecureFile.realPath(candidate) { return real }
         }
-        throw failure(.runtimeRejected, "Dependência não resolvida com segurança: \(name)")
+        throw failure(.runtimeRejected, ServiceLanguage.text("Dependência não resolvida com segurança: \(name)"))
     }
 
     /// ".../Cellar/<formula>/<version>/..." → "<formula> <version>" (provenance only).

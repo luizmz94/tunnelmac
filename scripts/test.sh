@@ -40,7 +40,8 @@ if [[ "${1:-}" == "--prepare-only" ]]; then
     exit 0
 fi
 rm -f "$out/TestResults.txt" "$out/TestResults.txt.stderr" "$out/TestCommit.txt"
-open -W -n "$runner" --args --headless
+# The checks compare messages in the source language (pt-BR), whatever the Mac uses.
+open -W -n "$runner" --args --headless -AppleLanguages "(pt-BR)"
 cat "$out/TestResults.txt"
 if ! /usr/bin/grep -q '^OK: 0 falha(s)' "$out/TestResults.txt"; then exit 1; fi
 

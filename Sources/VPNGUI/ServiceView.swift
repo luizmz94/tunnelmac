@@ -86,17 +86,17 @@ struct ServicePanel: View {
             Button("Remover serviço e arquivos gerenciados", role: .destructive) { service.remove(includeManagedFiles: true) }
             Button("Cancelar", role: .cancel) {}
         } message: {
-            Text("As conexões ativas serão desconectadas e o app aguardará a limpeza antes de remover o registro. Cadastros e senhas são preservados. Remover os arquivos gerenciados (\(HelperConstants.stateDirectory)) exige administrador.")
+            Text("As VPNs conectadas serão desconectadas. Conexões e senhas são mantidas.")
         }
     }
 
     private var clientsDetail: String {
         if service.health == .userNotAuthorized {
-            return "Um administrador precisa aprovar um cliente VPN neste usuário do macOS antes da primeira conexão."
+            return String(localized: "Aprove um cliente VPN antes da primeira conexão.")
         }
         return service.health == .ready
-            ? "Conectar não pede senha de administrador enquanto o serviço estiver habilitado e íntegro."
-            : "Aprove o cliente VPN que você usa. É preciso fazer isso uma vez e depois de cada atualização dele."
+            ? String(localized: "Conectar não pede senha de administrador.")
+            : String(localized: "Aprove o cliente VPN que você usa, de novo a cada atualização dele.")
     }
 
     // MARK: Clients
@@ -115,7 +115,7 @@ struct ServicePanel: View {
                 }
             }
             .contentPanel()
-            Text("Aprovar faz uma cópia protegida do cliente encontrado no caminho informado e pede a senha de administrador uma vez. O serviço só executa essa cópia: atualizar o Homebrew não muda nada até você aprovar de novo.")
+            Text("Aprovar pede a senha de administrador uma vez. Depois de atualizar pelo Homebrew, aprove de novo.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -184,26 +184,26 @@ struct ServicePanel: View {
         switch state {
         case .notInstalled:
             return Presentation(symbol: "arrow.down.circle", tone: .neutral,
-                                text: "Não instalado. Instale pelo Homebrew no Terminal e volte aqui para aprovar:",
+                                text: String(localized: "Não instalado. Instale no Terminal e volte para aprovar:"),
                                 command: "brew install \(formula)")
         case .notApproved(let installed, let latest):
             if let latest {
                 return Presentation(symbol: "arrow.up.circle", tone: .warning,
-                                    text: "Versão \(installed ?? "instalada") desatualizada (atual: \(latest)). Atualize antes de aprovar:",
+                                    text: String(localized: "Desatualizado (\(installed ?? "?") → \(latest)). Atualize antes de aprovar:"),
                                     command: "brew upgrade \(formula)")
             }
             return Presentation(symbol: "exclamationmark.shield", tone: .warning,
-                                text: "Instalado\(installed.map { " (\($0))" } ?? ""), ainda não aprovado. Aprove para conectar com ele.", command: nil)
-        case .updateAvailable(let current, let latest):
+                                text: installed.map { String(localized: "Instalado (\($0)), falta aprovar.") } ?? String(localized: "Instalado, falta aprovar."), command: nil)
+        case .updateAvailable(_, let latest):
             return Presentation(symbol: "arrow.up.circle", tone: .warning,
-                                text: "Versão \(current) instalada; a \(latest) já está disponível. Atualize e depois aprove de novo:",
+                                text: String(localized: "A versão \(latest) está disponível. Atualize e aprove de novo:"),
                                 command: "brew upgrade \(formula)")
-        case .approvalOutdated(let approved, let installed):
+        case .approvalOutdated(_, let installed):
             return Presentation(symbol: "arrow.triangle.2.circlepath", tone: .warning,
-                                text: "O app usa a cópia aprovada \(approved), mas a instalação local agora tem \(installed ?? "outra versão"). Aprove de novo para usar a nova.",
+                                text: String(localized: "Nova versão instalada (\(installed ?? "?")). Aprove de novo para usá-la."),
                                 command: nil)
         case .upToDate(let version):
-            return Presentation(symbol: "checkmark.seal", tone: .success, text: "Versão \(version), aprovada e atualizada.", command: nil)
+            return Presentation(symbol: "checkmark.seal", tone: .success, text: String(localized: "Versão \(version), aprovada."), command: nil)
         }
     }
 

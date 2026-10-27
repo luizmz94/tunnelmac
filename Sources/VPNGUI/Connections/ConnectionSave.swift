@@ -12,11 +12,11 @@ struct ConnectionSave {
         let c = try connection.validated()
         let storesPassword = c.usesPassword && (requirePassword || !password.isEmpty)
         if storesPassword {
-            guard !password.isEmpty else { throw AppFailure("Informe a senha da VPN.") }
+            guard !password.isEmpty else { throw AppFailure(String(localized: "Informe a senha da VPN.")) }
             if c.isOpenVPN {
-                do { try OpenVPNRules.checkCredential(password, label: "Senha") }
+                do { try OpenVPNRules.checkCredential(password, label: String(localized: "Senha")) }
                 catch let violation as RuleViolation { throw AppFailure(violation.message) }
-            } else { try Connection.checkConfigValue(password, label: "Senha") }
+            } else { try Connection.checkConfigValue(password, label: String(localized: "Senha")) }
         }
         if c.isOpenVPN {
             let profiles = ProfileStore.openVPN(store)

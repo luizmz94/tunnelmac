@@ -25,11 +25,11 @@ struct ProfileStore {
     func read(_ id: UUID) throws -> String {
         let url = file(id)
         guard FileManager.default.fileExists(atPath: url.path) else {
-            throw AppFailure("O perfil \(label) desta conexão não foi encontrado. Importe-o novamente.")
+            throw AppFailure(String(localized: "O perfil \(label) desta conexão não foi encontrado. Importe-o novamente."))
         }
         let data = try BoundedFile.read(url, limit: maximumSize)
         guard data.count <= maximumSize, let text = String(data: data, encoding: .utf8) else {
-            throw AppFailure("Perfil \(label) salvo ilegível.")
+            throw AppFailure(String(localized: "Perfil \(label) salvo ilegível."))
         }
         return text
     }
@@ -40,14 +40,14 @@ struct ProfileStore {
         let temporary = directory.appendingPathComponent(".\(id.uuidString).\(UUID().uuidString).tmp")
         // Created 0600 before any byte is written; then atomically renamed into place.
         guard FileManager.default.createFile(atPath: temporary.path, contents: nil, attributes: [.posixPermissions: 0o600]) else {
-            throw AppFailure("Não foi possível gravar o perfil \(label).")
+            throw AppFailure(String(localized: "Não foi possível gravar o perfil \(label)."))
         }
         do {
             let handle = try FileHandle(forWritingTo: temporary)
             try handle.write(contentsOf: Data(text.utf8))
             try handle.synchronize()
             try handle.close()
-            guard rename(temporary.path, url.path) == 0 else { throw AppFailure("Não foi possível gravar o perfil \(label).") }
+            guard rename(temporary.path, url.path) == 0 else { throw AppFailure(String(localized: "Não foi possível gravar o perfil \(label).")) }
         } catch {
             try? FileManager.default.removeItem(at: temporary)
             throw error

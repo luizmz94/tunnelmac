@@ -3,9 +3,19 @@ import AppKit
 
 struct MenuBarLabel: View {
     @ObservedObject var menuBar: MenuBarCoordinator
+    /// Rotation step while a connection is starting or stopping. The label is rendered into the
+    /// status item as a still image, so SwiftUI animations do not run there: the frames are swapped
+    /// by hand, and only during transitions, since each frame costs CPU.
+    @State private var step = 0
+    private static let steps = 24, interval: Duration = .milliseconds(125)
+    private var spinning: Bool {
+        menuBar.pendingCount > 0 && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    }
     var body: some View {
         HStack(spacing: 3) {
-            if let image = BrandAssets.menuIcon {
+            if let image = BrandAssets.menuIcon(connected: menuBar.connectedCount > 0,
+                                                angle: spinning ? CGFloat(step) * 360 / CGFloat(Self.steps) : 0,
+                                                badge: menuBar.connectedCount) {
                 Image(nsImage: image)
             } else {
                 Image(systemName: "shield")
@@ -17,6 +27,13 @@ struct MenuBarLabel: View {
         }
             .accessibilityLabel(menuBar.accessibilityDescription)
             .help(menuBar.accessibilityDescription)
+            .task(id: spinning) {
+                guard spinning else { step = 0; return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: Self.interval)
+                    step = (step + 1) % Self.steps
+                }
+            }
     }
 }
 
@@ -50,6 +67,7 @@ struct MenuBarView: View {
             footer.padding(.horizontal, 10).padding(.vertical, 10)
         }
         .frame(width: 360)
+        .menuBarGlass()
         .animation(Motion.state(reduceMotion), value: menuBar.summary)
         .onAppear {
             menuBar.openWindowFallback = { openWindow(id: MenuBarCoordinator.sceneID) }
@@ -75,11 +93,11 @@ struct MenuBarView: View {
 
     @ViewBuilder private var content: some View {
         if !model.ready {
-            message(title: "Não foi possível carregar as conexões", symbol: "exclamationmark.triangle", tone: .warning,
-                    detail: (model.error ?? "O arquivo existente foi preservado.") + "\nAs ações de conexão ficam indisponíveis até o problema ser resolvido.")
+            message(title: String(localized: "Não foi possível carregar as conexões"), symbol: "exclamationmark.triangle", tone: .warning,
+                    detail: (model.error ?? String(localized: "O arquivo existente foi preservado.")) + String(localized: "\nAs ações de conexão ficam indisponíveis até o problema ser resolvido."))
         } else if model.data.connections.isEmpty {
-            message(title: "Nenhuma conexão cadastrada", symbol: "network", tone: .neutral,
-                    detail: "Use Abrir TunnelMac para cadastrar uma conexão.")
+            message(title: String(localized: "Nenhuma conexão cadastrada"), symbol: "network", tone: .neutral,
+                    detail: String(localized: "Use Abrir TunnelMac para cadastrar uma conexão."))
         } else {
             let duplicated = menuBar.duplicatedNames
             ScrollView(.vertical) {
@@ -124,7 +142,7 @@ struct MenuBarView: View {
                 if showService {
                     InlineNotice(tone: model.service.health.tone == .danger ? .danger : .warning,
                                  symbol: model.service.health.symbol, title: model.service.health.title,
-                                 message: "Conectar fica indisponível até o serviço estar pronto.") {
+                                 message: String(localized: "Conectar fica indisponível até o serviço estar pronto.")) {
                         Button("Gerenciar…") { menuBar.showServiceManagement() }
                     }
                 }
@@ -189,6 +207,16 @@ struct MenuBarView: View {
 }
 
 private extension View {
+    /// The window's own opaque panel gives way to Liquid Glass on macOS 26+.
+    @ViewBuilder func menuBarGlass() -> some View {
+        if #available(macOS 26, *) {
+            containerBackground(.clear, for: .window)
+                .glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
+        } else {
+            self
+        }
+    }
+
     /// Glass buttons on macOS 26+; the previous borderless look before.
     @ViewBuilder func adaptiveMenuFooterStyle() -> some View {
         if #available(macOS 26, *) { buttonStyle(.glass) } else { buttonStyle(.borderless) }
@@ -210,9 +238,7 @@ struct MenuBarRow: View {
     var body: some View {
         let action = MenuBarRowAction.of(session, ready: menuBar.model.ready, serviceReady: menuBar.model.service.canConnect)
         HStack(alignment: .center, spacing: 10) {
-            StatusSymbol(symbol: Self.symbol(session.state), tone: session.state.tone,
-                         pulsing: session.state.inProgress, size: 14)
-            ProtocolIcon(kind: connection.kind, size: 18)
+            ProtocolTile(kind: connection.kind, state: session.state, size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(connection.name).font(.body.weight(.medium)).lineLimit(2).truncationMode(.middle)
                 if showsServer {
@@ -220,7 +246,7 @@ struct MenuBarRow: View {
                         .lineLimit(1).truncationMode(.middle)
                 }
                 HStack(spacing: 5) {
-                    Text(session.authenticationRejected && !session.state.active ? "Autenticação recusada" : session.state.rawValue)
+                    Text(session.authenticationRejected && !session.state.active ? String(localized: "Autenticação recusada") : session.state.title)
                     if let start = session.connectedAt, session.state == .connected {
                         Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
                         ElapsedTime(start: start)
@@ -233,12 +259,24 @@ struct MenuBarRow: View {
             .accessibilityElement(children: .combine)
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 3) {
-                Button(action.title) { menuBar.perform(connection) }
-                    .controlSize(.small)
-                    .adaptiveButtonStyle()
-                    .disabled(!action.enabled)
-                    .help(help(for: action))
-                    .accessibilityLabel("\(action.title) \(connection.name)")
+                if action == .review {
+                    Button("Revisar…") { menuBar.perform(connection) }
+                        .controlSize(.small)
+                        .adaptiveButtonStyle()
+                        .help(help(for: action))
+                        .accessibilityLabel("Revisar acesso de \(connection.name)")
+                } else {
+                    // Like Wi-Fi and VPN in Control Center: on while connected or on the way there.
+                    Toggle(action.title, isOn: Binding(get: { session.state.active && action != .disconnecting },
+                                                       set: { _ in menuBar.perform(connection) }))
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .controlSize(.small)
+                        .disabled(!action.enabled)
+                        .help(help(for: action))
+                        .accessibilityLabel(connection.name)
+                        .accessibilityValue(session.state.title)
+                }
                 if !session.state.active, session.suggestedCertificate != nil {
                     Button("Conferir certificado…") { menuBar.showMainWindow(selecting: connection.id) }
                         .buttonStyle(.link).font(.caption)
@@ -255,11 +293,11 @@ struct MenuBarRow: View {
 
     private func help(for action: MenuBarRowAction) -> String {
         switch action {
-        case .connect: return "Conectar \(connection.name)"
-        case .disconnect: return "Desconectar \(connection.name); cancela também reconexões e fila SAML"
-        case .disconnecting: return "Aguardando o encerramento e a limpeza de rotas e DNS"
-        case .review: return "A última autenticação foi recusada. Abra a janela para revisar o cadastro"
-        case .unavailable: return menuBar.model.ready ? "Serviço privilegiado indisponível; use Gerenciar…" : "Os dados não foram carregados"
+        case .connect: return String(localized: "Conectar \(connection.name)")
+        case .disconnect: return String(localized: "Desconectar \(connection.name); cancela também reconexões e fila SAML")
+        case .disconnecting: return String(localized: "Aguardando o encerramento e a limpeza de rotas e DNS")
+        case .review: return String(localized: "A última autenticação foi recusada. Abra a janela para revisar o cadastro")
+        case .unavailable: return menuBar.model.ready ? String(localized: "Serviço privilegiado indisponível; use Gerenciar…") : String(localized: "Os dados não foram carregados")
         }
     }
 

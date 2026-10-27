@@ -129,7 +129,7 @@ extension AppUpdater: SPUUpdaterDelegate {
         try MainActor.assumeIsolated {
             guard Self.matchesOffer(updateItem, version: feedVersion) else {
                 throw NSError(domain: "TunnelMac.Updater", code: 1,
-                              userInfo: [NSLocalizedDescriptionKey: "A atualização não corresponde à versão oferecida. Tente verificar novamente."])
+                              userInfo: [NSLocalizedDescriptionKey: String(localized: "A atualização não corresponde à versão oferecida. Tente verificar novamente.")])
             }
         }
     }

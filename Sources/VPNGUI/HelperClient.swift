@@ -57,7 +57,7 @@ final class HelperClient {
                 let waiting = self.waitingForHello
                 self.waitingForHello = []
                 self.helloInFlight = false
-                waiting.forEach { $0(.failure(HelperFailure(.transport, "Conexão com o serviço perdida."))) }
+                waiting.forEach { $0(.failure(HelperFailure(.transport, String(localized: "Conexão com o serviço perdida.")))) }
                 self.onLost?()
             }
         }
@@ -91,7 +91,7 @@ final class HelperClient {
         waitingForHello.append(completion)
         guard !helloInFlight else { return }
         helloInFlight = true
-        send(.hello(HelloRequest(appVersion: HelperConstants.fullVersion)), timeout: 15) { [weak self] result in
+        send(.hello(HelloRequest(appVersion: HelperConstants.fullVersion, language: Bundle.main.preferredLocalizations.first)), timeout: 15) { [weak self] result in
             guard let self else { return }
             self.helloInFlight = false
             let outcome: Result<HelperStatus, HelperFailure>
@@ -101,7 +101,7 @@ final class HelperClient {
                 self.onStatus?(status)
                 outcome = .success(status)
             case .success(.failure(let failure)): outcome = .failure(failure)
-            case .success: outcome = .failure(HelperFailure(.invalidRequest, "Resposta inesperada do serviço."))
+            case .success: outcome = .failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço.")))
             case .failure(let failure): outcome = .failure(failure)
             }
             let waiting = self.waitingForHello
@@ -113,14 +113,14 @@ final class HelperClient {
     private func send(_ request: HelperRequest, timeout: TimeInterval,
                       completion: @escaping (Result<HelperResponse, HelperFailure>) -> Void) {
         guard let connection = ensureConnection() else {
-            completion(.failure(HelperFailure(.unavailable, "Serviço privilegiado indisponível neste ambiente.")))
+            completion(.failure(HelperFailure(.unavailable, String(localized: "Serviço privilegiado indisponível neste ambiente."))))
             return
         }
         let once = Once(completion)
         let proxy = connection.remoteObjectProxyWithErrorHandler { error in
-            DispatchQueue.main.async { once.call(.failure(HelperFailure(.transport, "Sem resposta do serviço: \(error.localizedDescription)"))) }
+            DispatchQueue.main.async { once.call(.failure(HelperFailure(.transport, String(localized: "Sem resposta do serviço: \(error.localizedDescription)")))) }
         } as? VPNHelperXPC
-        guard let proxy else { once.call(.failure(HelperFailure(.transport, "Interface do serviço indisponível."))); return }
+        guard let proxy else { once.call(.failure(HelperFailure(.transport, String(localized: "Interface do serviço indisponível.")))); return }
         DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
             guard once.pending else { return }
             // Invalidating ownership makes the helper abandon even a queued/late start.
@@ -135,14 +135,14 @@ final class HelperClient {
                 }
             default: break // A read-only timeout must not disconnect healthy sessions.
             }
-            once.call(.failure(HelperFailure(.timeout, "O serviço não respondeu a tempo.")))
+            once.call(.failure(HelperFailure(.timeout, String(localized: "O serviço não respondeu a tempo."))))
         }
         proxy.perform(MessageCodec.encode(request)) { data in
             let decoded: Result<HelperResponse, HelperFailure>
             do {
                 let response = try MessageCodec.decode(HelperResponse.self, from: data, limit: HelperConstants.maximumBatchSize)
                 decoded = .success(response)
-            } catch { decoded = .failure(HelperFailure(.invalidRequest, "Resposta malformada do serviço.")) }
+            } catch { decoded = .failure(HelperFailure(.invalidRequest, String(localized: "Resposta malformada do serviço."))) }
             DispatchQueue.main.async {
                 if !once.pending, case .success(.started(let token, _)) = decoded {
                     proxy.perform(MessageCodec.encode(HelperRequest.stop(token: token))) { _ in }

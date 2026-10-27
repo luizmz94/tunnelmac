@@ -38,8 +38,8 @@ public struct OpenVPNConfigText: Equatable, Sendable {
     public static let maximumSize = 256 * 1024
 
     public static func parse(_ text: String) throws -> OpenVPNConfigText {
-        guard text.utf8.count <= maximumSize else { throw RuleViolation("Perfil OpenVPN acima de 256 KB.") }
-        guard !text.unicodeScalars.contains("\0") else { throw RuleViolation("Perfil OpenVPN contém bytes nulos.") }
+        guard text.utf8.count <= maximumSize else { throw RuleViolation(ServiceLanguage.text("Perfil OpenVPN acima de 256 KB.")) }
+        guard !text.unicodeScalars.contains("\0") else { throw RuleViolation(ServiceLanguage.text("Perfil OpenVPN contém bytes nulos.")) }
         var result = OpenVPNConfigText()
         var openBlock: (tag: String, lines: [String], start: Int)?
         let rawLines = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
@@ -61,7 +61,7 @@ public struct OpenVPNConfigText: Equatable, Sendable {
                 guard trimmed.hasSuffix(">"), !trimmed.hasPrefix("</"),
                       let tag = Optional(String(trimmed.dropFirst().dropLast())),
                       tag.range(of: #"^[a-z0-9-]{1,32}$"#, options: .regularExpression) != nil else {
-                    throw RuleViolation("Linha \(number): marcação inválida \(trimmed.prefix(40)).")
+                    throw RuleViolation(ServiceLanguage.text("Linha \(number): marcação inválida \(trimmed.prefix(40))."))
                 }
                 openBlock = (tag, [], number)
                 continue
@@ -78,7 +78,7 @@ public struct OpenVPNConfigText: Equatable, Sendable {
             guard let name = tokens.first else { continue }
             result.lines.append(Line(number: number, directive: OpenVPNDirective(name, Array(tokens.dropFirst()))))
         }
-        if let block = openBlock { throw RuleViolation("Linha \(block.start): bloco <\(block.tag)> sem fechamento.") }
+        if let block = openBlock { throw RuleViolation(ServiceLanguage.text("Linha \(block.start): bloco <\(block.tag)> sem fechamento.")) }
         return result
     }
 
@@ -108,8 +108,8 @@ public struct OpenVPNConfigText: Equatable, Sendable {
             if character == "\"" || character == "'" { quote = character; continue }
             current.append(character)
         }
-        if quote != nil { throw RuleViolation("Linha \(number): aspas sem fechamento.") }
-        if escape { throw RuleViolation("Linha \(number): barra invertida no fim da linha.") }
+        if quote != nil { throw RuleViolation(ServiceLanguage.text("Linha \(number): aspas sem fechamento.")) }
+        if escape { throw RuleViolation(ServiceLanguage.text("Linha \(number): barra invertida no fim da linha.")) }
         if inToken { tokens.append(current) }
         return tokens
     }
@@ -128,7 +128,7 @@ public struct OpenVPNProfile: Equatable, Sendable {
 
     /// Strict form: only allowlisted directives and inline blocks, no file references.
     public static func validated(_ text: String) throws -> OpenVPNProfile {
-        guard text.utf8.count <= maximumNormalizedSize else { throw RuleViolation("Perfil OpenVPN acima de 96 KB.") }
+        guard text.utf8.count <= maximumNormalizedSize else { throw RuleViolation(ServiceLanguage.text("Perfil OpenVPN acima de 96 KB.")) }
         let parsed = try OpenVPNConfigText.parse(text)
         let profile = OpenVPNProfile(directives: parsed.lines.map(\.directive), blocks: parsed.blocks)
         try profile.check()
@@ -139,31 +139,31 @@ public struct OpenVPNProfile: Equatable, Sendable {
         var seenBlocks = Set<String>()
         for block in blocks {
             guard OpenVPNRules.blockTags.contains(block.tag) else {
-                throw RuleViolation("Bloco <\(block.tag)> não é suportado.")
+                throw RuleViolation(ServiceLanguage.text("Bloco <\(block.tag)> não é suportado."))
             }
             guard seenBlocks.insert(block.tag).inserted else { throw RuleViolation("Bloco <\(block.tag)> repetido.") }
             try OpenVPNRules.checkBlock(block)
         }
-        guard directives.count <= 512 else { throw RuleViolation("Diretivas demais no perfil.") }
+        guard directives.count <= 512 else { throw RuleViolation(ServiceLanguage.text("Diretivas demais no perfil.")) }
         for directive in directives {
             if OpenVPNRules.blockTags.contains(directive.name) {
                 // Key material must be inline; a path would make root open a file.
-                throw RuleViolation("\(directive.name): referência a arquivo não é aceita; o material precisa estar no próprio perfil.")
+                throw RuleViolation(ServiceLanguage.text("\(directive.name): referência a arquivo não é aceita; o material precisa estar no próprio perfil."))
             }
             guard let rule = OpenVPNRules.allowed[directive.name] else {
-                throw RuleViolation("Diretiva não suportada: \(directive.name).")
+                throw RuleViolation(ServiceLanguage.text("Diretiva não suportada: \(directive.name)."))
             }
             try rule.check(directive)
         }
         guard directives.contains(where: { $0.name == "remote" }) else {
-            throw RuleViolation("O perfil não tem nenhum servidor (remote).")
+            throw RuleViolation(ServiceLanguage.text("O perfil não tem nenhum servidor (remote)."))
         }
         guard directives.contains(where: { $0.name == "client" })
                 || (directives.contains { $0.name == "tls-client" } && directives.contains { $0.name == "pull" }) else {
-            throw RuleViolation("O perfil não é de cliente (falta client).")
+            throw RuleViolation(ServiceLanguage.text("O perfil não é de cliente (falta client)."))
         }
         if let dev = directives.last(where: { $0.name == "dev" })?.arguments.first, !dev.hasPrefix("tun") && !dev.hasPrefix("utun") {
-            throw RuleViolation("Somente interfaces tun são suportadas no macOS.")
+            throw RuleViolation(ServiceLanguage.text("Somente interfaces tun são suportadas no macOS."))
         }
         // Some check that a certificate of the same CA issued to a client cannot pass as the server.
         let verifiesServer = directives.contains { directive in
@@ -175,24 +175,24 @@ public struct OpenVPNProfile: Equatable, Sendable {
             }
         }
         guard verifiesServer else {
-            throw RuleViolation("O perfil não verifica a identidade do servidor (remote-cert-tls server ou verify-x509-name). Solicite um perfil atualizado ao administrador.")
+            throw RuleViolation(ServiceLanguage.text("O perfil não verifica a identidade do servidor (remote-cert-tls server ou verify-x509-name). Solicite um perfil atualizado ao administrador."))
         }
         for directive in directives {
             if directive.name == "tls-cert-profile", directive.arguments.first == "insecure" {
-                throw RuleViolation("tls-cert-profile insecure não é aceito; solicite uma política TLS atualizada.")
+                throw RuleViolation(ServiceLanguage.text("tls-cert-profile insecure não é aceito; solicite uma política TLS atualizada."))
             }
             if ["tls-version-min", "tls-version-max"].contains(directive.name),
                ["1.0", "1.1"].contains(directive.arguments.first ?? "") {
-                throw RuleViolation("TLS anterior a 1.2 não é aceito; solicite um perfil atualizado.")
+                throw RuleViolation(ServiceLanguage.text("TLS anterior a 1.2 não é aceito; solicite um perfil atualizado."))
             }
         }
-        guard seenBlocks.contains("ca") else { throw RuleViolation("O perfil não tem a autoridade certificadora (<ca>).") }
+        guard seenBlocks.contains("ca") else { throw RuleViolation(ServiceLanguage.text("O perfil não tem a autoridade certificadora (<ca>).")) }
         if seenBlocks.contains("cert") != seenBlocks.contains("key") {
-            throw RuleViolation("Certificado e chave do cliente precisam vir juntos.")
+            throw RuleViolation(ServiceLanguage.text("Certificado e chave do cliente precisam vir juntos."))
         }
         if seenBlocks.contains("key"), let key = blocks.first(where: { $0.tag == "key" }),
            key.content.contains("ENCRYPTED") {
-            throw RuleViolation("Chave privada protegida por senha ainda não é suportada.")
+            throw RuleViolation(ServiceLanguage.text("Chave privada protegida por senha ainda não é suportada."))
         }
     }
 
@@ -251,7 +251,7 @@ public enum OpenVPNConfigRenderer {
         if let dnsScript {
             guard dnsScript.hasPrefix("/"), !dnsScript.contains("\""), !dnsScript.contains("\\"),
                   !dnsScript.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else {
-                throw RuleViolation("Caminho do script de DNS inválido.")
+                throw RuleViolation(ServiceLanguage.text("Caminho do script de DNS inválido."))
             }
             // Level 2 is required for a command other than the compiled-in default. The
             // allowlist keeps every other script directive out, so only this one can run.
@@ -265,13 +265,13 @@ public enum OpenVPNConfigRenderer {
         if !profile.directives.contains(where: { $0.name == "verb" }) { content += "verb 3\n" }
         if profile.requiresCredentials {
             guard let username, let password, !username.isEmpty, !password.isEmpty else {
-                throw RuleViolation("Este perfil OpenVPN exige usuário e senha.")
+                throw RuleViolation(ServiceLanguage.text("Este perfil OpenVPN exige usuário e senha."))
             }
-            try OpenVPNRules.checkCredential(username, label: "Usuário")
-            try OpenVPNRules.checkCredential(password, label: "Senha")
+            try OpenVPNRules.checkCredential(username, label: ServiceLanguage.text("Usuário"))
+            try OpenVPNRules.checkCredential(password, label: ServiceLanguage.text("Senha"))
             content += "<auth-user-pass>\n\(username)\n\(password)\n</auth-user-pass>\n"
         } else if username != nil || password != nil {
-            throw RuleViolation("Este perfil OpenVPN não usa usuário e senha.")
+            throw RuleViolation(ServiceLanguage.text("Este perfil OpenVPN não usa usuário e senha."))
         }
         return content
     }
@@ -288,10 +288,10 @@ public enum OpenVPNRules {
         func check(_ directive: OpenVPNDirective) throws {
             let arguments = directive.arguments
             guard (minimum...maximum).contains(arguments.count) else {
-                throw RuleViolation("\(directive.name): número de argumentos inesperado.")
+                throw RuleViolation(ServiceLanguage.text("\(directive.name): número de argumentos inesperado."))
             }
             guard arguments.allSatisfy(OpenVPNRules.safeArgument), check(arguments) else {
-                throw RuleViolation("\(directive.name): valor não aceito.")
+                throw RuleViolation(ServiceLanguage.text("\(directive.name): valor não aceito."))
             }
         }
     }
@@ -381,43 +381,43 @@ public enum OpenVPNRules {
         for name in ["up", "down", "route-up", "route-pre-down", "ipchange", "tls-verify", "learn-address",
                      "client-connect", "client-disconnect", "auth-user-pass-verify", "plugin", "script-security",
                      "dns-updown", "up-delay", "up-restart", "down-pre", "iproute", "tls-export-cert"] {
-            reasons[name] = "executa programas; o DNS é configurado pelo script dns-updown do OpenVPN aprovado"
+            reasons[name] = ServiceLanguage.text("executa programas; o DNS é configurado pelo script dns-updown do OpenVPN aprovado")
         }
-        for name in ["setenv", "setenv-safe"] { reasons[name] = "altera o ambiente dos scripts executados como root" }
+        for name in ["setenv", "setenv-safe"] { reasons[name] = ServiceLanguage.text("altera o ambiente dos scripts executados como root") }
         for name in ["log", "log-append", "status", "status-version", "writepid", "replay-persist", "tmp-dir", "cd", "chroot", "daemon", "syslog"] {
-            reasons[name] = "lê ou grava arquivos; o app guarda os logs"
+            reasons[name] = ServiceLanguage.text("lê ou grava arquivos; o app guarda os logs")
         }
         for name in ["management", "management-client", "management-hold", "management-query-passwords",
                      "management-signal", "management-forget-disconnect", "management-up-down", "management-log-cache",
                      "management-client-user", "management-client-group", "management-external-key",
                      "management-external-cert", "management-query-remote", "management-query-proxy"] {
-            reasons[name] = "abre um canal de controle externo"
+            reasons[name] = ServiceLanguage.text("abre um canal de controle externo")
         }
-        for name in ["providers", "engine"] { reasons[name] = "carrega módulos de criptografia de fora da cópia aprovada" }
-        for name in ["user", "group"] { reasons[name] = "troca a identidade do processo e impede a limpeza de rotas" }
+        for name in ["providers", "engine"] { reasons[name] = ServiceLanguage.text("carrega módulos de criptografia de fora da cópia aprovada") }
+        for name in ["user", "group"] { reasons[name] = ServiceLanguage.text("troca a identidade do processo e impede a limpeza de rotas") }
         for name in ["block-outside-dns", "register-dns", "ip-win32", "route-method", "dhcp-renew", "dhcp-release",
                      "win-sys", "tap-sleep", "dhcp-pre-release", "allow-nonadmin", "windows-driver"] {
-            reasons[name] = "só se aplica ao Windows"
+            reasons[name] = ServiceLanguage.text("só se aplica ao Windows")
         }
-        reasons["auth-retry"] = "o app controla novas tentativas para não bloquear a conta"
-        reasons["ignore-unknown-option"] = "o app não ignora diretivas desconhecidas"
-        reasons["machine-readable-output"] = "o formato dos logs é controlado pelo app"
-        reasons["ncp-disable"] = "removida no OpenVPN 2.6"
+        reasons["auth-retry"] = ServiceLanguage.text("o app controla novas tentativas para não bloquear a conta")
+        reasons["ignore-unknown-option"] = ServiceLanguage.text("o app não ignora diretivas desconhecidas")
+        reasons["machine-readable-output"] = ServiceLanguage.text("o formato dos logs é controlado pelo app")
+        reasons["ncp-disable"] = ServiceLanguage.text("removida no OpenVPN 2.6")
         return reasons
     }()
 
     static func checkBlock(_ block: OpenVPNBlock) throws {
         guard !block.content.isEmpty, block.content.utf8.count <= maximumBlock else {
-            throw RuleViolation("Bloco <\(block.tag)> vazio ou acima de 64 KB.")
+            throw RuleViolation(ServiceLanguage.text("Bloco <\(block.tag)> vazio ou acima de 64 KB."))
         }
         for line in block.content.split(separator: "\n", omittingEmptySubsequences: false) {
             let ok = line.unicodeScalars.allSatisfy { ($0.value >= 0x20 && $0.value < 0x7f) || $0 == "\t" }
             guard ok, !line.trimmingCharacters(in: .whitespaces).hasPrefix("<") else {
-                throw RuleViolation("Bloco <\(block.tag)> com conteúdo inesperado (somente PEM ou chave estática em texto).")
+                throw RuleViolation(ServiceLanguage.text("Bloco <\(block.tag)> com conteúdo inesperado (somente PEM ou chave estática em texto)."))
             }
         }
         let pem = block.content.contains("-----BEGIN ")
-        guard pem else { throw RuleViolation("Bloco <\(block.tag)> não contém material PEM.") }
+        guard pem else { throw RuleViolation(ServiceLanguage.text("Bloco <\(block.tag)> não contém material PEM.")) }
     }
 
     /// Credentials become two lines of an inline block: no line breaks, no NUL, no markup.
@@ -425,7 +425,7 @@ public enum OpenVPNRules {
         guard value.utf8.count <= 512,
               !value.unicodeScalars.contains(where: { $0 == "\n" || $0 == "\r" || $0 == "\0" }),
               !value.trimmingCharacters(in: .whitespaces).hasPrefix("<") else {
-            throw RuleViolation("\(label): quebra de linha, caractere nulo ou início com < não são suportados.")
+            throw RuleViolation(ServiceLanguage.text("\(label): quebra de linha, caractere nulo ou início com < não são suportados."))
         }
     }
 }

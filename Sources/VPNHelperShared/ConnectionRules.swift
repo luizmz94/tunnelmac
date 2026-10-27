@@ -23,13 +23,13 @@ public enum ConnectionRules {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-:[]")
         guard !value.isEmpty, value.count <= maximumHost, value.unicodeScalars.allSatisfy(allowed.contains),
               !value.hasPrefix("-"), !value.contains("/") else {
-            throw RuleViolation("Informe somente o hostname ou IP do servidor, sem protocolo ou porta.")
+            throw RuleViolation(ServiceLanguage.text("Informe somente o hostname ou IP do servidor, sem protocolo ou porta."))
         }
         return value
     }
 
     public static func checkPort(_ port: Int) throws {
-        guard (1...65535).contains(port) else { throw RuleViolation("A porta deve estar entre 1 e 65535.") }
+        guard (1...65535).contains(port) else { throw RuleViolation(ServiceLanguage.text("A porta deve estar entre 1 e 65535.")) }
     }
 
     /// openfortivpn's config is line based and trims surrounding whitespace.
@@ -37,7 +37,7 @@ public enum ConnectionRules {
         guard text.utf8.count <= maximumField,
               !text.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               text == text.trimmingCharacters(in: .whitespacesAndNewlines) else {
-            throw RuleViolation("\(label): caracteres de controle ou espaços nas extremidades não são suportados.")
+            throw RuleViolation(ServiceLanguage.text("\(label): caracteres de controle ou espaços nas extremidades não são suportados."))
         }
     }
 
@@ -45,7 +45,7 @@ public enum ConnectionRules {
     public static func checkRealm(_ realm: String) throws {
         guard realm.isEmpty || (realm.count <= 64 && !realm.hasPrefix("-")
               && realm.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || "._-".contains($0)) })) else {
-            throw RuleViolation("Realm: use somente letras, números, ponto, hífen ou sublinhado.")
+            throw RuleViolation(ServiceLanguage.text("Realm: use somente letras, números, ponto, hífen ou sublinhado."))
         }
     }
 
@@ -61,19 +61,19 @@ public enum ConnectionRules {
             } else if inet_pton(AF_INET6, value, &v6) == 1 {
                 inet_ntop(AF_INET6, &v6, &buffer, socklen_t(buffer.count))
             } else {
-                throw RuleViolation("DNS da internet: \"\(value)\" não é um endereço IP.")
+                throw RuleViolation(ServiceLanguage.text("DNS da internet: \"\(value)\" não é um endereço IP."))
             }
             let canonical = String(cString: buffer)
             if !result.contains(canonical) { result.append(canonical) }
         }
-        guard (1...4).contains(result.count) else { throw RuleViolation("DNS da internet: informe de 1 a 4 servidores.") }
+        guard (1...4).contains(result.count) else { throw RuleViolation(ServiceLanguage.text("DNS da internet: informe de 1 a 4 servidores.")) }
         return result
     }
 
     public static func normalizedCertificate(_ value: String) throws -> String {
         let digest = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard digest.isEmpty || (digest.count == 64 && digest.allSatisfy({ $0.isHexDigit && $0.isASCII })) else {
-            throw RuleViolation("O certificado confiável deve ter exatamente 64 caracteres hexadecimais (SHA-256).")
+            throw RuleViolation(ServiceLanguage.text("O certificado confiável deve ter exatamente 64 caracteres hexadecimais (SHA-256)."))
         }
         return digest
     }
@@ -89,23 +89,23 @@ public enum ConfigRenderer {
                               clientCertificate: ClientCertificateFiles? = nil) throws -> String {
         let host = try ConnectionRules.normalizedHost(host)
         try ConnectionRules.checkPort(port)
-        try ConnectionRules.checkConfigValue(username, label: "Usuário")
+        try ConnectionRules.checkConfigValue(username, label: ServiceLanguage.text("Usuário"))
         let certificate = try ConnectionRules.normalizedCertificate(trustedCertificate)
         var content = "host = \(host)\nport = \(port)\n"
         try ConnectionRules.checkRealm(realm)
         if !realm.isEmpty { content += "realm = \(realm)\n" }
         if !username.isEmpty { content += "username = \(username)\n" }
         if let password {
-            try ConnectionRules.checkConfigValue(password, label: "Senha")
+            try ConnectionRules.checkConfigValue(password, label: ServiceLanguage.text("Senha"))
             content += "password = \(password)\n"
         }
         if !certificate.isEmpty { content += "trusted-cert = \(certificate)\n" }
         if let files = clientCertificate {
-            for (value, label) in [(files.certificatePath, "Certificado"), (files.keyPath, "Chave"), (files.passphrase, "Senha da chave")] {
+            for (value, label) in [(files.certificatePath, ServiceLanguage.text("Certificado")), (files.keyPath, ServiceLanguage.text("Chave")), (files.passphrase, ServiceLanguage.text("Senha da chave"))] {
                 try ConnectionRules.checkConfigValue(value, label: label)
             }
             guard files.certificatePath.hasPrefix("/"), files.keyPath.hasPrefix("/"), !files.passphrase.isEmpty else {
-                throw RuleViolation("Arquivos do certificado do cliente inválidos.")
+                throw RuleViolation(ServiceLanguage.text("Arquivos do certificado do cliente inválidos."))
             }
             content += "user-cert = \(files.certificatePath)\nuser-key = \(files.keyPath)\npem-passphrase = \(files.passphrase)\n"
         }
