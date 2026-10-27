@@ -19,8 +19,8 @@ checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`, unzip and move the
 `/Applications`, and install openfortivpn with `brew install openfortivpn`.
 
 Releases are built for **Apple Silicon (arm64)** and **Intel (x86_64)**, as separate
-archives; the Homebrew cask picks the one for your Mac. Both run the full local suite
-in CI (the Intel one on an Intel runner) before a release. The code targets macOS 13+
+archives; the Homebrew cask picks the one for your Mac. The full local suite runs in CI
+on Apple Silicon before a release; the Intel app is cross-compiled from the same code. The code targets macOS 13+
 with standard material fallbacks before macOS 26; the new Liquid Glass APIs require
 macOS 26+.
 

@@ -41,8 +41,14 @@ if [[ "${1:-}" == "--prepare-only" ]]; then
 fi
 rm -f "$out/TestResults.txt" "$out/TestResults.txt.stderr" "$out/TestCommit.txt"
 # The checks compare messages in the source language (pt-BR), whatever the Mac uses.
-open -W -n "$runner" --args --headless -AppleLanguages "(pt-BR)"
-cat "$out/TestResults.txt"
+# Results stream as each check ends, so a check that hangs (CI timeout) shows where.
+touch "$out/TestResults.txt"
+open -W -n "$runner" --args --headless -AppleLanguages "(pt-BR)" &
+opener=$!
+tail -n +1 -f "$out/TestResults.txt" &
+follower=$!
+wait "$opener" || true
+sleep 1; kill "$follower" 2>/dev/null || true
 if ! /usr/bin/grep -q '^OK: 0 falha(s)' "$out/TestResults.txt"; then exit 1; fi
 
 # Attestation used by draft publication; dirty development runs still run normally.

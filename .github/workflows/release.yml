@@ -148,7 +148,7 @@ jobs:
         if: steps.plan.outputs.skip != 'true'
         run: |
           set -eu
-          # One app per architecture; x86_64 is cross-compiled here and ran on Intel in checks.yml.
+          # One app per architecture; x86_64 is cross-compiled here (checks.yml runs on Apple Silicon only).
           for arch in arm64 x86_64; do
             out="$OUTPUT_DIR"
             [[ $arch == arm64 ]] || out="$OUTPUT_DIR-$arch"

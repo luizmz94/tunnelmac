@@ -337,15 +337,15 @@ enum SettingsTests {
         }
 
         test("Transporte real com URLProtocol local: cabeçalhos, limite de tamanho e HTTPS") {
-            @MainActor func fetch(_ transport: URLSessionUpdateTransport, _ request: URLRequest = UpdateFeed.request()) throws -> Result<(Int, Data), Error> {
+            @MainActor func fetch(_ label: String, _ transport: URLSessionUpdateTransport, _ request: URLRequest = UpdateFeed.request()) throws -> Result<(Int, Data), Error> {
                 var result: Result<(Int, Data), Error>?
                 transport.fetch(request, limit: UpdateFeed.maximumResponseSize) { result = $0 }
-                try require(TestSupport.spin(10) { result != nil }, "Sem resposta do protocolo local")
+                try require(TestSupport.spin(10) { result != nil }, "Sem resposta do protocolo local: \(label)")
                 return result!
             }
             let transport = URLSessionUpdateTransport(protocolClasses: [StubUpdateProtocol.self])
             StubUpdateProtocol.configure(status: 200, chunks: [json(fixture)])
-            guard case .success((200, let data)) = try fetch(transport), (try UpdateFeed.decode(data)).count > 3 else {
+            guard case .success((200, let data)) = try fetch("resposta válida", transport), (try UpdateFeed.decode(data)).count > 3 else {
                 throw TestSupport.Failure("Resposta válida não lida")
             }
             let seen = StubUpdateProtocol.seen.first
@@ -355,16 +355,16 @@ enum SettingsTests {
                         "Cabeçalhos enviados: \(seen?.allHTTPHeaderFields ?? [:])")
             let chunk = Data(count: 256 * 1024)
             StubUpdateProtocol.configure(status: 200, chunks: Array(repeating: chunk, count: 5))
-            guard case .failure(let streamed) = try fetch(transport), streamed as? UpdateTransportError == .tooLarge else {
+            guard case .failure(let streamed) = try fetch("corpo acima do limite", transport), streamed as? UpdateTransportError == .tooLarge else {
                 throw TestSupport.Failure("Corpo acima do limite não foi abortado")
             }
             StubUpdateProtocol.configure(status: 200, chunks: [Data("[]".utf8)], contentLength: 5 * 1024 * 1024)
-            guard case .failure(let declared) = try fetch(transport), declared as? UpdateTransportError == .tooLarge else {
+            guard case .failure(let declared) = try fetch("Content-Length acima do limite", transport), declared as? UpdateTransportError == .tooLarge else {
                 throw TestSupport.Failure("Content-Length acima do limite aceito")
             }
             var plain = UpdateFeed.request()
             plain.url = URL(string: "http://api.github.com/repos/luizmz94/tunnelmac/releases")
-            guard case .failure(let insecure) = try fetch(transport, plain), insecure as? UpdateTransportError == .notHTTPS else {
+            guard case .failure(let insecure) = try fetch("HTTP sem TLS", transport, plain), insecure as? UpdateTransportError == .notHTTPS else {
                 throw TestSupport.Failure("HTTP sem TLS aceito")
             }
         }
