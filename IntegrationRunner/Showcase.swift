@@ -69,7 +69,8 @@ final class ShowcaseDemo: ObservableObject {
         let store = try! JSONStore(directory: root)
         model = AppModel(store: store, passwords: passwords,
                          cookies: SAMLCookieStore(service: "com.luiz.vpngui.showcase.cookie"), service: service)
-        let preferences = AppPreferences.disposable()
+        // The demo bundle has its own identifier: the language survives "Reabrir agora".
+        let preferences = AppPreferences.disposable(realLanguage: true)
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
         menuBar = MenuBarCoordinator(model: model, preferences: preferences)
         // The window and the menu bar re-read the real status when they appear; this demo

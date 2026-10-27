@@ -3,6 +3,14 @@ TunnelMac release candidate: macOS 13+, Apple Silicon (arm64) and Intel (x86_64)
 TunnelMac is the new name of OpenFortiDesk: the app now handles Fortinet SSL VPN
 (openfortivpn), OpenVPN profiles and WireGuard configurations.
 
+Changes in 0.5.0-rc.8:
+- TunnelMac in English, German, Spanish, French, Hindi and Portuguese: choose the
+  language in Settings › General (or follow the system) and reopen the app.
+- New Liquid Glass look on macOS 26: actions on the toolbar, protocol tiles in the
+  sidebar and the menu bar window, a brand-colored menu bar icon with a connection
+  count, redesigned Settings and sheets, and a Light/Dark/Automatic appearance picker.
+- Update the privileged service together with the app (Settings › Privileged service).
+
 Changes in 0.5.0-rc.5:
 - First launch opens a setup guide in steps: choose the VPN types you use (installed
   and outdated clients are detected, with the exact brew command), activate the

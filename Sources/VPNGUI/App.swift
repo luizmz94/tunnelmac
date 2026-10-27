@@ -59,8 +59,11 @@ enum AppRelaunch {
         let waiter = Process()
         waiter.executableURL = URL(fileURLWithPath: "/bin/sh")
         // Up to 60 s: cleanup of active VPNs may take 30 s before the app exits.
-        waiter.arguments = ["-c", "for _ in $(/usr/bin/jot 600); do /bin/kill -0 \"$1\" 2>/dev/null || exec /usr/bin/open \"$2\"; /bin/sleep 0.1; done",
-                            "relaunch", String(ProcessInfo.processInfo.processIdentifier), Bundle.main.bundlePath]
+        // The same arguments again (the demo's --showcase); none in the distributed app.
+        let script = "pid=$1 app=$2; shift 2; for _ in $(/usr/bin/jot 600); do " +
+            "/bin/kill -0 \"$pid\" 2>/dev/null || exec /usr/bin/open \"$app\" --args \"$@\"; /bin/sleep 0.1; done"
+        waiter.arguments = ["-c", script, "relaunch", String(ProcessInfo.processInfo.processIdentifier),
+                            Bundle.main.bundlePath] + CommandLine.arguments.dropFirst()
         do { try waiter.run() } catch { return }
         NSApp.terminate(nil)
     }

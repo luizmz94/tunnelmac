@@ -43,17 +43,25 @@ final class AppPreferences: ObservableObject {
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
     @Published var language: AppLanguage {
-        didSet { store(language == .system ? nil : [language.rawValue], Key.languages) }
+        didSet {
+            if language == .system { languageDefaults.removeObject(forKey: Key.languages) }
+            else { languageDefaults.set([language.rawValue], forKey: Key.languages) }
+        }
     }
     let launchLanguage: AppLanguage
     @Published var customInternetDNS: [InternetDNSOption] {
         didSet { defaults.set(try? JSONEncoder().encode(customInternetDNS), forKey: Key.customDNS) }
     }
 
+    /// Where AppleLanguages is kept: the preferences themselves, or the app's real domain
+    /// for the demo, whose other preferences are disposable but whose relaunch must keep it.
+    private let languageDefaults: UserDefaults
+
     init(defaults: UserDefaults, disposableSuite: String? = nil,
-         currentVersion: String = HelperConstants.releaseVersion) {
+         currentVersion: String = HelperConstants.releaseVersion, realLanguage: Bool = false) {
         self.defaults = defaults
         self.disposableSuite = disposableSuite
+        languageDefaults = realLanguage ? .standard : defaults
         showMenuBarIcon = defaults.object(forKey: Key.showMenuBarIcon) as? Bool ?? true
         hideDockOnClose = defaults.object(forKey: Key.hideDockOnClose) as? Bool ?? true
         checkForUpdates = defaults.object(forKey: Key.checkForUpdates) as? Bool ?? true
@@ -66,7 +74,7 @@ final class AppPreferences: ObservableObject {
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         // Only the app's own domain: the global AppleLanguages is the system's choice.
-        let domain = defaults.persistentDomain(forName: disposableSuite ?? Bundle.main.bundleIdentifier ?? "")
+        let domain = languageDefaults.persistentDomain(forName: (realLanguage ? nil : disposableSuite) ?? Bundle.main.bundleIdentifier ?? "")
         let saved = AppLanguage(tag: (domain?[Key.languages] as? [String])?.first)
         language = saved
         launchLanguage = saved
@@ -103,10 +111,12 @@ final class AppPreferences: ObservableObject {
     }
 
     /// Isolated suite that never touches the user's preferences and is deleted afterwards.
-    static func disposable(currentVersion: String = HelperConstants.releaseVersion) -> AppPreferences {
+    static func disposable(currentVersion: String = HelperConstants.releaseVersion,
+                           realLanguage: Bool = false) -> AppPreferences {
         let name = "com.luiz.vpngui.tests.preferences.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name)!
-        return AppPreferences(defaults: defaults, disposableSuite: name, currentVersion: currentVersion)
+        return AppPreferences(defaults: defaults, disposableSuite: name, currentVersion: currentVersion,
+                              realLanguage: realLanguage)
     }
 
     /// Binding for MenuBarExtra(isInserted:). SwiftUI writes the current value back while

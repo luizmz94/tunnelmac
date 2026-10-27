@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- The app speaks English, German, Spanish, French, Hindi and Portuguese. Configurações ›
+  Geral › Idioma picks one (or follows the system, English when the system language is
+  not one of these); the new language applies when the app reopens (**Reabrir agora**),
+  and the choice is kept in backups. The privileged service answers in the app's
+  language (helper protocol 8: update the service together with the app).
+- Liquid Glass layout for macOS 26:
+  - Main window: connection actions on the toolbar (the main action plus a menu), chain
+    symbols for connect/disconnect, sidebar rows with the protocol on a tinted tile and
+    a state dot, connection details in a titled card, compact log actions.
+  - Menu bar window: glass background, switches like Control Center and protocol
+    tiles; the menu bar icon keeps its arc shape, takes the brand color when connected,
+    shows a count badge and spins while connecting.
+  - Configurações: tab name only in the title bar, colored tab tiles drawn as pictures
+    (black tiles for the dark icon style, filled accent tiles for tinted), mini
+    switches, and an Aparência picker (Claro, Escuro, Automático) with the system's
+    thumbnails, kept in backups.
+  - Sheets: fit the window, glass footer buttons, brand/protocol headers, an eye button
+    on password fields (a password typed before the user is kept), shorter copy.
 - Deleting a connection no longer blocks the app when the Keychain refuses to delete its
   password or SAML session (errSecInvalidOwnerEdit, items created by an earlier build):
   the secret is overwritten with nothing and the deletion finishes.

@@ -325,7 +325,7 @@ struct GeneralSettings: View {
         SettingsSection(title: String(localized: "Aplicativo")) {
             SettingsRow(symbol: "menubar.rectangle", color: .blue, title: String(localized: "Ícone na barra de menus"),
                         subtitle: String(localized: "Para conectar rapidamente.")) {
-                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch("Ícone na barra de menus")
+                Toggle("Ícone na barra de menus", isOn: $preferences.showMenuBarIcon).settingsSwitch(String(localized: "Ícone na barra de menus"))
             }
             SettingsDivider()
             SettingsRow(symbol: "dock.rectangle", color: .indigo, title: String(localized: "Ocultar do Dock ao fechar a janela"),
@@ -590,7 +590,7 @@ struct UpdateSettings: View {
         SettingsSection(title: String(localized: "Verificação")) {
             SettingsRow(symbol: "clock.arrow.circlepath", color: .teal, title: String(localized: "Verificar automaticamente"),
                         subtitle: String(localized: "Ao abrir o app e ao conectar.")) {
-                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch("Verificar automaticamente")
+                Toggle("Verificar automaticamente", isOn: $preferences.checkForUpdates).settingsSwitch(String(localized: "Verificar automaticamente"))
             }
             SettingsDivider()
             SettingsRow(symbol: "testtube.2", color: .purple, title: String(localized: "Incluir versões de teste")) {
