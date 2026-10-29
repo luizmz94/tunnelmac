@@ -164,10 +164,22 @@ final class ShowcaseDemo: ObservableObject {
         connect("Casa", fast: true, since: 1_268)
         if let directory = ShowcaseApp.captureDirectory {
             Task { await ShowcaseTour(demo: self, directory: directory).run() }
+        } else {
+            showFailure("Homologação")
         }
     }
 
     func connection(_ name: String) -> Connection { connections[name]! }
+
+    /// The interactive demo opens with one recent failure, as after an unreachable gateway.
+    private func showFailure(_ name: String) {
+        let session = model.manager.session(connection(name).id)
+        session.begin()
+        session.log("ERROR:  connect: Operation timed out")
+        session.log("ERROR:  Could not connect to gateway (vpn-hml.acme.example:8443).")
+        session.log("INFO:   Closed connection to gateway.")
+        session.state = .failed
+    }
 
     func connect(_ name: String, fast: Bool = false, since: TimeInterval? = nil) {
         let connection = connection(name)

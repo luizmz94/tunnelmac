@@ -223,6 +223,23 @@ private extension View {
     }
 }
 
+/// Secondary text that reads as a link only on hover, like the client credit in the main window.
+private struct QuietLink: View {
+    let title: String
+    let action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) { Text(title).underline(hovering) }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .onHover { inside in
+                hovering = inside
+                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
+    }
+}
+
 private struct MenuBarListHeight: PreferenceKey {
     static var defaultValue: CGFloat = 0
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = max(value, nextValue()) }
@@ -251,12 +268,19 @@ struct MenuBarRow: View {
                         Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
                         ElapsedTime(start: start)
                     }
+                    if showsLogsLink {
+                        Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
+                        QuietLink(title: String(localized: "Ver logs")) { showLogs() }
+                            .help("Abrir a janela principal nos logs desta conexão")
+                            .accessibilityHidden(true)
+                    }
                 }
                 .font(.caption).foregroundStyle(session.state.tone == .danger ? AnyShapeStyle(Color.red) : AnyShapeStyle(.secondary))
                 .lineLimit(1)
             }
             .help("\(connection.name) — \(connection.endpoint)")
             .accessibilityElement(children: .combine)
+            .accessibilityAction(named: Text("Ver logs")) { if showsLogsLink { showLogs() } }
             Spacer(minLength: 6)
             VStack(alignment: .trailing, spacing: 3) {
                 if action == .review {
@@ -283,6 +307,7 @@ struct MenuBarRow: View {
                         .help("Abrir a janela principal para conferir o certificado; nada é aceito pelo menu")
                         .accessibilityLabel("Conferir certificado de \(connection.name)")
                 }
+
             }
             .fixedSize()
         }
@@ -290,6 +315,13 @@ struct MenuBarRow: View {
         .modifier(HoverHighlight(cornerRadius: 8))
         .animation(Motion.state(reduceMotion), value: session.state)
     }
+
+    /// A failure says where its details are; review and certificate cases have their own action.
+    private var showsLogsLink: Bool {
+        session.state == .failed && !session.authenticationRejected && session.suggestedCertificate == nil
+    }
+
+    private func showLogs() { menuBar.showMainWindow(selecting: connection.id) }
 
     private func help(for action: MenuBarRowAction) -> String {
         switch action {

@@ -202,7 +202,7 @@ struct MainView: View {
         }
         Divider()
         Button("Editar…") { editing = connection }.disabled(session.state.active)
-        Button("Limpar logs") { session.clearLogs() }.disabled(session.logs.isEmpty)
+        Button("Limpar logs") { session.clearLogs() }.disabled(!session.canClearLogs)
         Divider()
         Button("Excluir…", role: .destructive) { deleting = connection }.disabled(session.state.active)
     }
@@ -434,7 +434,7 @@ struct ConnectionDetail: View {
                     Button("Editar…", systemImage: "pencil", action: edit)
                         .disabled(session.state.active)
                     Button("Limpar logs", systemImage: "eraser") { session.clearLogs() }
-                        .disabled(session.logs.isEmpty)
+                        .disabled(!session.canClearLogs)
                     Divider()
                     Button("Excluir…", systemImage: "trash", role: .destructive, action: delete)
                         .disabled(session.state.active)
@@ -673,7 +673,7 @@ struct ConnectionDetail: View {
                     .controlSize(.small)
                     .help("Limpar logs desta conexão")
                     .accessibilityLabel("Limpar logs desta conexão")
-                    .disabled(session.logs.isEmpty)
+                    .disabled(!session.canClearLogs)
             }
             LogConsole(lines: session.logs)
                 .frame(minHeight: 80, maxHeight: .infinity)

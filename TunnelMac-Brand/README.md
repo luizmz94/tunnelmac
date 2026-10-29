@@ -22,7 +22,8 @@ Arcos em fundo claro:   FortiClient #1F7EC2 · OpenVPN #DE7420 · WireGuard #BF3
 
 ## Ícone do app
 Grade macOS: tela 1024 × 1024, placa 824 × 824 centrada (margem 100 px), raio 185, sombra inferior.
-O .icns foi montado com todos os 10 tamanhos em PNG (tipos icp4, ic11, icp5, ic12, ic07, ic13, ic08, ic14, ic09, ic10).
+O .icns sai sempre do iconutil: 16 e 32 px ficam em ic04/ic05 (ARGB). Montado à mão com PNG em icp4/icp5,
+o ícone pequeno aparece como ruído na miniatura de janela do Dock e no Mission Control.
 Para regerar a partir do iconset:
 
     iconutil -c icns AppIcon.iconset -o AppIcon.icns
