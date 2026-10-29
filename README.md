@@ -60,10 +60,16 @@ once with an administrator account. After that, connecting never asks for a pass
 </p>
 
 > [!NOTE]
-> TunnelMac is a release candidate on the way to 1.0. It runs on Apple Silicon and Intel
-> Macs; Homebrew picks the right build. The interface is in Brazilian Portuguese.
-> See [Releases](https://github.com/luizmz94/tunnelmac/releases) for manual downloads
-> and checksums.
+> TunnelMac runs on Apple Silicon and Intel Macs; Homebrew picks the right build. The
+> interface is in English, German, Spanish, French, Hindi and Portuguese.
+
+Prefer not to use Homebrew? Download the disk image for your Mac from
+[Releases](https://github.com/luizmz94/tunnelmac/releases) (`arm64` for Apple Silicon,
+`x86_64` for Intel), open it and drag TunnelMac to Applications.
+
+<p align="center">
+  <img src="docs/assets/install.gif" alt="Installing from the disk image: drag TunnelMac to Applications" width="660">
+</p>
 
 ## Screenshots
 

@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — 2026-10-29
 
+- First stable release.
+- Each release also ships a notarized disk image per architecture
+  (`TunnelMac-<version>-arm64.dmg`, `-x86_64.dmg`): open it and drag TunnelMac to
+  Applications. The zip archives stay for in-app updates and Homebrew.
 - The app speaks English, German, Spanish, French, Hindi and Portuguese. Configurações ›
   Geral › Idioma picks one (or follows the system, English when the system language is
   not one of these); the new language applies when the app reopens (**Reabrir agora**),

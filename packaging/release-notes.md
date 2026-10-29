@@ -1,7 +1,21 @@
-TunnelMac release candidate: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
+TunnelMac 1.0.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
-TunnelMac is the new name of OpenFortiDesk: the app now handles Fortinet SSL VPN
-(openfortivpn), OpenVPN profiles and WireGuard configurations.
+TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles and WireGuard
+configurations from one native Mac app.
+
+Install: `brew install --cask luizmz94/tunnelmac/tunnelmac`, or download the disk image
+for your Mac below (arm64 for Apple Silicon, x86_64 for Intel), open it and drag
+TunnelMac to Applications. Then open the app and follow the setup guide.
+
+Changes in 1.0.0:
+- First stable release, with a notarized disk image (.dmg) for each architecture.
+- A failed connection shows a View logs link in the menu bar window; Clear logs also
+  dismisses the failure.
+- The menu bar icon shows the connection count from the first connection.
+- The small app icon no longer appears as noise in Dock window previews and Mission
+  Control.
+- Homebrew no longer installs openfortivpn with the app: the setup guide installs only
+  the clients of the VPN types you choose.
 
 Changes in 0.5.0-rc.8:
 - TunnelMac in English, German, Spanish, French, Hindi and Portuguese: choose the
