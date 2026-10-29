@@ -45,7 +45,6 @@ def cask(version, digests):
 
   # Updates itself in the app (Sparkle); brew upgrade stays possible.
   auto_updates true
-  depends_on formula: "openfortivpn"
   depends_on macos: :ventura
 
   app "TunnelMac.app"
@@ -85,9 +84,10 @@ def cask(version, digests):
   end
 
   caveats <<~EOS
-    First use: open TunnelMac, activate its service, approve it in System
-    Settings and approve the protected openfortivpn, OpenVPN and/or
-    wireguard-go runtime.
+    First use: open TunnelMac and follow the setup guide. Pick the VPN types you
+    use and install only those clients (brew install openfortivpn, openvpn
+    and/or wireguard-go; the guide shows the command), activate its service,
+    approve it in System Settings and approve each client once.
 
     Updates: TunnelMac offers new versions and installs them itself
     (Atualizar agora). To use brew upgrade instead, quit TunnelMac with Sair

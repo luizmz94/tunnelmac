@@ -24,6 +24,8 @@
   window, opening the main window at that connection. **Limpar logs** also dismisses the
   failure (back to Desconectada); a refused authentication still waits for the
   credentials to be reviewed.
+- Homebrew: the cask no longer installs openfortivpn with the app; the setup guide
+  installs only the clients of the VPN types chosen (openfortivpn, OpenVPN, wireguard-go).
 - The menu bar icon's count badge shows from the first connection, not only from two.
 - The app icon is built by `iconutil`: the 16 and 32 px sizes were PNG in icp4/icp5, which
   the Dock's window previews and Mission Control drew as noise.
