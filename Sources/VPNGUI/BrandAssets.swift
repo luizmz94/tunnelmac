@@ -11,8 +11,7 @@ enum BrandAssets {
     }()
     /// Menu bar icon. Idle: the monochrome template. Connected: the same shape in the logo's
     /// colors. `angle` turns it (only while a connection is starting, since every frame costs
-    /// CPU), and the active connection count is knocked out of a corner badge when there is
-    /// more than one.
+    /// CPU), and the active connection count is knocked out of a corner badge.
     static func menuIcon(connected: Bool, angle: CGFloat = 0, badge: Int) -> NSImage? {
         let key = "\(connected)-\(angle)-\(min(badge, 10))"
         if let cached = menuIconVariants[key] { return cached }
@@ -53,7 +52,7 @@ enum BrandAssets {
                 base.draw(in: rect)
             }
             context.restoreGState()
-            guard badge > 1 else { return true }
+            guard badge > 0 else { return true }
             let text = NSAttributedString(string: badge > 9 ? "9+" : "\(badge)",
                                           attributes: [.font: NSFont.systemFont(ofSize: 7.5, weight: .heavy),
                                                        .foregroundColor: NSColor.black])

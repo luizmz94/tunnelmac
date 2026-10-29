@@ -139,7 +139,12 @@ final class Session: ObservableObject, Identifiable {
         logs.append(OutputRules.safe(text, secret: secret))
         if logs.count > 1500 { logs.removeFirst(logs.count - 1500) }
     }
-    func clearLogs() { logs.removeAll(keepingCapacity: true) }
+    /// The failure notice points at the logs: clearing them also dismisses it.
+    func clearLogs() {
+        logs.removeAll(keepingCapacity: true)
+        if state == .failed { state = .disconnected }
+    }
+    var canClearLogs: Bool { !logs.isEmpty || state == .failed }
     func begin(retrying: Bool = false, client: String = "openfortivpn", routedBy: String? = nil) {
         reconnectTask?.cancel(); reconnectTask = nil
         if !retrying { wasConnected = false; reconnectAttempts = 0 }

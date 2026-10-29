@@ -125,7 +125,9 @@ publication preflight, then picks the version with `scripts/next-version.py`: a
 if it is already released, the next one (`-rc.N+1`, or the next patch) and the next
 build number are committed back to `main`. Pushes that change nothing under `Sources`,
 `Package.swift` or `Resources` are not released, so docs-only PRs never ship a build.
-The app is signed, notarized and published (prerelease when the version has a suffix),
+The app is signed, notarized and published (prerelease when the version has a suffix)
+as a zip (in-app updates, Homebrew) and a notarized disk image (`scripts/make-dmg.sh`) per
+architecture,
 and the cask in `luizmz94/homebrew-tunnelmac` is updated with a deploy key limited to that
 repository. Signing and notarization credentials live only in the `release` environment,
 which accepts `main` only. A manual run with `dry_run` builds, signs and notarizes without

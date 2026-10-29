@@ -12,11 +12,12 @@ app stores and where, updates, migration and removal.
 
 ## Installation details
 
-For a manual install, download `TunnelMac-<version>-arm64.zip` (Apple Silicon) or
-`TunnelMac-<version>-x86_64.zip` (Intel) and `SHA256SUMS`
+For a manual install, download `TunnelMac-<version>-arm64.dmg` (Apple Silicon) or
+`TunnelMac-<version>-x86_64.dmg` (Intel) and `SHA256SUMS`
 from [Releases](https://github.com/luizmz94/tunnelmac/releases), check the
-checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`, unzip and move the app to
-`/Applications`, and install openfortivpn with `brew install openfortivpn`.
+checksum with `shasum -a 256 -c SHA256SUMS --ignore-missing`, open the disk image and
+drag TunnelMac to Applications. The setup guide then installs the clients you need. The
+`.zip` archives hold the same signed app; in-app updates and Homebrew use them.
 
 Releases are built for **Apple Silicon (arm64)** and **Intel (x86_64)**, as separate
 archives; the Homebrew cask picks the one for your Mac. The full local suite runs in CI

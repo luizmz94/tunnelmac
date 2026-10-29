@@ -144,6 +144,7 @@ jobs:
           echo "RELEASE=$release" >> "$GITHUB_ENV"
           echo "Releasing $release from $(git rev-parse --short HEAD) ($plan)"
 
+      # Per architecture: the zip (Sparkle, Homebrew) and a notarized disk image (manual install).
       - name: Sign, notarize and package
         if: steps.plan.outputs.skip != 'true'
         run: |
@@ -155,6 +156,7 @@ jobs:
             ARCH=$arch OUTPUT_DIR="$out" SIGNING_KEYCHAIN="$KEYCHAIN" ./scripts/build.sh
             NOTARY_PROFILE=tunnelmac-ci NOTARY_KEYCHAIN="$KEYCHAIN" ./scripts/notarize.sh "$out/TunnelMac.app"
             ./scripts/package-release.sh "$out/TunnelMac.app"
+            SIGNING_KEYCHAIN="$KEYCHAIN" NOTARY_PROFILE=tunnelmac-ci NOTARY_KEYCHAIN="$KEYCHAIN" ./scripts/make-dmg.sh "$out/TunnelMac.app"
           done
 
       # Sparkle feeds of this release, one per architecture, signed (feed and archive) with
@@ -214,6 +216,7 @@ jobs:
           # Archives and appcasts in one call: the app never sees the release without its feed.
           gh release create "v$RELEASE" --repo "$GITHUB_REPOSITORY" --target "$(git rev-parse HEAD)" ${prerelease[@]+"${prerelease[@]}"} \
             --title "TunnelMac $RELEASE" --notes-file "$RUNNER_TEMP/release-notes.md" \
+            "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.dmg" "$RELEASE_DIR/TunnelMac-$RELEASE-x86_64.dmg" \
             "$RELEASE_DIR/TunnelMac-$RELEASE-arm64.zip" "$RELEASE_DIR/TunnelMac-$RELEASE-x86_64.zip" "$RELEASE_DIR/SHA256SUMS" \
             "$RELEASE_DIR/appcast-arm64.xml" "$RELEASE_DIR/appcast-x86_64.xml"
 

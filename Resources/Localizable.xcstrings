@@ -2958,6 +2958,40 @@
         }
       }
     },
+    "Abrir a janela principal nos logs desta conexão": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hauptfenster bei den Logs dieser Verbindung öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the main window at this connection’s logs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir la ventana principal en los registros de esta conexión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir la fenêtre principale sur les journaux de cette connexion"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इस कनेक्शन के लॉग पर मुख्य विंडो खोलें"
+          }
+        }
+      }
+    },
     "Abrir a janela principal para conferir o certificado; nada é aceito pelo menu": {
       "localizations": {
         "de": {
@@ -29907,6 +29941,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "सिस्टम का डिफ़ॉल्ट सत्यापन"
+          }
+        }
+      }
+    },
+    "Ver logs": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Logs anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View logs"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ver registros"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voir les journaux"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "लॉग देखें"
           }
         }
       }

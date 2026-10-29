@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — 2026-10-29
 
+- First stable release.
+- Each release also ships a notarized disk image per architecture
+  (`TunnelMac-<version>-arm64.dmg`, `-x86_64.dmg`): open it and drag TunnelMac to
+  Applications. The zip archives stay for in-app updates and Homebrew.
 - The app speaks English, German, Spanish, French, Hindi and Portuguese. Configurações ›
   Geral › Idioma picks one (or follows the system, English when the system language is
   not one of these); the new language applies when the app reopens (**Reabrir agora**),
@@ -20,6 +24,15 @@
     thumbnails, kept in backups.
   - Sheets: fit the window, glass footer buttons, brand/protocol headers, an eye button
     on password fields (a password typed before the user is kept), shorter copy.
+- A failed connection shows a quiet **Ver logs** link next to its status in the menu bar
+  window, opening the main window at that connection. **Limpar logs** also dismisses the
+  failure (back to Desconectada); a refused authentication still waits for the
+  credentials to be reviewed.
+- Homebrew: the cask no longer installs openfortivpn with the app; the setup guide
+  installs only the clients of the VPN types chosen (openfortivpn, OpenVPN, wireguard-go).
+- The menu bar icon's count badge shows from the first connection, not only from two.
+- The app icon is built by `iconutil`: the 16 and 32 px sizes were PNG in icp4/icp5, which
+  the Dock's window previews and Mission Control drew as noise.
 - Deleting a connection no longer blocks the app when the Keychain refuses to delete its
   password or SAML session (errSecInvalidOwnerEdit, items created by an earlier build):
   the secret is overwritten with nothing and the deletion finishes.
