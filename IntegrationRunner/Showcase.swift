@@ -115,19 +115,19 @@ final class ShowcaseDemo: ObservableObject {
             try model.save(connection, password: saml ? "" : "demo-only")
             connections[name] = connection
         }
-        try fortinet("Escritório São Paulo", "vpn.acme.example", user: "ana.souza")
-        try fortinet("Cliente Horizonte", "sso.horizonte.example", port: 10443, user: "", saml: true)
-        try fortinet("Homologação", "vpn-hml.acme.example", port: 8443, user: "ana.souza")
+        try fortinet("Head Office", "vpn.acme.example", user: "alex.morgan")
+        try fortinet("Horizon Client", "sso.horizon.example", port: 10443, user: "", saml: true)
+        try fortinet("Staging", "vpn-staging.acme.example", port: 8443, user: "alex.morgan")
 
         let ovpn = OpenVPNTests.singleFile
             .replacingOccurrences(of: "auth RSA-SHA256", with: "auth SHA256")
             .replacingOccurrences(of: "cipher AES-256-CBC", with: "cipher AES-256-GCM")
-            .replacingOccurrences(of: "remote sslvpn1.example.invalid 2400 tcp", with: "remote vpn.nuvem.example 1194 tcp")
+            .replacingOccurrences(of: "remote sslvpn1.example.invalid 2400 tcp", with: "remote vpn.cloud.example 1194 tcp")
             .replacingOccurrences(of: "remote sslvpn2.example.invalid 2400 tcp\n", with: "")
             .replacingOccurrences(of: "comp-lzo adaptive\n", with: "")
-        let imported = try OpenVPNImporter.importText(ovpn, baseDirectory: root, suggestedName: "Nuvem Produção",
-                                                      source: "~/Downloads/nuvem-producao.ovpn")
-        let openVPN = Connection(name: "Nuvem Produção", kind: .openvpn, openVPN: imported.summary)
+        let imported = try OpenVPNImporter.importText(ovpn, baseDirectory: root, suggestedName: "Production Cloud",
+                                                      source: "~/Downloads/production-cloud.ovpn")
+        let openVPN = Connection(name: "Production Cloud", kind: .openvpn, openVPN: imported.summary)
         try model.save(openVPN, password: "", openVPNProfile: imported.profile.text)
         connections[openVPN.name] = openVPN
 
@@ -149,8 +149,8 @@ final class ShowcaseDemo: ObservableObject {
             try model.save(connection, password: "", wireGuardProfile: imported.profile.text)
             connections[name] = connection
         }
-        try wireGuard("Casa", address: "10.8.0.3/32", endpoint: "198.51.100.24:51820", allowed: "0.0.0.0/0, ::/0", dns: "10.8.0.1")
-        try wireGuard("Laboratório", address: "10.44.0.7/32", endpoint: "203.0.113.77:51820",
+        try wireGuard("Home", address: "10.8.0.3/32", endpoint: "198.51.100.24:51820", allowed: "0.0.0.0/0, ::/0", dns: "10.8.0.1")
+        try wireGuard("Lab", address: "10.44.0.7/32", endpoint: "203.0.113.77:51820",
                       allowed: "10.44.0.0/16, 172.20.0.0/16", dns: "10.44.0.1")
 
         for connection in connections.values { observeDisconnect(connection) }
@@ -160,12 +160,12 @@ final class ShowcaseDemo: ObservableObject {
         guard !didStart else { return }
         didStart = true
         // Two tunnels already up for a while, through the same connect path as the button.
-        connect("Escritório São Paulo", fast: true, since: 4_325)
-        connect("Casa", fast: true, since: 1_268)
+        connect("Head Office", fast: true, since: 4_325)
+        connect("Home", fast: true, since: 1_268)
         if let directory = ShowcaseApp.captureDirectory {
             Task { await ShowcaseTour(demo: self, directory: directory).run() }
         } else {
-            showFailure("Homologação")
+            showFailure("Staging")
         }
     }
 
@@ -176,7 +176,7 @@ final class ShowcaseDemo: ObservableObject {
         let session = model.manager.session(connection(name).id)
         session.begin()
         session.log("ERROR:  connect: Operation timed out")
-        session.log("ERROR:  Could not connect to gateway (vpn-hml.acme.example:8443).")
+        session.log("ERROR:  Could not connect to gateway (vpn-staging.acme.example:8443).")
         session.log("INFO:   Closed connection to gateway.")
         session.state = .failed
     }
@@ -241,22 +241,22 @@ final class ShowcaseDemo: ObservableObject {
         (0.4, "OpenVPN 2.7.8 aarch64-apple-darwin [SSL (OpenSSL)] [LZO] [LZ4] [PKCS11] [MH/RECVDA] [AEAD]", nil),
         (0.4, "TCP/UDP: Preserving recently used remote address: [AF_INET]203.0.113.40:1194", nil),
         (0.4, "TCP connection established with [AF_INET]203.0.113.40:1194", nil),
-        (0.5, "[vpn.nuvem.example] Peer Connection Initiated with [AF_INET]203.0.113.40:1194", nil),
+        (0.5, "[vpn.cloud.example] Peer Connection Initiated with [AF_INET]203.0.113.40:1194", nil),
         (0.4, "Data Channel: cipher 'AES-256-GCM', peer-id: 3", nil),
         (0.3, "net_iface_up: set utun7 up", nil),
         (0.2, "net_route_v4_add: 10.20.0.0/16 via 10.20.0.1 dev [NULL] table 0 metric -1", nil),
-        (0.2, "dns-updown: DNS do túnel aplicado (nuvem.example → 10.20.0.2)", nil),
+        (0.2, "dns-updown: tunnel DNS applied (cloud.example → 10.20.0.2)", nil),
         (0.3, "Initialization Sequence Completed", nil)
     ]
 
     private static let wireGuardOutput: [(TimeInterval, String, ConnectionState?)] = [
-        (0.3, "[+] Interface do WireGuard: utun6", nil),
+        (0.3, "[+] WireGuard interface: utun6", nil),
         (0.3, "[#] ifconfig utun6 inet 10.8.0.3/32 10.8.0.3 alias", nil),
         (0.2, "[#] ifconfig utun6 mtu 1420", nil),
         (0.2, "[#] route -q -n add -inet 198.51.100.24 -gateway 192.168.1.1", nil),
         (0.2, "[#] route -q -n add -inet 0.0.0.0/1 -interface utun6", nil),
         (0.2, "[#] route -q -n add -inet 128.0.0.0/1 -interface utun6", nil),
-        (0.2, "[+] DNS 10.8.0.1 no serviço Wi-Fi", nil),
+        (0.2, "[#] DNS 10.8.0.1 on the primary network service", nil),
         (0.2, "\(WireGuardMarkers.ready) em utun6.", nil),
         (0.6, "\(WireGuardMarkers.handshake) com 198.51.100.24:51820.", nil)
     ]
@@ -266,7 +266,7 @@ final class ShowcaseDemo: ObservableObject {
         case .fortinet: return ["INFO:   Cancelling threads...", "INFO:   Setting ppp interface down.", "INFO:   Restoring routes...",
                                 "INFO:   Removing VPN nameservers...", "INFO:   Logged out."]
         case .openvpn: return ["SIGTERM[hard,] received, process exiting"]
-        case .wireguard: return ["[#] Rotas e DNS restaurados; interface removida."]
+        case .wireguard: return ["[#] Routes and DNS restored; interface removed."]
         }
     }
 
@@ -296,10 +296,10 @@ struct ShowcaseTour {
 
         for (appearance, suffix) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
             NSApp.appearance = NSAppearance(named: appearance)
-            select("Escritório São Paulo")
+            select("Head Office")
             await pause(1.2)
             capture([window], "main-\(suffix)")
-            select("Casa")
+            select("Home")
             await pause(1.0)
             capture([window], "wireguard-\(suffix)")
 
@@ -331,7 +331,7 @@ struct ShowcaseTour {
 
         // Animated connect and disconnect of a Fortinet profile.
         NSApp.appearance = NSAppearance(named: .aqua)
-        select("Homologação")
+        select("Staging")
         await pause(1.2)
         let frames = directory.appendingPathComponent("frames-connect", isDirectory: true)
         try? FileManager.default.removeItem(at: frames)
@@ -344,9 +344,9 @@ struct ShowcaseTour {
             }
         }
         await pause(1.2)
-        demo.connect("Homologação")
+        demo.connect("Staging")
         await pause(5.5)
-        demo.model.manager.disconnect(demo.connection("Homologação").id)
+        demo.model.manager.disconnect(demo.connection("Staging").id)
         await pause(2.5)
         recorder.invalidate()
 
