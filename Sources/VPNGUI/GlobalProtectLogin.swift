@@ -22,6 +22,7 @@ final class GlobalProtectLogin {
     private struct Pending {
         let id: UUID
         let attempt: UUID
+        let log: (String) -> Void
         let continuation: CheckedContinuation<GlobalProtectCookie, Error>
     }
     /// The login attempt that holds the URL scheme, from just before the change until the
@@ -85,21 +86,24 @@ final class GlobalProtectLogin {
         }
         // An earlier attempt may still be giving the scheme back (cancelled or finished).
         for _ in 0..<50 where claim != nil { try? await Task.sleep(nanoseconds: 100_000_000) }
-        guard pending == nil, claim == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        if let held = claim, pending == nil { _ = await releaseHandler(held.attempt) }
+        guard pending == nil, claim == nil else {
+            throw AppFailure(String(localized: "O macOS ainda não devolveu o retorno do login ao aplicativo anterior. Tente novamente."))
+        }
         let attempt = UUID()
         claim = Claim(attempt: attempt)
         // The browser opens only once macOS confirms TunnelMac receives the return; otherwise
         // the official GlobalProtect app could take it and this login would wait in vain.
         guard await claimHandler(attempt) else {
-            await releaseHandler(attempt)
+            _ = await releaseHandler(attempt)
             throw AppFailure(String(localized: "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app."))
         }
         if cancelled.remove(connection.id) != nil {
-            await releaseHandler(attempt)
+            _ = await releaseHandler(attempt)
             throw CancellationError()
         }
         return try await withCheckedThrowingContinuation { continuation in
-            pending = Pending(id: connection.id, attempt: attempt, continuation: continuation)
+            pending = Pending(id: connection.id, attempt: attempt, log: log, continuation: continuation)
             gatewayHost = connection.server
             let task = DispatchWorkItem { [weak self] in
                 self?.finish(.failure(AppFailure(String(localized: "O login no navegador não retornou em 5 minutos."))))
@@ -126,7 +130,11 @@ final class GlobalProtectLogin {
         self.pending = nil
         timeoutTask?.cancel(); timeoutTask = nil
         if let formFile { try? FileManager.default.removeItem(at: formFile); self.formFile = nil }
-        Task { await releaseHandler(pending.attempt) }
+        Task {
+            if !(await releaseHandler(pending.attempt)) {
+                pending.log(String(localized: "O macOS não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará novamente no próximo login."))
+            }
+        }
         if case .success = result, let gatewayHost, gatewayHost.range(of: #"^[A-Za-z0-9.-]+$"#, options: .regularExpression) != nil {
             Self.closeReturnTabs(prefix: "https://\(gatewayHost.lowercased())/SAML20/")
         }
@@ -202,14 +210,24 @@ final class GlobalProtectLogin {
         return false
     }
 
-    /// Gives the scheme back to the previous app (waiting for macOS), then frees it for the
-    /// next attempt. Does nothing for an attempt that no longer holds it.
-    func releaseHandler(_ attempt: UUID) async {
-        guard let held = claim, held.attempt == attempt else { return }
+    /// Releases the claim only after LaunchServices reports the previous handler. A failed
+    /// restoration keeps the claim so a later login can retry instead of taking ownership.
+    @discardableResult func releaseHandler(_ attempt: UUID) async -> Bool {
+        guard let held = claim, held.attempt == attempt else { return true }
         if held.changed, let previous = held.previous, FileManager.default.fileExists(atPath: previous.path) {
-            _ = await schemeHandler.set(previous)
+            let expected = previous.standardizedFileURL
+            for _ in 0..<3 {
+                if schemeHandler.current()?.standardizedFileURL == expected { break }
+                _ = await schemeHandler.set(previous)
+                for _ in 0..<10 {
+                    if schemeHandler.current()?.standardizedFileURL == expected { break }
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            }
+            guard schemeHandler.current()?.standardizedFileURL == expected else { return false }
         }
         if claim?.attempt == attempt { claim = nil }
+        return true
     }
 
     // MARK: Prelogin

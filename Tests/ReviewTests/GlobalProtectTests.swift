@@ -354,4 +354,29 @@ extension GlobalProtectTests {
         XCTAssertEqual(handler.lastPathComponent, "Other.app")
         XCTAssertNil(login.claim)
     }
+
+    @MainActor func testFailedSchemeRestorationKeepsClaimForRetry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("gp-\(UUID().uuidString)")
+        let other = directory.appendingPathComponent("Other.app"), mine = directory.appendingPathComponent("Mine.app")
+        for app in [other, mine] { try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true) }
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let login = GlobalProtectLogin()
+        let attempt = UUID()
+        login.claim = .init(attempt: attempt, previous: other, changed: true)
+        var handler = mine
+        var allowRestore = false
+        login.schemeHandler = .init(current: { handler }, set: { url in
+            if allowRestore { handler = url; return nil }
+            return AppFailure("LaunchServices refused the change")
+        })
+        let firstRelease = await login.releaseHandler(attempt)
+        XCTAssertFalse(firstRelease)
+        XCTAssertEqual(login.claim?.attempt, attempt)
+        XCTAssertEqual(handler, mine)
+        allowRestore = true
+        let secondRelease = await login.releaseHandler(attempt)
+        XCTAssertTrue(secondRelease)
+        XCTAssertNil(login.claim)
+        XCTAssertEqual(handler, other)
+    }
 }

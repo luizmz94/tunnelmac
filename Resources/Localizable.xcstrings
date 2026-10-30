@@ -23975,6 +23975,74 @@
         }
       }
     },
+    "O macOS ainda não devolveu o retorno do login ao aplicativo anterior. Tente novamente.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat den Anmelderückruf noch nicht an die vorherige App zurückgegeben. Versuche es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS has not yet returned the login callback to the previous app. Try again."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS todavía no ha devuelto la respuesta del inicio de sesión a la aplicación anterior. Inténtalo de nuevo."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS n’a pas encore rendu le retour de connexion à l’application précédente. Réessayez."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने लॉगिन कॉलबैक अभी तक पिछले ऐप को वापस नहीं दिया है। फिर से प्रयास करें।"
+          }
+        }
+      }
+    },
+    "O macOS não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará novamente no próximo login.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat den Anmelderückruf nicht an die vorherige App zurückgegeben; TunnelMac versucht es bei der nächsten Anmeldung erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS did not return the login callback to the previous app; TunnelMac will try again at the next login."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS no devolvió la respuesta del inicio de sesión a la aplicación anterior; TunnelMac lo intentará de nuevo en el próximo inicio de sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS n’a pas rendu le retour de connexion à l’application précédente ; TunnelMac réessaiera lors de la prochaine connexion."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने लॉगिन कॉलबैक पिछले ऐप को वापस नहीं दिया; TunnelMac अगले लॉगिन पर फिर से प्रयास करेगा।"
+          }
+        }
+      }
+    },
     "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app.": {
       "localizations": {
         "de": {
