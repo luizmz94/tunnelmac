@@ -166,8 +166,18 @@ final class GlobalProtectTests: XCTestCase {
         session.begin(client: "OpenConnect")
         session.acceptGlobalProtect("Connected as 10.0.0.2", saml: true)
         XCTAssertNotEqual(session.state, .connected)
+        // openconnect is configured, but the network is not set up yet.
         session.acceptGlobalProtect("Configured as 172.19.202.72, with SSL connected and ESP disabled", saml: true)
+        XCTAssertNotEqual(session.state, .connected)
+        session.acceptGlobalProtect(GlobalProtectRules.networkReady + "utun8.", saml: true)
         XCTAssertEqual(session.state, .connected)
+        let broken = Session(id: UUID())
+        broken.begin(client: "OpenConnect")
+        broken.acceptGlobalProtect(GlobalProtectRules.networkFailure + " 10.0.0.0/8.", saml: true)
+        XCTAssertNotEqual(broken.state, .connected)
+        XCTAssertTrue(broken.setupFailed && broken.retryBlocked)
+        broken.finish(exit: 0)
+        XCTAssertEqual(broken.state, .failed)
         let failed = Session(id: UUID())
         failed.begin(client: "OpenConnect")
         failed.acceptGlobalProtect("Login failed.", saml: false)
@@ -180,7 +190,9 @@ extension GlobalProtectTests {
     /// PAN-OS sends 0.0.0.0/0 next to /32 includes (its DNS servers): that is a full tunnel.
     /// Runs the script's connect phase with stub tools that only record their arguments.
     func testDefaultNetworkAmongIncludesMakesAFullTunnel() throws {
-        let (recorded, output) = try runConnect(networks: nil)
+        let (recorded, output, status) = try runConnect(networks: nil)
+        XCTAssertEqual(status, 0)
+        XCTAssertTrue(output.contains(GlobalProtectRules.networkReady + "utun8."), output)
         XCTAssertTrue(recorded.contains("route -q -n add -inet -net 0.0.0.0/1 -interface utun8"), recorded)
         XCTAssertTrue(recorded.contains("route -q -n add -inet -net 128.0.0.0/1 -interface utun8"), recorded)
         XCTAssertTrue(recorded.contains("route -q -n add -inet -net 172.16.2.31/32 -interface utun8"), recorded)
@@ -191,7 +203,7 @@ extension GlobalProtectTests {
 
     /// "Só redes internas": only those networks and the gateway's domains use the tunnel.
     func testInternalNetworksOverrideTheGatewayDefaultRoute() throws {
-        let (recorded, output) = try runConnect(networks: "10.0.0.0/8 172.16.0.0/12")
+        let (recorded, output, _) = try runConnect(networks: "10.0.0.0/8 172.16.0.0/12")
         XCTAssertFalse(recorded.contains("0.0.0.0/1"), recorded)
         XCTAssertTrue(recorded.contains("route -q -n add -inet -net 10.0.0.0/8 -interface utun8"), recorded)
         XCTAssertTrue(recorded.contains("route -q -n add -inet -net 172.16.0.0/12 -interface utun8"), recorded)
@@ -200,7 +212,29 @@ extension GlobalProtectTests {
         XCTAssertTrue(output.contains("para example.invalid"), output)
     }
 
-    private func runConnect(networks: String?) throws -> (String, String) {
+    /// A required route that cannot be added ends "connect" with an error and no DNS.
+    func testMissingRequiredRouteFailsTheConnection() throws {
+        for (networks, route) in [("10.0.0.0/8 172.16.0.0/12", "172.16.0.0/12"), (nil, "128.0.0.0/1")] {
+            let (recorded, output, status) = try runConnect(networks: networks, failing: route)
+            XCTAssertEqual(status, 1, output)
+            XCTAssertTrue(output.contains(GlobalProtectRules.networkFailure + " \(route)."), output)
+            XCTAssertFalse(output.contains(GlobalProtectRules.networkReady), output)
+            XCTAssertFalse(recorded.contains("scutil"), recorded)
+        }
+    }
+
+    func testHelperStopsTheSessionWhenRoutesAreMissing() {
+        let cleanup = GlobalProtectCleanup(token: UUID().uuidString, routes: "/nonexistent", dns: SystemSupplementalDNS(), host: RouteHost())
+        var stopped = 0
+        cleanup.fail = { stopped += 1 }
+        cleanup.clientOutput("[#] route add -net 10.0.0.0/8 -interface utun8")
+        cleanup.clientOutput(GlobalProtectRules.networkReady + "utun8.")
+        XCTAssertEqual(stopped, 0)
+        cleanup.clientOutput(GlobalProtectRules.networkFailure + " 10.0.0.0/8.")
+        XCTAssertEqual(stopped, 1)
+    }
+
+    private func runConnect(networks: String?, failing: String? = nil) throws -> (String, String, Int32) {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("gp-\(UUID().uuidString)")
         let bin = directory.appendingPathComponent("bin")
         try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
@@ -208,7 +242,8 @@ extension GlobalProtectTests {
         let calls = directory.appendingPathComponent("calls").path
         for tool in ["ifconfig", "route", "scutil", "dscacheutil", "killall"] {
             let stub = bin.appendingPathComponent(tool)
-            try Data("#!/bin/sh\necho \"\(tool) $*\" >> \(calls)\ncat >/dev/null 2>&1 </dev/null\n".utf8).write(to: stub)
+            let refuse = tool == "route" && failing != nil ? "case \"$*\" in *\" \(failing!) \"*) exit 1 ;; esac\n" : ""
+            try Data("#!/bin/sh\necho \"\(tool) $*\" >> \(calls)\n\(refuse)cat >/dev/null 2>&1 </dev/null\n".utf8).write(to: stub)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stub.path)
         }
         let netstat = bin.appendingPathComponent("netstat")
@@ -236,7 +271,7 @@ extension GlobalProtectTests {
         try process.run()
         process.waitUntilExit()
         let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-        return ((try? String(contentsOfFile: calls, encoding: .utf8)) ?? "", output)
+        return ((try? String(contentsOfFile: calls, encoding: .utf8)) ?? "", output, process.terminationStatus)
     }
 }
 

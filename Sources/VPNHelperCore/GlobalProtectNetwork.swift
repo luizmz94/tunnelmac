@@ -123,6 +123,16 @@ setup_external() {
 	done
 }
 
+# Route through the tunnel that the session needs; a failure is remembered in $missing.
+add_tunnel() {
+	if route -q -n add -inet -net "$1" -interface "$TUNDEV" >/dev/null 2>&1; then
+		echo "[#] route add -net $1 -interface $TUNDEV"
+	else
+		echo "[!] Rota $1 não adicionada."
+		missing="$missing $1"
+	fi
+}
+
 flush_dns() {
 	dscacheutil -flushcache >/dev/null 2>&1
 	killall -HUP mDNSResponder >/dev/null 2>&1
@@ -137,6 +147,7 @@ do_connect() {
 	ifconfig "$TUNDEV" inet "$INTERNAL_IP4_ADDRESS" "$INTERNAL_IP4_ADDRESS" netmask 255.255.255.255 mtu "$mtu" up || exit 1
 	echo "[#] ifconfig $TUNDEV inet $INTERNAL_IP4_ADDRESS mtu $mtu up"
 	: > "$TUNNELMAC_ROUTES"
+	missing=""
 	setup_external
 
 	# Full tunnel when the gateway sends no include, or includes 0.0.0.0/0 among them
@@ -159,9 +170,7 @@ do_connect() {
 		for network in $TUNNELMAC_INTERNAL_NETWORKS; do
 			address=${network%/*}; length=${network#*/}
 			is_ipv4 "$address" && is_masklen "$length" && [ "$length" -gt 0 ] || continue
-			route -q -n add -inet -net "$address/$length" -interface "$TUNDEV" >/dev/null 2>&1 \
-				&& echo "[#] route add -net $address/$length -interface $TUNDEV" \
-				|| echo "[!] Rota $address/$length não adicionada."
+			add_tunnel "$address/$length"
 		done
 	fi
 	i=0
@@ -171,17 +180,22 @@ do_connect() {
 		is_ipv4 "$address" && is_masklen "$length" || continue
 		[ "$length" -eq 0 ] && continue
 		[ "$address" = "$INTERNAL_IP4_ADDRESS" ] && continue
-		route -q -n add -inet -net "$address/$length" -interface "$TUNDEV" >/dev/null 2>&1 \
-			&& echo "[#] route add -net $address/$length -interface $TUNDEV" \
-			|| echo "[!] Rota $address/$length não adicionada."
+		add_tunnel "$address/$length"
 	done
 	if [ "$full" -eq 1 ]; then
 		# Two halves are more specific than the default route, which stays untouched.
-		for half in 0.0.0.0/1 128.0.0.0/1; do
-			route -q -n add -inet -net "$half" -interface "$TUNDEV" >/dev/null 2>&1 \
-				&& echo "[#] route add -net $half -interface $TUNDEV" \
-				|| echo "[!] Rota $half não adicionada."
-		done
+		for half in 0.0.0.0/1 128.0.0.0/1; do add_tunnel "$half"; done
+		# The tunnel's own packets must keep the physical network.
+		if is_ipv4 "$VPNGATEWAY"; then
+			via=$(route -n get -inet "$VPNGATEWAY" 2>/dev/null | awk '/interface:/ { print $2; exit }')
+			[ "$via" = "$TUNDEV" ] && missing="$missing $VPNGATEWAY"
+		fi
+	fi
+	# Without these routes the session would look connected while traffic misses the
+	# tunnel: openconnect is stopped by the helper when it sees this line.
+	if [ -n "$missing" ]; then
+		echo "[!] TunnelMac: rotas obrigatórias não configuradas:$missing."
+		exit 1
 	fi
 
 	servers=""
@@ -233,7 +247,7 @@ do_disconnect() {
 
 case "$reason" in
 	pre-init) ;;
-	connect) do_connect ;;
+	connect) do_connect && echo "[+] TunnelMac: rede do túnel configurada em $TUNDEV." ;;
 	disconnect) do_disconnect ;;
 	attempt-reconnect)
 		# The physical network may have changed: move the routes to the current router.
@@ -252,11 +266,15 @@ final class GlobalProtectCleanup: SessionObserver {
     private let routes: String
     private let dns: SupplementalDNS
     private let host: WireGuardHost
+    /// Stops the session (set by the helper once the runner exists).
+    var fail: () -> Void = {}
     init(token: String, routes: String, dns: SupplementalDNS, host: WireGuardHost) {
         self.token = token; self.routes = routes; self.dns = dns; self.host = host
     }
     func clientStarted(pid: pid_t) {}
-    func clientOutput(_ line: String) {}
+    func clientOutput(_ line: String) {
+        if line.hasPrefix(GlobalProtectRules.networkFailure) { fail() }
+    }
     func clientEnded() {
         if dns.tokens().contains(token) {
             dns.remove(token: token)

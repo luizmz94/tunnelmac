@@ -61,11 +61,20 @@ final class GlobalProtectLogin {
             log(String(localized: "O gateway não anunciou login pelo navegador padrão; o retorno pode não chegar ao TunnelMac."))
         }
         guard pending == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
-        if cancelled.remove(connection.id) != nil { throw CancellationError() }
+        // The browser opens only once macOS confirms TunnelMac receives the return; otherwise
+        // the official GlobalProtect app could take it and this login would wait in vain.
+        guard await claimHandler() else {
+            restoreHandler()
+            throw AppFailure(String(localized: "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app."))
+        }
+        if cancelled.remove(connection.id) != nil || pending != nil {
+            restoreHandler()
+            if pending != nil { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+            throw CancellationError()
+        }
         return try await withCheckedThrowingContinuation { continuation in
             pending = Pending(id: connection.id, continuation: continuation)
             gatewayHost = connection.server
-            claimHandler()
             let task = DispatchWorkItem { [weak self] in
                 self?.finish(.failure(AppFailure(String(localized: "O login no navegador não retornou em 5 minutos."))))
             }
@@ -144,14 +153,28 @@ final class GlobalProtectLogin {
 
     // MARK: URL scheme
 
-    private func claimHandler() {
+    /// Makes this app the scheme's handler and waits until LaunchServices reports it.
+    /// Returns false when macOS refused the change or still names another app.
+    private func claimHandler() async -> Bool {
         let mine = Bundle.main.bundleURL.standardizedFileURL
-        guard let probe = URL(string: GlobalProtectRules.callbackScheme + ":") else { return }
-        let current = NSWorkspace.shared.urlForApplication(toOpen: probe)?.standardizedFileURL
-        guard current != mine else { return }
-        previousHandler = current
+        guard let probe = URL(string: GlobalProtectRules.callbackScheme + ":") else { return false }
+        func current() -> URL? { NSWorkspace.shared.urlForApplication(toOpen: probe)?.standardizedFileURL }
+        let before = current()
+        guard before != mine else { return true }
+        previousHandler = before
         claimedHandler = true
-        NSWorkspace.shared.setDefaultApplication(at: mine, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) { _ in }
+        let error: Error? = await withCheckedContinuation { continuation in
+            NSWorkspace.shared.setDefaultApplication(at: mine, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) {
+                continuation.resume(returning: $0)
+            }
+        }
+        guard error == nil else { return false }
+        // The change can take a moment to show up in LaunchServices.
+        for _ in 0..<10 {
+            if current() == mine { return true }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return false
     }
 
     private func restoreHandler() {

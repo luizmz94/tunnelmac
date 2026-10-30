@@ -406,8 +406,10 @@ public final class HelperCore {
         let dns = configuration.supplementalDNS, host = configuration.wireGuardHost
         return launch(connectionID: request.connectionID, client: client, runtime: runtime, content: content, cookie: secret,
                       supervisorArguments: ["--openconnect", runtime.executable, server], plan: LaunchPlan(clientArguments: [], mode: .none),
-                      secrets: secret.count >= 4 ? [secret] : [], token: token, environment: environment) { _ in
-            GlobalProtectCleanup(token: token, routes: routes, dns: dns, host: host)
+                      secrets: secret.count >= 4 ? [secret] : [], token: token, environment: environment) { [queue] runner in
+            let cleanup = GlobalProtectCleanup(token: token, routes: routes, dns: dns, host: host)
+            cleanup.fail = { [weak runner] in queue.async { runner?.stop() } }
+            return cleanup
         }
     }
 

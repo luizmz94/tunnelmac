@@ -27,6 +27,10 @@ public struct GlobalProtectCookie: Codable, Equatable, Sendable {
 
 public enum GlobalProtectRules {
     public static let callbackScheme = "globalprotectcallback"
+    /// Lines of the helper's vpnc-script: the network is configured (the session is up), or
+    /// a route the session needs could not be added (the helper stops openconnect).
+    public static let networkReady = "[+] TunnelMac: rede do túnel configurada em "
+    public static let networkFailure = "[!] TunnelMac: rotas obrigatórias não configuradas:"
     public static let maximumCallback = 65536
     /// Read by openconnect as one stdin line (password or cookie).
     public static let maximumSecret = 4096

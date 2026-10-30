@@ -23975,6 +23975,40 @@
         }
       }
     },
+    "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat die Anmelde-Rückgabe (globalprotectcallback:) nicht an TunnelMac übergeben; eine andere App, etwa das offizielle GlobalProtect, behält sie. Versuche es erneut; wenn es weiter passiert, beende diese App."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS did not hand the login return (globalprotectcallback:) to TunnelMac; another app, such as the official GlobalProtect, still has it. Try again; if it persists, quit that app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS no pasó a TunnelMac el retorno del inicio de sesión (globalprotectcallback:); otra app, como el GlobalProtect oficial, lo sigue teniendo. Inténtalo de nuevo; si persiste, cierra esa app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS n’a pas confié à TunnelMac le retour de connexion (globalprotectcallback:) ; une autre app, comme le GlobalProtect officiel, le garde. Réessayez ; si cela persiste, quittez cette app."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने लॉगिन की वापसी (globalprotectcallback:) TunnelMac को नहीं दी; कोई दूसरा ऐप, जैसे आधिकारिक GlobalProtect, अब भी इसे रखता है। फिर से कोशिश करें; अगर ऐसा बना रहे, तो उस ऐप को बंद करें।"
+          }
+        }
+      }
+    },
     "O macOS pede a senha de administrador uma vez para cada cliente.": {
       "localizations": {
         "de": {
@@ -33734,6 +33768,40 @@
         }
       }
     },
+    "[!] TunnelMac: rotas obrigatórias não configuradas (%@); a conexão foi encerrada.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: notwendige Routen nicht eingerichtet (%@); die Verbindung wurde beendet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: required routes not set up (%@); the connection was closed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: rutas obligatorias no configuradas (%@); la conexión se cerró."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac : routes obligatoires non configurées (%@) ; la connexion a été fermée."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: आवश्यक रूट सेट नहीं हुए (%@); कनेक्शन बंद कर दिया गया।"
+          }
+        }
+      }
+    },
     "[!] Um perfil WireGuard com DNS próprio controla o DNS do sistema; o DNS da internet do TunnelMac fica para depois.": {
       "localizations": {
         "de": {
@@ -34332,6 +34400,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "[+] TunnelMac: %@ के साथ handshake पूरा हुआ।"
+          }
+        }
+      }
+    },
+    "[+] TunnelMac: rede do túnel configurada em %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[+] TunnelMac: Tunnelnetzwerk auf %@ eingerichtet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[+] TunnelMac: tunnel network set up on %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[+] TunnelMac: red del túnel configurada en %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[+] TunnelMac : réseau du tunnel configuré sur %@."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[+] TunnelMac: टनल नेटवर्क %@ पर सेट किया गया।"
           }
         }
       }

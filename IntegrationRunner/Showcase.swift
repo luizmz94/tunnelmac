@@ -260,7 +260,8 @@ final class ShowcaseDemo: ObservableObject {
         (0.2, "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.", nil),
         (0.2, "[#] route add -net 10.0.0.0/8 -interface utun9", nil),
         (0.2, "[#] route add -net 172.16.0.0/12 -interface utun9", nil),
-        (0.2, "[#] DNS da VPN ( 10.31.0.53 10.31.0.54 ) para globex.example; os demais nomes seguem no DNS atual.", nil)
+        (0.2, "[#] DNS da VPN ( 10.31.0.53 10.31.0.54 ) para globex.example; os demais nomes seguem no DNS atual.", nil),
+        (0.1, "[+] TunnelMac: rede do túnel configurada em utun9.", nil)
     ]
 
     private static let openVPNOutput: [(TimeInterval, String, ConnectionState?)] = [

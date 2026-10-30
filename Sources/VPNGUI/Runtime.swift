@@ -235,7 +235,12 @@ final class Session: ObservableObject, Identifiable {
             retryBlocked = true
             if !saml { authenticationRejected = true }
         }
-        if line.hasPrefix("Configured as ") && !wantsDisconnect {
+        if line.hasPrefix(GlobalProtectRules.networkFailure) {
+            setupFailed = true
+            retryBlocked = true
+        }
+        // Connected only once the helper's script has set up addresses, routes and DNS.
+        if line.hasPrefix(GlobalProtectRules.networkReady) && !wantsDisconnect {
             if connectedAt == nil { connectedAt = Date() }
             wasConnected = true
             tunnelUp = true
@@ -884,6 +889,12 @@ enum GlobalProtectMarkers {
             let servers = rest[..<close.lowerBound].trimmingCharacters(in: .whitespaces)
             let domains = String(rest[close.upperBound...])
             return String(localized: "[#] DNS da VPN (\(servers)) para \(domains); os demais nomes seguem no DNS atual.")
+        }
+        if let interface = between(GlobalProtectRules.networkReady, ".") {
+            return String(localized: "[+] TunnelMac: rede do túnel configurada em \(interface).")
+        }
+        if let routes = between(GlobalProtectRules.networkFailure, ".") {
+            return String(localized: "[!] TunnelMac: rotas obrigatórias não configuradas (\(routes.trimmingCharacters(in: .whitespaces))); a conexão foi encerrada.")
         }
         switch line {
         case "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.":
