@@ -80,6 +80,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     private var awaitingTermination = false
     static weak var current: AppDelegate? // NSApp.delegate is SwiftUI's own adaptor.
+    // The GlobalProtect browser login returns through a globalprotectcallback: URL.
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURL(_:reply:)),
+                                                     forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
+    }
+    @objc private func handleURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let text = event.paramDescriptor(forKeyword: keyDirectObject)?.stringValue,
+              text.utf8.count <= GlobalProtectRules.maximumCallback,
+              text.lowercased().hasPrefix(GlobalProtectRules.callbackScheme + ":") else { return }
+        GlobalProtectLogin.shared.receive(text)
+    }
     func attach(model: AppModel, menuBar: MenuBarCoordinator) {
         AppDelegate.current = self
         self.model = model

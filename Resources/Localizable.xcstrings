@@ -1346,6 +1346,40 @@
     "%lld": {
       "shouldTranslate": false
     },
+    "%lld arquivo(s) (executável e bibliotecas) estão num local que seu usuário altera sem senha de administrador, como é normal no Homebrew. A aprovação congela exatamente estes bytes numa cópia protegida.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld Datei(en) (Programm und Bibliotheken) liegen an einem Ort, den dein Benutzer ohne Administratorpasswort ändern kann – bei Homebrew üblich. Die Genehmigung friert genau diese Bytes in einer geschützten Kopie ein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld file(s) (executable and libraries) are in a location your user can change without an administrator password, as is normal with Homebrew. Approval freezes exactly these bytes in a protected copy."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld archivo(s) (ejecutable y bibliotecas) están en una ubicación que tu usuario puede cambiar sin contraseña de administrador, como es normal en Homebrew. La aprobación congela exactamente estos bytes en una copia protegida."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld fichier(s) (exécutable et bibliothèques) se trouvent à un emplacement que votre utilisateur peut modifier sans mot de passe administrateur, comme d’habitude avec Homebrew. L’approbation fige exactement ces octets dans une copie protégée."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld फ़ाइल(ें) (प्रोग्राम और लाइब्रेरी) ऐसी जगह हैं जिसे आपका उपयोगकर्ता व्यवस्थापक पासवर्ड के बिना बदल सकता है, जैसा Homebrew में सामान्य है। अनुमोदन ठीक इन्हीं बाइट्स को एक सुरक्षित प्रति में स्थिर कर देता है।"
+          }
+        }
+      }
+    },
     "%lld conectadas": {
       "localizations": {
         "de": {
@@ -1752,6 +1786,9 @@
           }
         }
       }
+    },
+    "10.0.0.0/8, 172.16.0.0/12": {
+      "shouldTranslate": false
     },
     "9.9.9.9, 149.112.112.112": {
       "shouldTranslate": false
@@ -2240,6 +2277,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "पोर्ट 1 और 65535 के बीच होना चाहिए।"
+          }
+        }
+      }
+    },
+    "A rede apresenta certificados próprios": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Netzwerk präsentiert eigene Zertifikate"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network presents its own certificates"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La red presenta certificados propios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le réseau présente ses propres certificats"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नेटवर्क अपने स्वयं के प्रमाणपत्र प्रस्तुत करता है"
+          }
+        }
+      }
+    },
+    "A rede não enviou a autoridade que assinou os sites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Netzwerk hat die Zertifizierungsstelle, die die Websites signiert hat, nicht gesendet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The network did not send the authority that signed the sites"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La red no envió la autoridad que firmó los sitios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le réseau n’a pas envoyé l’autorité qui a signé les sites"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नेटवर्क ने वह प्राधिकरण नहीं भेजा जिसने साइटों पर हस्ताक्षर किए"
           }
         }
       }
@@ -3298,6 +3403,40 @@
         }
       }
     },
+    "Adicionar \"%@\" ao Keychain?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ zum Schlüsselbund hinzufügen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add “%@” to the Keychain?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Añadir «%@» al llavero?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter « %@ » au trousseau ?"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "“%@” को Keychain में जोड़ें?"
+          }
+        }
+      }
+    },
     "Adicionar DNS": {
       "localizations": {
         "de": {
@@ -3570,6 +3709,40 @@
         }
       }
     },
+    "Aguardando o login no navegador": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warte auf die Anmeldung im Browser"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for the browser login"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando el inicio de sesión en el navegador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente de la connexion dans le navigateur"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ब्राउज़र में लॉगिन की प्रतीक्षा"
+          }
+        }
+      }
+    },
     "Aguarde a gravação dos dados antes de conectar.": {
       "localizations": {
         "de": {
@@ -3838,6 +4011,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "कई आइटम चुनते समय केवल फ़ाइलें चुनें (प्रोफ़ाइल और उसके प्रमाणपत्र), फ़ोल्डर नहीं।"
+          }
+        }
+      }
+    },
+    "Ao terminar, permita que o navegador abra o TunnelMac. Se a página mostrar um link globalprotectcallback:, copie e cole aqui.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlaube danach dem Browser, TunnelMac zu öffnen. Zeigt die Seite einen globalprotectcallback:-Link, kopiere ihn und füge ihn hier ein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When you finish, let the browser open TunnelMac. If the page shows a globalprotectcallback: link, copy it and paste it here."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al terminar, permite que el navegador abra TunnelMac. Si la página muestra un enlace globalprotectcallback:, cópialo y pégalo aquí."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ensuite, autorisez le navigateur à ouvrir TunnelMac. Si la page affiche un lien globalprotectcallback:, copiez-le et collez-le ici."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "पूरा होने पर ब्राउज़र को TunnelMac खोलने दें। अगर पेज globalprotectcallback: लिंक दिखाए, तो उसे कॉपी करके यहाँ पेस्ट करें।"
           }
         }
       }
@@ -5820,6 +6027,80 @@
         }
       }
     },
+    "Autoridade intermediária, emitida por %@. Ela não recebe confiança própria: herda a da raiz.\n\n%@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zwischenzertifizierungsstelle, ausgestellt von %@. Sie erhält kein eigenes Vertrauen, sondern erbt das der Root.\n\n%@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intermediate authority, issued by %@. It gets no trust of its own: it inherits the root’s.\n\n%@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoridad intermedia, emitida por %@. No recibe confianza propia: hereda la de la raíz.\n\n%@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorité intermédiaire, émise par %@. Elle ne reçoit pas de confiance propre : elle hérite de celle de la racine.\n\n%@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "मध्यवर्ती प्राधिकरण, %@ द्वारा जारी। इसे अपना अलग भरोसा नहीं मिलता: यह रूट का भरोसा अपनाता है।\n\n%@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Autoridade intermediária, emitida por %1$@. Ela não recebe confiança própria: herda a da raiz.\n\n%2$@"
+          }
+        }
+      }
+    },
+    "Autoridades que a rede usa para inspecionar HTTPS": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifizierungsstellen, mit denen das Netzwerk HTTPS prüft"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authorities the network uses to inspect HTTPS"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoridades que la red usa para inspeccionar HTTPS"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autorités utilisées par le réseau pour inspecter HTTPS"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "वे प्राधिकरण जिनसे नेटवर्क HTTPS की जाँच करता है"
+          }
+        }
+      }
+    },
     "Avisos da importação": {
       "localizations": {
         "de": {
@@ -7472,6 +7753,40 @@
         }
       }
     },
+    "Certificado inválido.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiges Zertifikat."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado no válido."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificat non valide."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अमान्य प्रमाणपत्र।"
+          }
+        }
+      }
+    },
     "Certificado sem nome": {
       "localizations": {
         "de": {
@@ -7536,6 +7851,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "PKCS#12 प्रमाणपत्र अभी समर्थित नहीं हैं; प्रोफ़ाइल को PEM में ca/cert/key के साथ निर्यात करें।"
+          }
+        }
+      }
+    },
+    "Certificados da rede": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Netzwerkzertifikate"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Network certificates"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificados de la red"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificats du réseau"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नेटवर्क प्रमाणपत्र"
           }
         }
       }
@@ -7914,6 +8263,74 @@
         }
       }
     },
+    "Colar o retorno do GlobalProtect": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect-Rückgabelink einfügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste the GlobalProtect return link"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pegar el enlace de retorno de GlobalProtect"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller le lien de retour GlobalProtect"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect का वापसी लिंक पेस्ट करें"
+          }
+        }
+      }
+    },
+    "Colar retorno…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rückgabelink einfügen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste return link…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pegar enlace de retorno…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller le lien de retour…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "वापसी लिंक पेस्ट करें…"
+          }
+        }
+      }
+    },
     "Cole o comando no Terminal.": {
       "localizations": {
         "de": {
@@ -7944,6 +8361,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "कमांड को Terminal में पेस्ट करें।"
+          }
+        }
+      }
+    },
+    "Cole o link globalprotectcallback: que o navegador mostrou após o login. Ele vale só para esta conexão; não o compartilhe.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füge den globalprotectcallback:-Link ein, den der Browser nach der Anmeldung angezeigt hat. Er gilt nur für diese Verbindung; teile ihn nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paste the globalprotectcallback: link the browser showed after the login. It is valid for this connection only; do not share it."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pega el enlace globalprotectcallback: que mostró el navegador tras iniciar sesión. Solo vale para esta conexión; no lo compartas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collez le lien globalprotectcallback: affiché par le navigateur après la connexion. Il ne vaut que pour cette connexion ; ne le partagez pas."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "लॉगिन के बाद ब्राउज़र द्वारा दिखाया गया globalprotectcallback: लिंक पेस्ट करें। यह केवल इसी कनेक्शन के लिए मान्य है; इसे साझा न करें।"
           }
         }
       }
@@ -8186,6 +8637,40 @@
         }
       }
     },
+    "Compare a impressão digital SHA-256 com uma fonte da organização antes de continuar:\n\n%@\n\nO certificado vai para o Keychain de início de sessão e passa a validar sites que ele assinar, também fora da VPN. O macOS pedirá sua senha. Para desfazer, apague-o no Acesso às Chaves.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vergleiche den SHA-256-Fingerabdruck mit einer Quelle der Organisation, bevor du fortfährst:\n\n%@\n\nDas Zertifikat kommt in den Anmeldeschlüsselbund und bestätigt die von ihm signierten Websites, auch außerhalb des VPN. macOS fragt nach deinem Passwort. Zum Rückgängigmachen lösche es in der Schlüsselbundverwaltung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compare the SHA-256 fingerprint with a source from the organization before continuing:\n\n%@\n\nThe certificate goes to the login keychain and will validate the sites it signs, also outside the VPN. macOS will ask for your password. To undo, delete it in Keychain Access."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compara la huella SHA-256 con una fuente de la organización antes de continuar:\n\n%@\n\nEl certificado irá al llavero de inicio de sesión y validará los sitios que firme, también fuera de la VPN. macOS te pedirá la contraseña. Para deshacerlo, elimínalo en Acceso a Llaveros."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparez l’empreinte SHA-256 avec une source de l’organisation avant de continuer :\n\n%@\n\nLe certificat va dans le trousseau de session et validera les sites qu’il signe, y compris hors du VPN. macOS demandera votre mot de passe. Pour annuler, supprimez-le dans Trousseaux d’accès."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आगे बढ़ने से पहले SHA-256 फ़िंगरप्रिंट को संगठन के किसी स्रोत से मिलाएँ:\n\n%@\n\nप्रमाणपत्र लॉगिन Keychain में जाएगा और उसके द्वारा हस्ताक्षरित साइटों को मान्य करेगा, VPN के बाहर भी। macOS आपका पासवर्ड माँगेगा। पूर्ववत करने के लिए इसे Keychain Access में हटाएँ।"
+          }
+        }
+      }
+    },
     "Compare o SHA-256 com o administrador antes de confiar.": {
       "localizations": {
         "de": {
@@ -8284,6 +8769,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "टनल संपीड़न ट्रैफ़िक की जानकारी उजागर कर सकता है। बिना संपीड़न वाली प्रोफ़ाइल माँगें; संगतता के लिए पैरामीटर बनाए रखा गया है।"
+          }
+        }
+      }
+    },
+    "Concluir login": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anmeldung abschließen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish login"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Completar inicio de sesión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminer la connexion"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "लॉगिन पूरा करें"
           }
         }
       }
@@ -8658,6 +9177,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "बिना पासवर्ड कनेक्ट करें"
+          }
+        }
+      }
+    },
+    "Conecte para verificar se a rede inspeciona HTTPS com uma autoridade própria.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbinde dich, um zu prüfen, ob das Netzwerk HTTPS mit einer eigenen Zertifizierungsstelle prüft."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connect to check whether the network inspects HTTPS with its own authority."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conéctate para comprobar si la red inspecciona HTTPS con una autoridad propia."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectez-vous pour vérifier si le réseau inspecte HTTPS avec sa propre autorité."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह जाँचने के लिए कनेक्ट करें कि क्या नेटवर्क अपने प्राधिकरण से HTTPS की जाँच करता है।"
           }
         }
       }
@@ -9048,6 +9601,74 @@
         }
       }
     },
+    "Confiança cancelada. O certificado ficou no Keychain sem confiança.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauen abgebrochen. Das Zertifikat bleibt ohne Vertrauen im Schlüsselbund."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust cancelled. The certificate stayed in the Keychain without trust."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confianza cancelada. El certificado quedó en el llavero sin confianza."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiance annulée. Le certificat reste dans le trousseau sans confiance."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "भरोसा रद्द किया गया। प्रमाणपत्र बिना भरोसे के Keychain में रहा।"
+          }
+        }
+      }
+    },
+    "Confiar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "भरोसा करें"
+          }
+        }
+      }
+    },
     "Confiar e reconectar": {
       "localizations": {
         "de": {
@@ -9082,6 +9703,40 @@
         }
       }
     },
+    "Confiar em \"%@\" para sites (SSL)?": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„%@“ für Websites (SSL) vertrauen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust “%@” for websites (SSL)?"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "¿Confiar en «%@» para sitios (SSL)?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance à « %@ » pour les sites (SSL) ?"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "साइटों (SSL) के लिए “%@” पर भरोसा करें?"
+          }
+        }
+      }
+    },
     "Confiar neste certificado?": {
       "localizations": {
         "de": {
@@ -9112,6 +9767,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "इस प्रमाणपत्र पर भरोसा करें?"
+          }
+        }
+      }
+    },
+    "Confiar…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "भरोसा करें…"
           }
         }
       }
@@ -9486,6 +10175,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "पासवर्ड की पुष्टि करें"
+          }
+        }
+      }
+    },
+    "Confiável": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vertrauenswürdig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trusted"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "De confianza"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuvé"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "भरोसेमंद"
+          }
+        }
+      }
+    },
+    "Consultando o gateway GlobalProtect para o login SAML.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frage das GlobalProtect-Gateway nach der SAML-Anmeldung."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Asking the GlobalProtect gateway for the SAML login."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consultando al gateway GlobalProtect para el inicio de sesión SAML."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrogation de la passerelle GlobalProtect pour la connexion SAML."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML लॉगिन के लिए GlobalProtect गेटवे से पूछा जा रहा है।"
           }
         }
       }
@@ -11622,6 +12379,40 @@
         }
       }
     },
+    "Emitida por %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ausgestellt von %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Issued by %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Emitida por %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Émise par %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ द्वारा जारी"
+          }
+        }
+      }
+    },
     "Encerramento e limpeza não confirmados em 30 s. O app permanece aberto; verifique o serviço antes de sair novamente.": {
       "localizations": {
         "de": {
@@ -12846,6 +13637,40 @@
         }
       }
     },
+    "Este gateway não usa SAML. Edite a conexão e escolha Senha.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieses Gateway verwendet kein SAML. Bearbeite die Verbindung und wähle Passwort."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This gateway does not use SAML. Edit the connection and choose Password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este gateway no usa SAML. Edita la conexión y elige Contraseña."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette passerelle n’utilise pas SAML. Modifiez la connexion et choisissez Mot de passe."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह गेटवे SAML का उपयोग नहीं करता। कनेक्शन संपादित करें और पासवर्ड चुनें।"
+          }
+        }
+      }
+    },
     "Este perfil OpenVPN exige usuário e senha.": {
       "localizations": {
         "de": {
@@ -13764,6 +14589,40 @@
         }
       }
     },
+    "Fechar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schließen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "बंद करें"
+          }
+        }
+      }
+    },
     "Forte": {
       "localizations": {
         "de": {
@@ -13964,6 +14823,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "FortiGate गेटवे, वही जो FortiClient उपयोग करता है।"
+          }
+        }
+      }
+    },
+    "Gateway Palo Alto, com login SAML no navegador ou senha.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo-Alto-Gateway, mit SAML-Anmeldung im Browser oder Passwort."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto gateway, with SAML login in the browser or a password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway de Palo Alto, con inicio de sesión SAML en el navegador o contraseña."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle Palo Alto, avec connexion SAML dans le navigateur ou mot de passe."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto गेटवे, ब्राउज़र में SAML लॉगिन या पासवर्ड के साथ।"
           }
         }
       }
@@ -14688,6 +15581,40 @@
         }
       }
     },
+    "Inclua um site que mostrou o alerta no navegador. Só o certificado de cada site é lido.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Füge eine Website hinzu, bei der der Browser gewarnt hat. Nur das Zertifikat jeder Website wird gelesen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include a site that showed the warning in the browser. Only each site’s certificate is read."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incluye un sitio que mostró la alerta en el navegador. Solo se lee el certificado de cada sitio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajoutez un site qui a affiché l’alerte dans le navigateur. Seul le certificat de chaque site est lu."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ऐसी साइट जोड़ें जिसने ब्राउज़र में चेतावनी दिखाई। हर साइट का केवल प्रमाणपत्र पढ़ा जाता है।"
+          }
+        }
+      }
+    },
     "Incluir as preferências do app": {
       "localizations": {
         "de": {
@@ -14892,6 +15819,40 @@
         }
       }
     },
+    "Informe de 1 a 32 redes internas.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib 1 bis 32 interne Netzwerke an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter 1 to 32 internal networks."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indica de 1 a 32 redes internas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indiquez de 1 à 32 réseaux internes."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 से 32 आंतरिक नेटवर्क दर्ज करें।"
+          }
+        }
+      }
+    },
     "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:10443.": {
       "localizations": {
         "de": {
@@ -14922,6 +15883,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "सर्वर को vpn.example.com या vpn.example.com:10443 के रूप में दर्ज करें।"
+          }
+        }
+      }
+    },
+    "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:4443.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib den Server als vpn.example.com oder vpn.example.com:4443 an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the server as vpn.example.com or vpn.example.com:4443."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indica el servidor como vpn.ejemplo.com o vpn.ejemplo.com:4443."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indiquez le serveur sous la forme vpn.exemple.com ou vpn.exemple.com:4443."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सर्वर को vpn.example.com या vpn.example.com:4443 के रूप में दर्ज करें।"
           }
         }
       }
@@ -15266,6 +16261,74 @@
         }
       }
     },
+    "Instalando…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installiere …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installing…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installation…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इंस्टॉल हो रहा है…"
+          }
+        }
+      }
+    },
+    "Instalar e confiar…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installieren und vertrauen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install and trust…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalar y confiar…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer et faire confiance…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इंस्टॉल करें और भरोसा करें…"
+          }
+        }
+      }
+    },
     "Instalar e reabrir": {
       "localizations": {
         "de": {
@@ -15296,6 +16359,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "इंस्टॉल करें और फिर से खोलें"
+          }
+        }
+      }
+    },
+    "Instalar…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installieren …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instalar…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installer…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इंस्टॉल करें…"
           }
         }
       }
@@ -15364,6 +16461,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "चिह्नित क्लाइंट इंस्टॉल या अपडेट करें"
+          }
+        }
+      }
+    },
+    "Instale um por vez, só se a organização confirmar a impressão digital. Confiar na raiz vale também fora da VPN.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installiere eins nach dem anderen und nur, wenn die Organisation den Fingerabdruck bestätigt. Das Vertrauen in die Root gilt auch außerhalb des VPN."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Install one at a time, only if the organization confirms the fingerprint. Trusting the root also applies outside the VPN."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Instálalos de uno en uno, solo si la organización confirma la huella. Confiar en la raíz vale también fuera de la VPN."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Installez-les un par un, seulement si l’organisation confirme l’empreinte. La confiance dans la racine vaut aussi hors du VPN."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक-एक करके इंस्टॉल करें, केवल तभी जब संगठन फ़िंगरप्रिंट की पुष्टि करे। रूट पर भरोसा VPN के बाहर भी लागू होता है।"
           }
         }
       }
@@ -15500,6 +16631,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "openfortivpn, OpenVPN और WireGuard के लिए नेटिव macOS इंटरफ़ेस।"
+          }
+        }
+      }
+    },
+    "Intermediária": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zwischenzertifikat"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intermediate"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intermedia"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intermédiaire"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "मध्यवर्ती"
           }
         }
       }
@@ -17278,6 +18443,40 @@
         }
       }
     },
+    "Login SAML concluído; a sessão fica só na memória do app e do serviço.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML-Anmeldung abgeschlossen; die Sitzung bleibt nur im Speicher der App und des Dienstes."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML login complete; the session stays only in the memory of the app and the service."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicio de sesión SAML completado; la sesión queda solo en la memoria de la app y del servicio."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connexion SAML terminée ; la session reste uniquement dans la mémoire de l’app et du service."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML लॉगिन पूरा; सत्र केवल ऐप और सेवा की मेमोरी में रहता है।"
+          }
+        }
+      }
+    },
     "Logs": {
       "localizations": {
         "de": {
@@ -18060,6 +19259,40 @@
         }
       }
     },
+    "Método SAML não suportado: %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht unterstützte SAML-Methode: %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported SAML method: %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Método SAML no compatible: %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Méthode SAML non prise en charge : %@."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "असमर्थित SAML विधि: %@।"
+          }
+        }
+      }
+    },
     "Na fila do SAML": {
       "localizations": {
         "de": {
@@ -18090,6 +19323,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "SAML कतार में"
+          }
+        }
+      }
+    },
+    "Navegador aberto. Conclua o login e permita que o navegador abra o TunnelMac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser geöffnet. Schließe die Anmeldung ab und erlaube dem Browser, TunnelMac zu öffnen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Browser opened. Finish the login and let the browser open TunnelMac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navegador abierto. Completa el inicio de sesión y permite que el navegador abra TunnelMac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navigateur ouvert. Terminez la connexion et autorisez le navigateur à ouvrir TunnelMac."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ब्राउज़र खुला। लॉगिन पूरा करें और ब्राउज़र को TunnelMac खोलने दें।"
           }
         }
       }
@@ -18536,6 +19803,40 @@
         }
       }
     },
+    "Nenhuma inspeção de HTTPS encontrada nestes sites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine HTTPS-Prüfung bei diesen Websites gefunden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No HTTPS inspection found on these sites"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró inspección de HTTPS en estos sitios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune inspection HTTPS trouvée sur ces sites"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "इन साइटों पर कोई HTTPS जाँच नहीं मिली"
+          }
+        }
+      }
+    },
     "Nenhuma rota": {
       "localizations": {
         "de": {
@@ -18600,6 +19901,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "अभी तक कोई जाँच पूरी नहीं हुई"
+          }
+        }
+      }
+    },
+    "No Keychain": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Im Schlüsselbund"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the Keychain"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En el llavero"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans le trousseau"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keychain में"
           }
         }
       }
@@ -19046,6 +20381,40 @@
         }
       }
     },
+    "Não confiável · emitido por %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nicht vertrauenswürdig · ausgestellt von %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not trusted · issued by %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No es de confianza · emitido por %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non approuvé · émis par %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "भरोसेमंद नहीं · %@ द्वारा जारी"
+          }
+        }
+      }
+    },
     "Não foi possível abrir %@ (%@)": {
       "localizations": {
         "de": {
@@ -19184,6 +20553,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "डिफ़ॉल्ट ब्राउज़र नहीं खोला जा सका।"
+          }
+        }
+      }
+    },
+    "Não foi possível adicionar o certificado ao Keychain (%d).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Zertifikat konnte nicht zum Schlüsselbund hinzugefügt werden (%d)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not add the certificate to the Keychain (%d)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo añadir el certificado al llavero (%d)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’ajouter le certificat au trousseau (%d)."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रमाणपत्र को Keychain में नहीं जोड़ा जा सका (%d)।"
           }
         }
       }
@@ -19494,6 +20897,40 @@
         }
       }
     },
+    "Não foi possível configurar a confiança do certificado (%d).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Vertrauen für das Zertifikat konnte nicht festgelegt werden (%d)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not set the certificate’s trust (%d)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo configurar la confianza del certificado (%d)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de configurer la confiance du certificat (%d)."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रमाणपत्र का भरोसा सेट नहीं किया जा सका (%d)।"
+          }
+        }
+      }
+    },
     "Não foi possível construir a cadeia do certificado.": {
       "localizations": {
         "de": {
@@ -19558,6 +20995,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "कीचेन में सहेजा गया SAML सत्र नहीं देखा जा सका; सामान्य SAML साइन-इन का उपयोग हो रहा है।"
+          }
+        }
+      }
+    },
+    "Não foi possível consultar o gateway GlobalProtect: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das GlobalProtect-Gateway konnte nicht abgefragt werden: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not reach the GlobalProtect gateway: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo consultar el gateway GlobalProtect: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’interroger la passerelle GlobalProtect : %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect गेटवे से संपर्क नहीं हो सका: %@"
           }
         }
       }
@@ -20244,6 +21715,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS प्राधिकरण तैयार नहीं किया जा सका।"
+          }
+        }
+      }
+    },
+    "Não foi possível preparar o script de rede.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Netzwerkskript konnte nicht vorbereitet werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not prepare the network script."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo preparar el script de red."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de préparer le script réseau."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नेटवर्क स्क्रिप्ट तैयार नहीं की जा सकी।"
           }
         }
       }
@@ -21892,6 +23397,40 @@
         }
       }
     },
+    "O certificado do gateway não foi validado pelo macOS. Confira o servidor ou informe o SHA-256 confiável.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat das Zertifikat des Gateways nicht bestätigt. Prüfe den Server oder gib den vertrauenswürdigen SHA-256 an."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS did not validate the gateway’s certificate. Check the server or enter the trusted SHA-256."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS no validó el certificado del gateway. Revisa el servidor o indica el SHA-256 de confianza."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS n’a pas validé le certificat de la passerelle. Vérifiez le serveur ou indiquez le SHA-256 approuvé."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने गेटवे का प्रमाणपत्र मान्य नहीं किया। सर्वर जाँचें या भरोसेमंद SHA-256 दर्ज करें।"
+          }
+        }
+      }
+    },
     "O certificado do servidor precisa ser conferido": {
       "localizations": {
         "de": {
@@ -21994,6 +23533,244 @@
         }
       }
     },
+    "O gateway GlobalProtect recusou o prelogin. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das GlobalProtect-Gateway hat den Prelogin abgelehnt. %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The GlobalProtect gateway refused the prelogin. %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway GlobalProtect rechazó el prelogin. %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle GlobalProtect a refusé le prelogin. %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect गेटवे ने प्रीलॉगिन अस्वीकार कर दिया। %@"
+          }
+        }
+      }
+    },
+    "O gateway GlobalProtect: vpn.exemplo.com ou vpn.exemplo.com:4443": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das GlobalProtect-Gateway: vpn.example.com oder vpn.example.com:4443"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The GlobalProtect gateway: vpn.example.com or vpn.example.com:4443"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway GlobalProtect: vpn.ejemplo.com o vpn.ejemplo.com:4443"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle GlobalProtect : vpn.exemple.com ou vpn.exemple.com:4443"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect गेटवे: vpn.example.com या vpn.example.com:4443"
+          }
+        }
+      }
+    },
+    "O gateway indicou um login SAML fora de HTTPS.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat eine SAML-Anmeldung außerhalb von HTTPS angegeben."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway pointed to a SAML login outside HTTPS."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway indicó un inicio de sesión SAML fuera de HTTPS."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle a indiqué une connexion SAML hors HTTPS."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने HTTPS के बाहर SAML लॉगिन बताया।"
+          }
+        }
+      }
+    },
+    "O gateway informou que a autenticação SAML não foi concluída.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway meldet, dass die SAML-Authentifizierung nicht abgeschlossen wurde."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway reported that the SAML authentication was not completed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway informó que la autenticación SAML no se completó."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle indique que l’authentification SAML n’a pas abouti."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने बताया कि SAML प्रमाणीकरण पूरा नहीं हुआ।"
+          }
+        }
+      }
+    },
+    "O gateway não anunciou login pelo navegador padrão; o retorno pode não chegar ao TunnelMac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat keine Anmeldung über den Standardbrowser angekündigt; die Rückgabe erreicht TunnelMac möglicherweise nicht."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway did not announce login through the default browser; the return may not reach TunnelMac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway no anunció el inicio de sesión por el navegador predeterminado; el retorno podría no llegar a TunnelMac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle n’a pas annoncé de connexion par le navigateur par défaut ; le retour pourrait ne pas atteindre TunnelMac."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने डिफ़ॉल्ट ब्राउज़र से लॉगिन की घोषणा नहीं की; वापसी TunnelMac तक शायद न पहुँचे।"
+          }
+        }
+      }
+    },
+    "O gateway não enviou o pedido SAML.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat die SAML-Anfrage nicht gesendet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway did not send the SAML request."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway no envió la solicitud SAML."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle n’a pas envoyé la requête SAML."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने SAML अनुरोध नहीं भेजा।"
+          }
+        }
+      }
+    },
+    "O gateway pediu um relatório HIP, que o TunnelMac não envia; alguns recursos da rede podem ficar limitados.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat einen HIP-Bericht angefordert, den TunnelMac nicht sendet; einige Netzwerkressourcen können eingeschränkt sein."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway asked for a HIP report, which TunnelMac does not send; some network resources may be limited."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway pidió un informe HIP, que TunnelMac no envía; algunos recursos de la red pueden quedar limitados."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle a demandé un rapport HIP, que TunnelMac n’envoie pas ; certaines ressources du réseau peuvent être limitées."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने HIP रिपोर्ट माँगी, जिसे TunnelMac नहीं भेजता; कुछ नेटवर्क संसाधन सीमित हो सकते हैं।"
+          }
+        }
+      }
+    },
     "O gateway recusou a sessão SAML salva (expirada ou encerrada). Ela foi descartada; iniciando um login SAML no navegador.": {
       "localizations": {
         "de": {
@@ -22024,6 +23801,142 @@
           "stringUnit": {
             "state": "translated",
             "value": "गेटवे ने सहेजा गया SAML सत्र अस्वीकार किया (समाप्त या बंद)। उसे हटा दिया गया; ब्राउज़र में SAML साइन-इन शुरू हो रहा है।"
+          }
+        }
+      }
+    },
+    "O gateway recusou a sessão do login SAML. Conecte de novo para abrir um novo login no navegador.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat die SAML-Sitzung abgelehnt. Verbinde dich erneut, um eine neue Anmeldung im Browser zu starten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway refused the SAML login session. Connect again to start a new login in the browser."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway rechazó la sesión del inicio de sesión SAML. Conéctate de nuevo para abrir un nuevo inicio de sesión en el navegador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle a refusé la session SAML. Reconnectez-vous pour lancer une nouvelle connexion dans le navigateur."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने SAML लॉगिन सत्र अस्वीकार कर दिया। ब्राउज़र में नया लॉगिन शुरू करने के लिए फिर से कनेक्ट करें।"
+          }
+        }
+      }
+    },
+    "O gateway respondeu ao prelogin com HTTP %lld.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Gateway hat den Prelogin mit HTTP %lld beantwortet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The gateway answered the prelogin with HTTP %lld."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El gateway respondió al prelogin con HTTP %lld."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La passerelle a répondu au prelogin avec HTTP %lld."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे ने प्रीलॉगिन का उत्तर HTTP %lld से दिया।"
+          }
+        }
+      }
+    },
+    "O login abre no navegador padrão. Ao terminar, permita que o navegador abra o TunnelMac.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung öffnet sich im Standardbrowser. Erlaube danach dem Browser, TunnelMac zu öffnen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The login opens in the default browser. When you finish, let the browser open TunnelMac."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El inicio de sesión se abre en el navegador predeterminado. Al terminar, permite que el navegador abra TunnelMac."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion s’ouvre dans le navigateur par défaut. Ensuite, autorisez le navigateur à ouvrir TunnelMac."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "लॉगिन डिफ़ॉल्ट ब्राउज़र में खुलता है। पूरा होने पर ब्राउज़र को TunnelMac खोलने दें।"
+          }
+        }
+      }
+    },
+    "O login no navegador não retornou em 5 minutos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anmeldung im Browser kam nicht innerhalb von 5 Minuten zurück."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The browser login did not return within 5 minutes."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El inicio de sesión en el navegador no volvió en 5 minutos."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion dans le navigateur n’est pas revenue en 5 minutes."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ब्राउज़र लॉगिन 5 मिनट में वापस नहीं आया।"
           }
         }
       }
@@ -23088,6 +25001,40 @@
         }
       }
     },
+    "O servidor não respondeu como um gateway GlobalProtect.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Server hat nicht wie ein GlobalProtect-Gateway geantwortet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The server did not answer like a GlobalProtect gateway."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El servidor no respondió como un gateway GlobalProtect."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le serveur n’a pas répondu comme une passerelle GlobalProtect."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सर्वर ने GlobalProtect गेटवे की तरह उत्तर नहीं दिया।"
+          }
+        }
+      }
+    },
     "O servidor recusou usuário ou senha. Confira as credenciais antes de tentar de novo.": {
       "localizations": {
         "de": {
@@ -24014,6 +25961,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "विवरण, कार्रवाइयाँ और लॉग यहाँ दिखते हैं।"
+          }
+        }
+      }
+    },
+    "Outro login GlobalProtect está aguardando o navegador.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine andere GlobalProtect-Anmeldung wartet auf den Browser."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another GlobalProtect login is waiting for the browser."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otro inicio de sesión de GlobalProtect está esperando al navegador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une autre connexion GlobalProtect attend le navigateur."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक और GlobalProtect लॉगिन ब्राउज़र की प्रतीक्षा कर रहा है।"
           }
         }
       }
@@ -25130,6 +27111,74 @@
         }
       }
     },
+    "Peça esse certificado ao administrador da rede.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frage den Netzwerkadministrator nach diesem Zertifikat."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask the network administrator for this certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pide este certificado al administrador de la red."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demandez ce certificat à l’administrateur du réseau."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह प्रमाणपत्र नेटवर्क व्यवस्थापक से माँगें।"
+          }
+        }
+      }
+    },
+    "Peça o certificado raiz ao administrador da rede.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frage den Netzwerkadministrator nach dem Root-Zertifikat."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ask the network administrator for the root certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pide el certificado raíz al administrador de la red."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demandez le certificat racine à l’administrateur du réseau."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "रूट प्रमाणपत्र नेटवर्क व्यवस्थापक से माँगें।"
+          }
+        }
+      }
+    },
     "Porta inválida no endpoint: %@": {
       "localizations": {
         "de": {
@@ -25544,6 +27593,74 @@
         }
       }
     },
+    "Raiz": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Root"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Root"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raíz"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Racine"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "रूट"
+          }
+        }
+      }
+    },
+    "Raiz \"%@\" não enviada pela rede": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Root „%@“ wurde vom Netzwerk nicht gesendet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Root “%@” not sent by the network"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La red no envió la raíz «%@»"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Racine « %@ » non envoyée par le réseau"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "रूट “%@” नेटवर्क द्वारा नहीं भेजा गया"
+          }
+        }
+      }
+    },
     "Razoável": {
       "localizations": {
         "de": {
@@ -25744,6 +27861,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "नेटवर्क"
+          }
+        }
+      }
+    },
+    "Rede interna inválida: \"%@\". Use 10.0.0.0/8.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiges internes Netzwerk: „%@“. Verwende 10.0.0.0/8."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid internal network: “%@”. Use 10.0.0.0/8."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Red interna no válida: «%@». Usa 10.0.0.0/8."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réseau interne non valide : « %@ ». Utilisez 10.0.0.0/8."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अमान्य आंतरिक नेटवर्क: “%@”। 10.0.0.0/8 का उपयोग करें।"
+          }
+        }
+      }
+    },
+    "Redes internas": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interne Netzwerke"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal networks"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redes internas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réseaux internes"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आंतरिक नेटवर्क"
           }
         }
       }
@@ -26190,6 +28375,40 @@
         }
       }
     },
+    "Retorno do GlobalProtect inválido.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültige GlobalProtect-Rückgabe."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid GlobalProtect return."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retorno de GlobalProtect no válido."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour GlobalProtect non valide."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अमान्य GlobalProtect वापसी।"
+          }
+        }
+      }
+    },
     "Revisar acesso de %@": {
       "localizations": {
         "de": {
@@ -26322,6 +28541,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "रूट"
+          }
+        }
+      }
+    },
+    "SAML (navegador)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML (Browser)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML (browser)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML (navegador)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML (navigateur)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML (ब्राउज़र)"
           }
         }
       }
@@ -26530,6 +28783,40 @@
         }
       }
     },
+    "Script de rede inválido.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiges Netzwerkskript."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid network script."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script de red no válido."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Script réseau non valide."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अमान्य नेटवर्क स्क्रिप्ट।"
+          }
+        }
+      }
+    },
     "Script dns-updown do OpenVPN não encontrado junto ao executável: o túnel funcionará, mas o DNS da VPN não será configurado.": {
       "localizations": {
         "de": {
@@ -26564,6 +28851,74 @@
         }
       }
     },
+    "Se sites mostrarem que a conexão não é privada, a rede pode inspecionar HTTPS com uma autoridade própria.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wenn Websites melden, dass die Verbindung nicht privat ist, prüft das Netzwerk HTTPS möglicherweise mit einer eigenen Zertifizierungsstelle."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If sites say the connection is not private, the network may inspect HTTPS with its own authority."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si los sitios indican que la conexión no es privada, la red puede inspeccionar HTTPS con una autoridad propia."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Si des sites indiquent que la connexion n’est pas privée, le réseau inspecte peut-être HTTPS avec sa propre autorité."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अगर साइटें बताएँ कि कनेक्शन निजी नहीं है, तो नेटवर्क अपने प्राधिकरण से HTTPS की जाँच कर सकता है।"
+          }
+        }
+      }
+    },
+    "Segue o gateway, que costuma mandar toda a internet pela VPN, onde a empresa pode inspecionar HTTPS.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Folgt dem Gateway, das meist den gesamten Internetverkehr über das VPN leitet, wo das Unternehmen HTTPS prüfen kann."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follows the gateway, which usually sends all internet traffic through the VPN, where the company may inspect HTTPS."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sigue al gateway, que suele enviar todo el tráfico de internet por la VPN, donde la empresa puede inspeccionar HTTPS."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suit la passerelle, qui envoie généralement tout le trafic internet par le VPN, où l’entreprise peut inspecter HTTPS."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे का पालन करता है, जो आमतौर पर सारा इंटरनेट ट्रैफ़िक VPN से भेजता है, जहाँ कंपनी HTTPS की जाँच कर सकती है।"
+          }
+        }
+      }
+    },
     "Selecione uma conexão": {
       "localizations": {
         "de": {
@@ -26594,6 +28949,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "एक कनेक्शन चुनें"
+          }
+        }
+      }
+    },
+    "Sem conexão": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine Verbindung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No connection"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin conexión"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas de connexion"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कोई कनेक्शन नहीं"
           }
         }
       }
@@ -27376,6 +29765,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "एंडपॉइंट में अमान्य सर्वर: %@"
+          }
+        }
+      }
+    },
+    "Servidor inválido.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiger Server."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid server."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servidor no válido."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serveur non valide."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अमान्य सर्वर।"
           }
         }
       }
@@ -28366,6 +30789,74 @@
         }
       }
     },
+    "Sites": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Websites"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "साइटें"
+          }
+        }
+      }
+    },
+    "Sites para testar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu testende Websites"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites to test"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sitios para probar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites à tester"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जाँचने के लिए साइटें"
+          }
+        }
+      }
+    },
     "Sobre": {
       "localizations": {
         "de": {
@@ -28638,6 +31129,40 @@
         }
       }
     },
+    "Só estas redes e os domínios da empresa passam pela VPN; o resto da internet sai pela sua rede.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur diese Netzwerke und die Domains des Unternehmens laufen über das VPN; das übrige Internet nutzt dein eigenes Netzwerk."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only these networks and the company’s domains go through the VPN; the rest of the internet uses your own network."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo estas redes y los dominios de la empresa pasan por la VPN; el resto de internet sale por tu red."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seuls ces réseaux et les domaines de l’entreprise passent par le VPN ; le reste d’internet utilise votre propre réseau."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "केवल ये नेटवर्क और कंपनी के डोमेन VPN से जाते हैं; बाकी इंटरनेट आपके अपने नेटवर्क से जाता है।"
+          }
+        }
+      }
+    },
     "Só obedece a este app": {
       "localizations": {
         "de": {
@@ -28668,6 +31193,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "केवल इसी ऐप की बात मानता है"
+          }
+        }
+      }
+    },
+    "Só redes internas (%@)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nur interne Netzwerke (%@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Internal networks only (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo redes internas (%@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réseaux internes uniquement (%@)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "केवल आंतरिक नेटवर्क (%@)"
           }
         }
       }
@@ -28910,6 +31469,74 @@
         }
       }
     },
+    "Todo o tráfego (política do gateway)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesamter Verkehr (Gateway-Richtlinie)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All traffic (gateway policy)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo el tráfico (política del gateway)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout le trafic (politique de la passerelle)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सारा ट्रैफ़िक (गेटवे नीति)"
+          }
+        }
+      }
+    },
+    "Todo o tráfego pela VPN": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gesamter Verkehr über das VPN"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All traffic through the VPN"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Todo el tráfico por la VPN"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout le trafic par le VPN"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सारा ट्रैफ़िक VPN से"
+          }
+        }
+      }
+    },
     "Trocar auth %@ por %@?": {
       "localizations": {
         "de": {
@@ -29051,6 +31678,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "TunnelMac %@ उपलब्ध"
+          }
+        }
+      }
+    },
+    "TunnelMac quer aprovar o OpenConnect (GlobalProtect) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac möchte OpenConnect (GlobalProtect) genehmigen, um deine VPNs zu verbinden. Der Dienst verwendet nur eine geschützte Kopie von %@."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac wants to approve OpenConnect (GlobalProtect) to connect your VPNs. The service will only use a protected copy of %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac quiere aprobar OpenConnect (GlobalProtect) para conectar tus VPN. El servicio solo usará una copia protegida de %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac souhaite approuver OpenConnect (GlobalProtect) pour connecter vos VPN. Le service n’utilisera qu’une copie protégée de %@."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac आपके VPN कनेक्ट करने के लिए OpenConnect (GlobalProtect) को अनुमोदित करना चाहता है। सेवा केवल %@ की सुरक्षित प्रति का उपयोग करेगी।"
           }
         }
       }
@@ -29527,6 +32188,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "VPN कनेक्ट रहने के दौरान उपयोग होता है।"
+          }
+        }
+      }
+    },
+    "Usado só quando o certificado do gateway não é validado pelo macOS.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wird nur verwendet, wenn macOS das Zertifikat des Gateways nicht bestätigt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Used only when macOS does not validate the gateway’s certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solo se usa cuando macOS no valida el certificado del gateway."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisé seulement quand macOS ne valide pas le certificat de la passerelle."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "केवल तब उपयोग होता है जब macOS गेटवे का प्रमाणपत्र मान्य नहीं करता।"
           }
         }
       }
@@ -30217,6 +32912,40 @@
         }
       }
     },
+    "Verificando…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfe …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Checking…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobando…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérification…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जाँच हो रही है…"
+          }
+        }
+      }
+    },
     "Verificar": {
       "localizations": {
         "de": {
@@ -30383,6 +33112,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "फिर से जाँचें"
+          }
+        }
+      }
+    },
+    "Verificar…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prüfen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comprobar…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vérifier…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जाँचें…"
           }
         }
       }
@@ -30661,6 +33424,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "वापस"
+          }
+        }
+      }
+    },
+    "Válido até %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gültig bis %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valid until %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Válido hasta %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valide jusqu’au %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ तक मान्य"
           }
         }
       }
@@ -31085,6 +33882,40 @@
         }
       }
     },
+    "[#] DNS da VPN (%@) para todos os nomes.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN-DNS (%@) für alle Namen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN DNS (%@) for every name."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] DNS de la VPN (%@) para todos los nombres."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] DNS du VPN (%@) pour tous les noms."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN DNS (%@) सभी नामों के लिए।"
+          }
+        }
+      }
+    },
     "[#] DNS da internet anterior restaurado.": {
       "localizations": {
         "de": {
@@ -31217,6 +34048,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "[#] प्राथमिक नेटवर्क सेवा का DNS पुनर्स्थापित"
+          }
+        }
+      }
+    },
+    "[#] Rotas e DNS da VPN removidos.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN-Routen und -DNS entfernt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN routes and DNS removed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] Rutas y DNS de la VPN eliminados."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] Routes et DNS du VPN supprimés."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[#] VPN रूट और DNS हटाए गए।"
           }
         }
       }
@@ -31607,6 +34472,40 @@
         }
       }
     },
+    "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[i] Das Gateway verlangt den gesamten Verkehr über das VPN; nur die gewählten internen Netzwerke nutzen den Tunnel."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[i] The gateway asks for all traffic through the VPN; only the chosen internal networks will use the tunnel."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[i] El gateway pide todo el tráfico por la VPN; solo las redes internas elegidas usarán el túnel."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[i] La passerelle demande tout le trafic par le VPN ; seuls les réseaux internes choisis utiliseront le tunnel."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[i] गेटवे सारा ट्रैफ़िक VPN से माँगता है; केवल चुने गए आंतरिक नेटवर्क टनल का उपयोग करेंगे।"
+          }
+        }
+      }
+    },
     "[i] O perfil WireGuard define o próprio DNS; o DNS da internet do TunnelMac não é usado nesta conexão.": {
       "localizations": {
         "de": {
@@ -31841,6 +34740,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "root के रूप में चलने वाली स्क्रिप्ट का परिवेश बदलता है"
+          }
+        }
+      }
+    },
+    "as opções esperadas do OpenConnect com GlobalProtect (--protocol=gp)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "die erwarteten OpenConnect-Optionen mit GlobalProtect (--protocol=gp)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "the expected OpenConnect options with GlobalProtect (--protocol=gp)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "las opciones esperadas de OpenConnect con GlobalProtect (--protocol=gp)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "les options attendues d’OpenConnect avec GlobalProtect (--protocol=gp)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GlobalProtect (--protocol=gp) के साथ OpenConnect के अपेक्षित विकल्प"
           }
         }
       }
@@ -32627,6 +35560,40 @@
         }
       }
     },
+    "pelo script de rede do serviço do TunnelMac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vom Netzwerkskript des TunnelMac-Dienstes"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "by the network script of the TunnelMac service"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por el script de red del servicio de TunnelMac"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "par le script réseau du service TunnelMac"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac सेवा की नेटवर्क स्क्रिप्ट द्वारा"
+          }
+        }
+      }
+    },
     "pelo serviço do TunnelMac, a partir do perfil WireGuard": {
       "localizations": {
         "de": {
@@ -33069,6 +36036,40 @@
         }
       }
     },
+    "vpn.exemplo.com": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vpn.example.com"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vpn.example.com"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vpn.ejemplo.com"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vpn.exemple.com"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "vpn.example.com"
+          }
+        }
+      }
+    },
     "vpn.exemplo.com, vpn.exemplo.com:10443 ou vpn.exemplo.com:443/realm": {
       "localizations": {
         "de": {
@@ -33139,6 +36140,40 @@
     },
     "·": {
       "shouldTranslate": false
+    },
+    "· Vista em %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Gesehen bei %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Seen on %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Vista en %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· Vue sur %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· %@ पर देखी गई"
+          }
+        }
+      }
     },
     "Ícone na barra de menus": {
       "localizations": {

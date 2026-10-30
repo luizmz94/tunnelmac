@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>One native Mac app for your Fortinet, OpenVPN and WireGuard connections.</b><br>
+  <b>One native Mac app for your Fortinet, OpenVPN, WireGuard and GlobalProtect connections.</b><br>
   Connect from the menu bar. No admin password on every connect. Nothing bundled you didn't approve.
 </p>
 
@@ -21,15 +21,18 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/assets/main-dark.png">
-    <img src="docs/assets/main-light.png" alt="TunnelMac main window with two connected VPNs" width="880">
+    <img src="docs/assets/main-light.png" alt="TunnelMac main window with three connected VPNs" width="880">
   </picture>
 </p>
 
 ## Why TunnelMac
 
-- **Three protocols, one list.** Fortinet SSL VPN (password, SAML in the browser or
-  client certificate), OpenVPN 2.7+ profiles (`.ovpn` or Viscosity `.visc`) and
-  WireGuard `.conf` files.
+- **Four protocols, one list.** Fortinet SSL VPN (password, SAML in the browser or
+  client certificate), OpenVPN 2.7+ profiles (`.ovpn` or Viscosity `.visc`), WireGuard
+  `.conf` files and GlobalProtect gateways (SAML in your default browser or password).
+- **Only the company network through the VPN.** GlobalProtect connections route just the
+  internal networks by default, so the rest of the internet stays on your own network;
+  **All traffic through the VPN** is one switch away.
 - **Several tunnels at once.** Each connection has its own session, timer and live log.
 - **Lives in the menu bar.** Close the window and your VPNs keep running.
 - **DNS that just works.** Internal names resolve through each VPN, everything else
@@ -78,9 +81,9 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
     <td align="center" width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/new-connection-dark.png">
-        <img src="docs/assets/new-connection-light.png" alt="New connection: Fortinet, OpenVPN or WireGuard">
+        <img src="docs/assets/new-connection-light.png" alt="New connection: Fortinet, OpenVPN, WireGuard or GlobalProtect">
       </picture>
-      <br><sub>Add a Fortinet gateway or import an OpenVPN / WireGuard profile</sub>
+      <br><sub>Add a Fortinet or GlobalProtect gateway, or import an OpenVPN / WireGuard profile</sub>
     </td>
     <td align="center" width="50%">
       <picture>
@@ -88,6 +91,15 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
         <img src="docs/assets/wireguard-light.png" alt="WireGuard connection details">
       </picture>
       <br><sub>Routes, DNS and the public key of a WireGuard profile</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/globalprotect-dark.png">
+        <img src="docs/assets/globalprotect-light.png" alt="GlobalProtect connection details" width="640">
+      </picture>
+      <br><sub>GlobalProtect with SAML: only internal networks through the VPN, and a check for the network's own certificates</sub>
     </td>
   </tr>
   <tr>
@@ -134,6 +146,7 @@ from Homebrew. Thanks to their authors and contributors.
 | Fortinet SSL VPN | [**openfortivpn**](https://github.com/adrienverge/openfortivpn) by Adrien Vergé and contributors | GPL-3.0 |
 | OpenVPN | [**OpenVPN**](https://github.com/OpenVPN/openvpn) by OpenVPN Inc. and contributors | GPL-2.0 |
 | WireGuard | [**wireguard-go**](https://git.zx2c4.com/wireguard-go) by Jason A. Donenfeld and the WireGuard contributors | MIT |
+| GlobalProtect | [**OpenConnect**](https://www.infradead.org/openconnect/) by David Woodhouse and contributors | LGPL-2.1 |
 
 None of them is bundled: each user installs and approves their own copy.
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has the details.
@@ -148,5 +161,6 @@ Security issues: see [SECURITY.md](SECURITY.md).
 ---
 
 <sub>MIT licensed. TunnelMac (formerly OpenFortiDesk) is independent of, and not affiliated
-with, Fortinet, OpenVPN Inc., the WireGuard project or openfortivpn. Fortinet, OpenVPN and
-WireGuard are trademarks of their respective owners.</sub>
+with, Fortinet, OpenVPN Inc., the WireGuard project, Palo Alto Networks, OpenConnect or
+openfortivpn. Fortinet, OpenVPN, WireGuard and GlobalProtect are trademarks of their
+respective owners.</sub>

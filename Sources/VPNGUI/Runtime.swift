@@ -223,8 +223,35 @@ final class Session: ObservableObject, Identifiable {
             log(String(localized: "O perfil usa auth \(fix.from), que o OpenVPN não aceita. O app pode corrigir a cópia do perfil para auth \(fix.to)."))
         }
     }
+    /// openconnect (GlobalProtect) messages plus the lines of the helper's vpnc-script.
+    /// openconnect reconnects by itself after network changes; its exit is final.
+    func acceptGlobalProtect(_ line: String, saml: Bool) {
+        if line.range(of: #"(?i)certificate.*(failed verification|verify failed|didn't match)|Server SSL certificate didn't match"#,
+                      options: .regularExpression) != nil {
+            certificateValidationFailed = true
+            retryBlocked = true
+        }
+        if line.hasPrefix("Login failed") || line.contains("Failed to complete authentication") {
+            retryBlocked = true
+            if !saml { authenticationRejected = true }
+        }
+        if line.hasPrefix("Configured as ") && !wantsDisconnect {
+            if connectedAt == nil { connectedAt = Date() }
+            wasConnected = true
+            tunnelUp = true
+            state = .connected
+        }
+        log(GlobalProtectMarkers.display(line))
+        if line.contains("HIP report") && line.hasPrefix("WARNING:") {
+            log(String(localized: "O gateway pediu um relatório HIP, que o TunnelMac não envia; alguns recursos da rede podem ficar limitados."))
+        }
+        if line.hasPrefix("Login failed") && saml {
+            log(String(localized: "O gateway recusou a sessão do login SAML. Conecte de novo para abrir um novo login no navegador."))
+        }
+    }
     func accept(_ line: String, connection: Connection, openBrowser: (URL) -> Void) {
         if connection.isOpenVPN { acceptOpenVPN(line); return }
+        if connection.isGlobalProtect { acceptGlobalProtect(line, saml: connection.authentication == .saml); return }
         if connection.isWireGuard { acceptWireGuard(line); return }
         if line.range(of: #"(?i)^ERROR:.*(?:certificate|\bTLS\b|\bSSL\b|authenticate|SAML|No password|No cookie|\bOTP\b)"#, options: .regularExpression) != nil {
             retryBlocked = true
@@ -281,6 +308,8 @@ final class VPNManager: ObservableObject {
     @Published var sessions: [UUID: Session] = [:]
     private var samlGate = SAMLLoginGate()
     private var pendingSAML: [UUID: Connection] = [:]
+    /// GlobalProtect sessions whose browser login is running (no helper session yet).
+    private var globalProtectLogins: Set<UUID> = []
     /// Connection of a running cookie attempt, needed for its single SAML fallback.
     private var cookieAttempts: [UUID: Connection] = [:]
     /// Refused cookies the Keychain would not delete (e.g. items written by the old VPNGUI.app):
@@ -299,6 +328,9 @@ final class VPNManager: ObservableObject {
         var launched: (Session, ConnectionRequest, LaunchPlan) -> Void
         var openVPNLaunched: ((Session, OpenVPNRequest) -> Void)? = nil
         var wireGuardLaunched: ((Session, WireGuardRequest) -> Void)? = nil
+        var globalProtectLaunched: ((Session, GlobalProtectRequest) -> Void)? = nil
+        /// Local checks: the browser login's result (nil = the real browser flow).
+        var globalProtectLogin: ((Connection) async throws -> GlobalProtectCookie)? = nil
     }
     var harness: LaunchHarness?
     /// "DNS da internet" from Configurações, read at each connection (nil = do not change).
@@ -322,8 +354,14 @@ final class VPNManager: ObservableObject {
         case .fortinet: session.begin(retrying: retrying, client: "openfortivpn")
         case .openvpn: session.begin(retrying: retrying, client: "OpenVPN")
         case .wireguard: session.begin(retrying: retrying, client: "WireGuard", routedBy: String(localized: "pelo serviço do TunnelMac, a partir do perfil WireGuard"))
+        case .globalProtect: session.begin(retrying: retrying, client: "OpenConnect", routedBy: String(localized: "pelo script de rede do serviço do TunnelMac"))
         }
         session.secret = password
+        if connection.isGlobalProtect {
+            if connection.authentication == .saml { queueOrStart(session, connection: connection, password: nil) }
+            else { startGlobalProtect(session, connection: connection, password: password, cookie: nil) }
+            return
+        }
         if connection.isOpenVPN {
             startOpenVPN(session, connection: connection, password: password, profile: profile)
             return
@@ -377,7 +415,75 @@ final class VPNManager: ObservableObject {
             changed?()
             return
         }
+        if connection.isGlobalProtect { loginGlobalProtect(session, connection: connection); return }
         start(session, connection: connection, password: password)
+    }
+    /// SAML in the browser first (holding the SAML queue), then openconnect with the cookie.
+    private func loginGlobalProtect(_ session: Session, connection: Connection) {
+        session.state = .authorizing
+        changed?()
+        if harness == nil {
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
+            if let reason = transport.unavailableReason(for: .openconnect) { end(session, exit: nil, error: reason); return }
+        }
+        let validated: Connection
+        do { validated = try connection.validated() }
+        catch { end(session, exit: nil, error: error.localizedDescription); return }
+        session.state = .authenticating
+        session.log(String(localized: "Consultando o gateway GlobalProtect para o login SAML."))
+        changed?()
+        let generation = session.generation
+        let login = harness?.globalProtectLogin
+        globalProtectLogins.insert(session.id)
+        Task {
+            defer { if session.generation == generation { globalProtectLogins.remove(session.id) } }
+            do {
+                let cookie: GlobalProtectCookie
+                if let login { cookie = try await login(validated) }
+                else { cookie = try await GlobalProtectLogin.shared.login(validated) { session.log($0) } }
+                guard session.generation == generation, session.state.active else { return }
+                if session.wantsDisconnect { end(session, exit: 0); return }
+                releaseSAML(session.id)
+                session.log(String(localized: "Login SAML concluído; a sessão fica só na memória do app e do serviço."))
+                startGlobalProtect(session, connection: connection, password: nil, cookie: cookie)
+            } catch {
+                guard session.generation == generation, session.state.active else { return }
+                if error is CancellationError || session.wantsDisconnect { end(session, exit: 0); return }
+                session.retryBlocked = true
+                end(session, exit: nil, error: error.localizedDescription)
+            }
+        }
+    }
+    private func startGlobalProtect(_ session: Session, connection: Connection, password: String?, cookie: GlobalProtectCookie?) {
+        session.state = .authorizing
+        changed?()
+        if harness == nil {
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
+            if let reason = transport.unavailableReason(for: .openconnect) { end(session, exit: nil, error: reason); return }
+        }
+        if session.wantsDisconnect { end(session, exit: 0); return }
+        let request: GlobalProtectRequest
+        do {
+            let c = try connection.validated()
+            request = GlobalProtectRequest(connectionID: c.id, host: c.server, port: c.port, username: c.username,
+                                           authentication: c.authentication, trustedCertificate: c.trustedCertificate,
+                                           password: c.authentication == .password ? password : nil,
+                                           cookie: c.authentication == .saml ? cookie : nil, internalNetworks: c.allTraffic ? nil : c.routedNetworks)
+        } catch { end(session, exit: nil, error: error.localizedDescription); return }
+        if let cookie { session.secret = cookie.value }
+        running[session.id] = connection
+        if let harness { harness.globalProtectLaunched?(session, request); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
+        launch(session, plan: LaunchPlan(clientArguments: [], mode: .none)) { completion in
+            transport.startGlobalProtect(request, completion: completion)
+        }
+    }
+    /// The user pasted the globalprotectcallback: link the browser showed.
+    func pasteGlobalProtectCallback(_ text: String) {
+        GlobalProtectLogin.shared.receive(text)
+    }
+    func waitsForGlobalProtectBrowser(_ id: UUID) -> Bool {
+        GlobalProtectLogin.shared.isWaiting(for: id)
     }
     private func start(_ session: Session, connection: Connection, password: String?, cookie: String? = nil) {
         session.state = .authorizing
@@ -598,6 +704,10 @@ final class VPNManager: ObservableObject {
         // run_tunnel connects to the gateway only after wait_for_http_request
         // has consumed the callback and closed its listener.
         if connection.authentication == .saml && line.range(of: #"^INFO:\s+Connected to gateway\."#, options: .regularExpression) != nil {
+            // The callback page on the local port ("You may close this browser tab now").
+            if session.openedURL, harness == nil {
+                GlobalProtectLogin.closeReturnTabs(prefix: "http://127.0.0.1:\(HelperConstants.samlPort)/")
+            }
             releaseSAML(session.id)
         }
         if session.tunnelUp && !session.tunnelHandled {
@@ -642,6 +752,14 @@ final class VPNManager: ObservableObject {
         session.reconnectTask?.cancel(); session.reconnectTask = nil
         if session.state == .reconnecting || session.state == .waitingForSAML {
             session.wantsDisconnect = true
+            self.end(session, exit: 0)
+            return
+        }
+        if globalProtectLogins.contains(id) {
+            // GlobalProtect browser login (no helper session yet): stop waiting for the browser.
+            session.wantsDisconnect = true
+            globalProtectLogins.remove(id)
+            GlobalProtectLogin.shared.cancel(id)
             self.end(session, exit: 0)
             return
         }
@@ -740,6 +858,7 @@ final class VPNManager: ObservableObject {
     private func releaseSAML(_ id: UUID) {
         pendingSAML.removeValue(forKey: id)
         guard let next = samlGate.release(id), let connection = pendingSAML.removeValue(forKey: next) else { return }
+        if connection.isGlobalProtect { loginGlobalProtect(session(next), connection: connection); return }
         start(session(next), connection: connection, password: nil, cookie: nil)
     }
     func disconnectAll() {
@@ -747,6 +866,32 @@ final class VPNManager: ObservableObject {
         for id in waiting { disconnect(id) }
         let active = sessions.values.filter { $0.state.active }.map(\.id)
         for id in active { disconnect(id) }
+    }
+}
+
+/// The helper's vpnc-script writes its lines in Portuguese; the log shows them in the app's language.
+enum GlobalProtectMarkers {
+    static func display(_ line: String) -> String {
+        func between(_ prefix: String, _ suffix: String) -> String? {
+            guard line.hasPrefix(prefix), line.hasSuffix(suffix), line.count >= prefix.count + suffix.count else { return nil }
+            return String(line.dropFirst(prefix.count).dropLast(suffix.count))
+        }
+        if let rest = between("[#] DNS da VPN (", " para todos os nomes."), let close = rest.lastIndex(of: ")") {
+            let servers = rest[..<close].trimmingCharacters(in: .whitespaces)
+            return String(localized: "[#] DNS da VPN (\(servers)) para todos os nomes.")
+        }
+        if let rest = between("[#] DNS da VPN (", "; os demais nomes seguem no DNS atual."), let close = rest.range(of: ") para ") {
+            let servers = rest[..<close.lowerBound].trimmingCharacters(in: .whitespaces)
+            let domains = String(rest[close.upperBound...])
+            return String(localized: "[#] DNS da VPN (\(servers)) para \(domains); os demais nomes seguem no DNS atual.")
+        }
+        switch line {
+        case "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.":
+            return String(localized: "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.")
+        case "[#] Rotas e DNS da VPN removidos.":
+            return String(localized: "[#] Rotas e DNS da VPN removidos.")
+        default: return line
+        }
     }
 }
 

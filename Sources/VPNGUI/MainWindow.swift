@@ -508,6 +508,14 @@ struct ConnectionDetail: View {
     }
 
     @ViewBuilder private var notices: some View {
+        if connection.isGlobalProtect, session.state == .authenticating {
+            InlineNotice(tone: .neutral, symbol: "safari",
+                         title: String(localized: "Aguardando o login no navegador"),
+                         message: String(localized: "Ao terminar, permita que o navegador abra o TunnelMac. Se a página mostrar um link globalprotectcallback:, copie e cole aqui.")) {
+                Button("Colar retorno…") { pasteCallback() }
+            }
+            .transition(.opacity)
+        }
         if !session.state.active, let fix = session.digestFix {
             InlineNotice(tone: .warning, symbol: "wrench.and.screwdriver",
                          title: String(localized: "O OpenVPN recusou auth \(fix.from)"),
@@ -552,6 +560,23 @@ struct ConnectionDetail: View {
 
     /// The approved copy this connection runs is older than Homebrew's latest. Connecting
     /// keeps working; the notice says how to move to the new release.
+    /// The browser did not hand the callback to the app: the user pastes the link instead.
+    private func pasteCallback() {
+        let alert = NSAlert()
+        alert.messageText = String(localized: "Colar o retorno do GlobalProtect")
+        alert.informativeText = String(localized: "Cole o link globalprotectcallback: que o navegador mostrou após o login. Ele vale só para esta conexão; não o compartilhe.")
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
+        field.stringValue = NSPasteboard.general.string(forType: .string).flatMap {
+            $0.lowercased().hasPrefix(GlobalProtectRules.callbackScheme + ":") ? $0 : nil } ?? ""
+        alert.accessoryView = field
+        alert.addButton(withTitle: String(localized: "Concluir login"))
+        alert.addButton(withTitle: String(localized: "Cancelar"))
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        model.manager.pasteGlobalProtectCallback(field.stringValue)
+        field.stringValue = ""
+    }
+
     private var outdatedClient: (title: String, message: String)? {
         let kind = connection.kind.runtime
         guard let approved = service.status?.runtime(kind),
@@ -567,6 +592,9 @@ struct ConnectionDetail: View {
             case .fortinet: fortinetFacts
             case .openvpn: openVPNFacts
             case .wireguard: wireGuardFacts
+            case .globalProtect:
+                fortinetFacts
+                NetworkCertificatesCard(connected: session.state == .connected)
             }
         }
     }
@@ -631,6 +659,10 @@ struct ConnectionDetail: View {
             fact(String(localized: "Servidor"), connection.endpoint)
             fact(String(localized: "Usuário"), connection.username.isEmpty ? "—" : connection.username)
             fact(String(localized: "Autenticação"), connection.authentication.title)
+            if connection.isGlobalProtect {
+                fact(String(localized: "Rotas"), connection.allTraffic ? String(localized: "Todo o tráfego (política do gateway)")
+                     : String(localized: "Só redes internas (\(connection.routedNetworks.joined(separator: ", ")))"))
+            }
             fact(String(localized: "Certificado"), connection.trustedCertificate.isEmpty
                  ? String(localized: "Validação padrão do sistema")
                  : String(localized: "SHA-256 fixado · …\(String(connection.trustedCertificate.suffix(12)))"))
@@ -763,6 +795,7 @@ struct ClientCredit: View {
         case .openfortivpn: return ("openfortivpn", URL(string: "https://github.com/adrienverge/openfortivpn")!)
         case .openvpn: return ("OpenVPN", URL(string: "https://github.com/OpenVPN/openvpn")!)
         case .wireguard: return ("wireguard-go", URL(string: "https://git.zx2c4.com/wireguard-go")!)
+        case .openconnect: return ("OpenConnect", URL(string: "https://www.infradead.org/openconnect/")!)
         }
     }
 

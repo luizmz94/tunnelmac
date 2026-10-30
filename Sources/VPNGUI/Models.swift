@@ -65,18 +65,19 @@ struct AppFailure: LocalizedError {
 }
 
 extension Authentication {
-    var title: String { self == .password ? String(localized: "Senha") : "SAML (navegador)" }
+    var title: String { self == .password ? String(localized: "Senha") : String(localized: "SAML (navegador)") }
 }
 
 /// VPN protocol of a saved connection. Existing cadastros (no key) are Fortinet.
 enum VPNProtocol: String, Codable, CaseIterable, Identifiable {
-    case fortinet, openvpn, wireguard
+    case fortinet, openvpn, wireguard, globalProtect
     var id: String { rawValue }
     var title: String {
         switch self {
         case .fortinet: return "Fortinet SSL VPN"
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard"
+        case .globalProtect: return "GlobalProtect"
         }
     }
     var runtime: RuntimeKind {
@@ -84,6 +85,7 @@ enum VPNProtocol: String, Codable, CaseIterable, Identifiable {
         case .fortinet: return .openfortivpn
         case .openvpn: return .openvpn
         case .wireguard: return .wireguard
+        case .globalProtect: return .openconnect
         }
     }
 }
@@ -158,15 +160,21 @@ struct Connection: Codable, Identifiable, Equatable {
     var kind: VPNProtocol = .fortinet
     var openVPN: OpenVPNSummary?
     var wireGuard: WireGuardSummary?
+    /// GlobalProtect only: networks routed through the tunnel (nil = the default list).
+    var internalNetworks: [String]?
+    /// GlobalProtect only: follow the gateway's routing, which usually sends all traffic.
+    var allTraffic = false
+    var routedNetworks: [String] { internalNetworks ?? GlobalProtectRules.defaultInternalNetworks }
 
     var isOpenVPN: Bool { kind == .openvpn }
     var isWireGuard: Bool { kind == .wireguard }
+    var isGlobalProtect: Bool { kind == .globalProtect }
     /// OpenVPN and WireGuard connections come from an imported profile file.
-    var usesProfile: Bool { kind != .fortinet }
+    var usesProfile: Bool { kind == .openvpn || kind == .wireguard }
     /// Whether connecting needs the password saved in the Keychain.
     var usesPassword: Bool {
         switch kind {
-        case .fortinet: return authentication == .password
+        case .fortinet, .globalProtect: return authentication == .password
         case .openvpn: return openVPN?.requiresCredentials ?? false
         case .wireguard: return false
         }
@@ -175,7 +183,7 @@ struct Connection: Codable, Identifiable, Equatable {
     var endpoint: String {
         let servers: [String]
         switch kind {
-        case .fortinet:
+        case .fortinet, .globalProtect:
             let address = GatewayAddress.display(host: server, port: port, realm: realm)
             return address.isEmpty ? kind.title : address
         case .openvpn: servers = (openVPN?.remotes ?? []).map(\.display)
@@ -216,11 +224,23 @@ struct Connection: Codable, Identifiable, Equatable {
             } else { value.username = "" }
             return value
         }
+        if isGlobalProtect {
+            if let networks = internalNetworks {
+                do { value.internalNetworks = try GlobalProtectRules.internalNetworks(networks) }
+                catch let violation as RuleViolation { throw AppFailure(violation.message) }
+            }
+            value.realm = ""
+            value.clientCertificate = nil
+            value.openVPN = nil
+            value.wireGuard = nil
+            value.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if !isGlobalProtect { value.internalNetworks = nil; value.allTraffic = false }
         do {
             value.server = try ConnectionRules.normalizedHost(server)
             try ConnectionRules.checkPort(port)
             try ConnectionRules.checkRealm(realm)
-            try ConnectionRules.checkConfigValue(username, label: String(localized: "Usuário"))
+            try ConnectionRules.checkConfigValue(value.username, label: String(localized: "Usuário"))
             value.trustedCertificate = try ConnectionRules.normalizedCertificate(trustedCertificate)
         } catch let violation as RuleViolation { throw AppFailure(violation.message) }
         guard authentication != .password || !username.isEmpty else { throw AppFailure(String(localized: "Informe o usuário.")) }
@@ -239,6 +259,7 @@ struct Connection: Codable, Identifiable, Equatable {
 extension Connection {
     enum CodingKeys: String, CodingKey {
         case id, name, server, port, realm, username, authentication, trustedCertificate, clientCertificate, kind, openVPN, wireGuard
+        case internalNetworks, allTraffic
     }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -254,6 +275,8 @@ extension Connection {
         kind = try values.decodeIfPresent(VPNProtocol.self, forKey: .kind) ?? .fortinet
         openVPN = try values.decodeIfPresent(OpenVPNSummary.self, forKey: .openVPN)
         wireGuard = try values.decodeIfPresent(WireGuardSummary.self, forKey: .wireGuard)
+        internalNetworks = try values.decodeIfPresent([String].self, forKey: .internalNetworks)
+        allTraffic = try values.decodeIfPresent(Bool.self, forKey: .allTraffic) ?? false
     }
 }
 

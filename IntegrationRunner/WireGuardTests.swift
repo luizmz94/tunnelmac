@@ -237,7 +237,7 @@ enum WireGuardTests {
             service.useForLocalChecks(status: status)
             try require(service.health == .ready && service.unavailableReason(for: .wireguard) == nil, "WireGuard aprovado não liberou")
             try require(service.unavailableReason(for: .openvpn) != nil && service.unavailableReason(for: .openfortivpn) != nil, "Outros liberados")
-            try require(RuntimeKind.wireguard.executableName == "wireguard-go" && RuntimeKind.allCases.count == 3, "Executável")
+            try require(RuntimeKind.wireguard.executableName == "wireguard-go" && RuntimeKind.allCases.count == 4, "Executável")
             try require(ServicePanel.presentation(.wireguard, .notInstalled).command == "brew install wireguard-go", "Comando de instalação")
             try require(ClientVersion.homebrewVersion(of: "/opt/homebrew/Cellar/wireguard-go/0.0.20250522/bin/wireguard-go") == "0.0.20250522", "Keg")
             try require(ClientState.evaluate(approved: "0.0.20250522", installed: "0.0.20250522", installedExists: true, sourceChanged: false,

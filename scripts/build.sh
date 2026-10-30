@@ -72,6 +72,11 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>LSMinimumSystemVersion</key><string>13.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
+<key>NSAppleEventsUsageDescription</key><string>TunnelMac closes the page a SAML login leaves open in the browser (GlobalProtect or Fortinet) once the VPN has received it.</string>
+<key>CFBundleURLTypes</key><array><dict>
+<key>CFBundleURLName</key><string>GlobalProtect SAML login</string>
+<key>CFBundleURLSchemes</key><array><string>globalprotectcallback</string></array>
+</dict></array>
 <key>SUPublicEDKey</key><string>$sparkle_public_key</string>
 <key>SUFeedURL</key><string>https://github.com/luizmz94/tunnelmac/releases/latest/download/appcast-$arch.xml</string>
 <key>SUEnableAutomaticChecks</key><false/>
@@ -100,7 +105,8 @@ codesign "${options[@]}" "$sparkle/Versions/B/Updater.app"
 codesign "${options[@]}" "$sparkle"
 codesign "${options[@]}" --identifier com.luiz.vpngui.supervisor "$app/Contents/MacOS/VPNSupervisor"
 codesign "${options[@]}" --identifier com.luiz.vpngui.helper "$app/Contents/MacOS/VPNHelper"
-codesign "${options[@]}" --identifier com.luiz.vpngui "$app"
+# The app sends Apple events only to close the SAML login tab left in the browser.
+codesign "${options[@]}" --identifier com.luiz.vpngui --entitlements Resources/TunnelMac.entitlements "$app"
 codesign --verify --strict --deep "$app"
 
 if [[ "$identity" != "-" ]]; then

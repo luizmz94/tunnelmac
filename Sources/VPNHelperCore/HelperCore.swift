@@ -78,6 +78,7 @@ public final class HelperCore {
             self.internetDNS.recover()
             let live = Set(self.registry.stale(excluding: []).map(\.token))
             self.store.sweepClientCertificates(keeping: live)
+            GlobalProtectNetwork.recover(work: self.store.work, live: live, host: self.configuration.wireGuardHost)
             // Per-domain DNS left by sessions of an earlier helper process.
             let dns = self.configuration.supplementalDNS
             let leftovers = dns.tokens().filter { !live.contains($0) }
@@ -198,6 +199,7 @@ public final class HelperCore {
             case .start(let connection): respond(self.start(connection, for: client))
             case .startOpenVPN(let connection): respond(self.startOpenVPN(connection, for: client))
             case .startWireGuard(let connection): respond(self.startWireGuard(connection, for: client))
+            case .startGlobalProtect(let connection): respond(self.startGlobalProtect(connection, for: client))
             case .stop(let token): respond(self.stop(token, for: client))
             case .stopAll:
                 for session in self.sessions.values where session.ownerID == client.id { session.stop() }
@@ -227,6 +229,9 @@ public final class HelperCore {
             case .inspectWireGuardRuntime(let path): self.inspect(path: path, kind: .wireguard, client: client, respond: respond)
             case .approveWireGuardRuntime(let path, let digest, let authorization):
                 self.approve(path: path, digest: digest, authorization: authorization, kind: .wireguard, client: client, respond: respond)
+            case .inspectOpenConnectRuntime(let path): self.inspect(path: path, kind: .openconnect, client: client, respond: respond)
+            case .approveOpenConnectRuntime(let path, let digest, let authorization):
+                self.approve(path: path, digest: digest, authorization: authorization, kind: .openconnect, client: client, respond: respond)
             case .removeManagedFiles(let authorization):
                 self.removeManagedFiles(authorization: authorization, client: client, respond: respond)
             }
@@ -257,6 +262,9 @@ public final class HelperCore {
         var wireGuard: RuntimeSummary?
         var wireGuardProblem: String?
         do { wireGuard = try store.loadActive(.wireguard).summary } catch { wireGuardProblem = Self.wrap(error).message }
+        var openConnect: RuntimeSummary?
+        var openConnectProblem: String?
+        do { openConnect = try store.loadActive(.openconnect).summary } catch { openConnectProblem = Self.wrap(error).message }
         let authorized = (try? store.loadState().authorizedUsers.contains(client.uid)) ?? false
         let stale = registry.stale(excluding: Set(sessions.keys)).filter { $0.uid == client.uid }.map(\.connectionID)
         return HelperStatus(protocolVersion: HelperConstants.protocolVersion, helperVersion: configuration.helperVersion,
@@ -264,7 +272,8 @@ public final class HelperCore {
                             activeSessions: sessions.values.filter { $0.ownerID == client.id }.count,
                             stoppingConnections: Array(Set(stale)),
                             openVPNRuntime: openVPN, openVPNRuntimeProblem: openVPNProblem,
-                            wireGuardRuntime: wireGuard, wireGuardRuntimeProblem: wireGuardProblem)
+                            wireGuardRuntime: wireGuard, wireGuardRuntimeProblem: wireGuardProblem,
+                            openConnectRuntime: openConnect, openConnectRuntimeProblem: openConnectProblem)
     }
 
     /// Checks shared by every client kind, before anything is prepared.
@@ -362,6 +371,43 @@ public final class HelperCore {
             hold.emit = tunnel.emit
             tunnel.ready = { hold.tunnelUp() }
             return SessionObservers([tunnel, hold])
+        }
+    }
+
+    /// openconnect with the helper's config (fd 3), the password or SAML cookie on stdin (fd 4)
+    /// and the helper's own vpnc-script for addresses, routes and DNS.
+    private func startGlobalProtect(_ request: GlobalProtectRequest, for client: Client) -> HelperResponse {
+        if let refusal = admit(request.connectionID, for: client) { return .failure(refusal) }
+        let runtime: ActiveRuntime
+        do { runtime = try store.loadActive(.openconnect) } catch { return .failure(Self.wrap(error)) }
+        let token = UUID().uuidString
+        let routes = GlobalProtectNetwork.routesFile(work: store.work, token: token)
+        var content: Data
+        let secret: String
+        let server: String
+        do {
+            let login = try request.validated()
+            secret = login.secret
+            server = try OpenConnectConfigRenderer.server(host: request.host, port: request.port)
+            let script = try store.preparedVPNCScript()
+            content = Data(try OpenConnectConfigRenderer.render(username: login.username, cookieKind: login.cookieKind,
+                                                                trustedCertificate: request.trustedCertificate, script: script).utf8)
+        } catch { return .failure(Self.wrap(error)) }
+        defer { content.resetBytes(in: 0..<content.count) }
+        var environment = runtime.environment
+        // GnuTLS's system priority file in the Homebrew prefix is user-writable: an empty root-owned one instead.
+        environment["GNUTLS_SYSTEM_PRIORITY_FILE"] = runtime.root + "/etc/gnutls.config"
+        environment["TUNNELMAC_TOKEN"] = token
+        if let networks = request.internalNetworks {
+            do { environment["TUNNELMAC_INTERNAL_NETWORKS"] = try GlobalProtectRules.internalNetworks(networks).joined(separator: " ") }
+            catch { return .failure(Self.wrap(error)) }
+        }
+        environment["TUNNELMAC_ROUTES"] = routes
+        let dns = configuration.supplementalDNS, host = configuration.wireGuardHost
+        return launch(connectionID: request.connectionID, client: client, runtime: runtime, content: content, cookie: secret,
+                      supervisorArguments: ["--openconnect", runtime.executable, server], plan: LaunchPlan(clientArguments: [], mode: .none),
+                      secrets: secret.count >= 4 ? [secret] : [], token: token, environment: environment) { _ in
+            GlobalProtectCleanup(token: token, routes: routes, dns: dns, host: host)
         }
     }
 

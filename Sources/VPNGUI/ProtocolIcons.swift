@@ -29,6 +29,8 @@ extension VPNProtocol {
         case .openvpn: return Color(red: 0xEA / 255, green: 0x7E / 255, blue: 0x20 / 255)
         // Simple Icons lists #88171A; lifted slightly so the mark stays legible in dark mode.
         case .wireguard: return Color(red: 0xA8 / 255, green: 0x1D / 255, blue: 0x21 / 255)
+        // No vendor mark is shipped for GlobalProtect: a system symbol in a neutral blue.
+        case .globalProtect: return Color(red: 0x1F / 255, green: 0x6F / 255, blue: 0xC5 / 255)
         }
     }
     var fallbackSymbol: String {
@@ -36,6 +38,7 @@ extension VPNProtocol {
         case .fortinet: return "shield.lefthalf.filled"
         case .openvpn: return "lock.shield"
         case .wireguard: return "point.3.connected.trianglepath.dotted"
+        case .globalProtect: return "globe.badge.chevron.backward"
         }
     }
 }
