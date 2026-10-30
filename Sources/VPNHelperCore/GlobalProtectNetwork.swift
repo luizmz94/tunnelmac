@@ -133,6 +133,14 @@ add_tunnel() {
 	fi
 }
 
+# Without these routes or the DNS the session would look connected while traffic or names
+# miss the tunnel: the helper stops openconnect when it sees this line.
+incomplete() {
+	[ -z "$missing" ] && return 0
+	echo "[!] TunnelMac: rede da VPN incompleta:$missing."
+	exit 1
+}
+
 flush_dns() {
 	dscacheutil -flushcache >/dev/null 2>&1
 	killall -HUP mDNSResponder >/dev/null 2>&1
@@ -191,12 +199,6 @@ do_connect() {
 			[ "$via" = "$TUNDEV" ] && missing="$missing $VPNGATEWAY"
 		fi
 	fi
-	# Without these routes the session would look connected while traffic misses the
-	# tunnel: openconnect is stopped by the helper when it sees this line.
-	if [ -n "$missing" ]; then
-		echo "[!] TunnelMac: rotas obrigatórias não configuradas:$missing."
-		exit 1
-	fi
 
 	servers=""
 	n=0
@@ -204,8 +206,12 @@ do_connect() {
 		is_ipv4 "$server" || continue
 		[ "$n" -lt 4 ] || break
 		servers="$servers $server"; n=$((n + 1))
+		# The VPN's DNS must be reached through the tunnel, never the local network.
 		[ "$full" -eq 1 ] || route -q -n add -inet -host "$server" -interface "$TUNDEV" >/dev/null 2>&1
+		via=$(route -n get -inet "$server" 2>/dev/null | awk '/interface:/ { print $2; exit }')
+		[ "$via" = "$TUNDEV" ] || missing="$missing $server"
 	done
+	incomplete
 	domains=""
 	for domain in $CISCO_DEF_DOMAIN $(echo "$CISCO_SPLIT_DNS" | tr ',;' '  '); do
 		is_domain "$domain" || continue
@@ -229,6 +235,9 @@ do_connect() {
 	[ -n "$domains" ] && search="d.add SearchDomains *$domains"
 	printf 'open\nd.init\nd.add ServerAddresses *%s\nd.add SupplementalMatchDomains * %s\n%s\n%s\nset %s\nclose\n' \
 		"$servers" "$match" "$order" "$search" "$DNS_KEY" | scutil >/dev/null 2>&1
+	# The resolver must really be published: read it back.
+	printf 'open\nshow %s\nclose\n' "$DNS_KEY" | scutil 2>/dev/null | grep -q ServerAddresses || missing="$missing DNS"
+	incomplete
 	flush_dns
 	if [ "$full" -eq 1 ]; then
 		echo "[#] DNS da VPN ($servers ) para todos os nomes."

@@ -894,7 +894,7 @@ enum GlobalProtectMarkers {
             return String(localized: "[+] TunnelMac: rede do túnel configurada em \(interface).")
         }
         if let routes = between(GlobalProtectRules.networkFailure, ".") {
-            return String(localized: "[!] TunnelMac: rotas obrigatórias não configuradas (\(routes.trimmingCharacters(in: .whitespaces))); a conexão foi encerrada.")
+            return String(localized: "[!] TunnelMac: rotas ou DNS da VPN não configurados (\(routes.trimmingCharacters(in: .whitespaces))); a conexão foi encerrada.")
         }
         switch line {
         case "[i] O gateway pede todo o tráfego pela VPN; só as redes internas escolhidas usarão o túnel.":

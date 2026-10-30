@@ -21,12 +21,35 @@ final class GlobalProtectLogin {
 
     private struct Pending {
         let id: UUID
+        let attempt: UUID
         let continuation: CheckedContinuation<GlobalProtectCookie, Error>
     }
+    /// The login attempt that holds the URL scheme, from just before the change until the
+    /// previous handler is back. Another attempt waits for it, so a late restore of a
+    /// cancelled login can never take the scheme from the next one.
+    struct Claim {
+        let attempt: UUID
+        var previous: URL?
+        var changed = false
+    }
+    /// LaunchServices access for the callback scheme (replaced by local checks).
+    struct SchemeHandler {
+        var current: () -> URL?
+        var set: (URL) async -> Error?
+        static let system = SchemeHandler(
+            current: { URL(string: GlobalProtectRules.callbackScheme + ":").flatMap { NSWorkspace.shared.urlForApplication(toOpen: $0) } },
+            set: { application in
+                await withCheckedContinuation { continuation in
+                    NSWorkspace.shared.setDefaultApplication(at: application, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) {
+                        continuation.resume(returning: $0)
+                    }
+                }
+            })
+    }
+    var schemeHandler = SchemeHandler.system
     private var pending: Pending?
     private var timeoutTask: DispatchWorkItem?
-    private var previousHandler: URL?
-    private var claimedHandler = false
+    var claim: Claim?
     private var formFile: URL?
     /// Gateway of the waiting login: its "Authentication Complete" tab is closed afterwards.
     private var gatewayHost: String?
@@ -60,20 +83,23 @@ final class GlobalProtectLogin {
         if !prelogin.defaultBrowser {
             log(String(localized: "O gateway não anunciou login pelo navegador padrão; o retorno pode não chegar ao TunnelMac."))
         }
-        guard pending == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        // An earlier attempt may still be giving the scheme back (cancelled or finished).
+        for _ in 0..<50 where claim != nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+        guard pending == nil, claim == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        let attempt = UUID()
+        claim = Claim(attempt: attempt)
         // The browser opens only once macOS confirms TunnelMac receives the return; otherwise
         // the official GlobalProtect app could take it and this login would wait in vain.
-        guard await claimHandler() else {
-            restoreHandler()
+        guard await claimHandler(attempt) else {
+            await releaseHandler(attempt)
             throw AppFailure(String(localized: "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app."))
         }
-        if cancelled.remove(connection.id) != nil || pending != nil {
-            restoreHandler()
-            if pending != nil { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        if cancelled.remove(connection.id) != nil {
+            await releaseHandler(attempt)
             throw CancellationError()
         }
         return try await withCheckedThrowingContinuation { continuation in
-            pending = Pending(id: connection.id, continuation: continuation)
+            pending = Pending(id: connection.id, attempt: attempt, continuation: continuation)
             gatewayHost = connection.server
             let task = DispatchWorkItem { [weak self] in
                 self?.finish(.failure(AppFailure(String(localized: "O login no navegador não retornou em 5 minutos."))))
@@ -100,7 +126,7 @@ final class GlobalProtectLogin {
         self.pending = nil
         timeoutTask?.cancel(); timeoutTask = nil
         if let formFile { try? FileManager.default.removeItem(at: formFile); self.formFile = nil }
-        restoreHandler()
+        Task { await releaseHandler(pending.attempt) }
         if case .success = result, let gatewayHost, gatewayHost.range(of: #"^[A-Za-z0-9.-]+$"#, options: .regularExpression) != nil {
             Self.closeReturnTabs(prefix: "https://\(gatewayHost.lowercased())/SAML20/")
         }
@@ -155,23 +181,19 @@ final class GlobalProtectLogin {
 
     /// Makes this app the scheme's handler and waits until LaunchServices reports it.
     /// Returns false when macOS refused the change or still names another app.
-    private func claimHandler() async -> Bool {
-        let mine = Bundle.main.bundleURL.standardizedFileURL
-        guard let probe = URL(string: GlobalProtectRules.callbackScheme + ":"), let identifier = Bundle.main.bundleIdentifier else { return false }
-        func current() -> URL? { NSWorkspace.shared.urlForApplication(toOpen: probe)?.standardizedFileURL }
+    func claimHandler(_ attempt: UUID, mine: URL = Bundle.main.bundleURL.standardizedFileURL,
+                      identifier: String? = Bundle.main.bundleIdentifier) async -> Bool {
+        guard let identifier else { return false }
+        func current() -> URL? { schemeHandler.current()?.standardizedFileURL }
         // LaunchServices keeps the handler by bundle identifier and may report another copy of
         // this app (e.g. /Applications next to a build); the running copy receives the event.
         func ours(_ url: URL?) -> Bool { url.flatMap { Bundle(url: $0)?.bundleIdentifier } == identifier }
         let before = current()
+        guard claim?.attempt == attempt else { return false }
         guard !ours(before) else { return true }
-        previousHandler = before
-        claimedHandler = true
-        let error: Error? = await withCheckedContinuation { continuation in
-            NSWorkspace.shared.setDefaultApplication(at: mine, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) {
-                continuation.resume(returning: $0)
-            }
-        }
-        guard error == nil else { return false }
+        claim?.previous = before
+        claim?.changed = true
+        guard await schemeHandler.set(mine) == nil else { return false }
         // The change can take a moment to show up in LaunchServices.
         for _ in 0..<10 {
             if ours(current()) { return true }
@@ -180,12 +202,14 @@ final class GlobalProtectLogin {
         return false
     }
 
-    private func restoreHandler() {
-        guard claimedHandler else { return }
-        claimedHandler = false
-        defer { previousHandler = nil }
-        guard let previous = previousHandler, FileManager.default.fileExists(atPath: previous.path) else { return }
-        NSWorkspace.shared.setDefaultApplication(at: previous, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) { _ in }
+    /// Gives the scheme back to the previous app (waiting for macOS), then frees it for the
+    /// next attempt. Does nothing for an attempt that no longer holds it.
+    func releaseHandler(_ attempt: UUID) async {
+        guard let held = claim, held.attempt == attempt else { return }
+        if held.changed, let previous = held.previous, FileManager.default.fileExists(atPath: previous.path) {
+            _ = await schemeHandler.set(previous)
+        }
+        if claim?.attempt == attempt { claim = nil }
     }
 
     // MARK: Prelogin

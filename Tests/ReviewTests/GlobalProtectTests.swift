@@ -219,8 +219,16 @@ extension GlobalProtectTests {
             XCTAssertEqual(status, 1, output)
             XCTAssertTrue(output.contains(GlobalProtectRules.networkFailure + " \(route)."), output)
             XCTAssertFalse(output.contains(GlobalProtectRules.networkReady), output)
-            XCTAssertFalse(recorded.contains("scutil"), recorded)
+            XCTAssertFalse(recorded.contains("scutil"), recorded) // No resolver without the routes.
         }
+    }
+
+    /// A resolver that does not read back ends "connect" like a missing route.
+    func testUnpublishedDNSFailsTheConnection() throws {
+        let (_, output, status) = try runConnect(networks: "10.0.0.0/8 172.16.0.0/12", failing: "DNS")
+        XCTAssertEqual(status, 1, output)
+        XCTAssertTrue(output.contains(GlobalProtectRules.networkFailure + " DNS."), output)
+        XCTAssertFalse(output.contains(GlobalProtectRules.networkReady), output)
     }
 
     func testHelperStopsTheSessionWhenRoutesAreMissing() {
@@ -242,8 +250,12 @@ extension GlobalProtectTests {
         let calls = directory.appendingPathComponent("calls").path
         for tool in ["ifconfig", "route", "scutil", "dscacheutil", "killall"] {
             let stub = bin.appendingPathComponent(tool)
-            let refuse = tool == "route" && failing != nil ? "case \"$*\" in *\" \(failing!) \"*) exit 1 ;; esac\n" : ""
-            try Data("#!/bin/sh\necho \"\(tool) $*\" >> \(calls)\n\(refuse)cat >/dev/null 2>&1 </dev/null\n".utf8).write(to: stub)
+            var body = "#!/bin/sh\necho \"\(tool) $*\" >> \(calls)\n"
+            if tool == "route", let failing { body += "case \"$*\" in *\" \(failing) \"*) exit 1 ;; esac\n" }
+            // route get: the tunnel for everything except the physical gateway's own address.
+            if tool == "route" { body += "case \"$*\" in *\" get \"*203.0.113.1*) echo '  interface: en0' ;; *\" get \"*) echo '  interface: utun8' ;; esac\n" }
+            if tool == "scutil" { body += failing == "DNS" ? "cat >/dev/null\n" : "grep -q '^show' && echo '<dictionary> { ServerAddresses : <array> }'\n" }
+            try Data(body.utf8).write(to: stub)
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stub.path)
         }
         let netstat = bin.appendingPathComponent("netstat")
@@ -302,5 +314,44 @@ extension GlobalProtectTests {
         XCTAssertEqual(GlobalProtectMarkers.display("[#] DNS da VPN ( 10.0.0.53 ) para a.example b.example; os demais nomes seguem no DNS atual."),
                        "[#] DNS da VPN (10.0.0.53) para a.example b.example; os demais nomes seguem no DNS atual.")
         XCTAssertEqual(GlobalProtectMarkers.display("[#] route add -net 10.0.0.0/8 -interface utun8"), "[#] route add -net 10.0.0.0/8 -interface utun8")
+    }
+}
+
+extension GlobalProtectTests {
+    /// The scheme belongs to one login attempt: a late release of a cancelled attempt never
+    /// touches the handler the next attempt claimed, and a claim needs the reservation.
+    @MainActor func testSchemeClaimBelongsToItsAttempt() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("gp-\(UUID().uuidString)")
+        let other = directory.appendingPathComponent("Other.app"), mine = directory.appendingPathComponent("Mine.app")
+        for app in [other, mine] { try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true) }
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let login = GlobalProtectLogin()
+        var handler = other
+        var sets: [URL] = []
+        // Bundle(url:) of these folders has no identifier: "ours" compares by path here.
+        login.schemeHandler = .init(current: { handler }, set: { url in sets.append(url); handler = url; return nil })
+        let first = UUID(), second = UUID()
+        let unreserved = await login.claimHandler(first, mine: mine, identifier: "fixture")
+        XCTAssertFalse(unreserved, "claim without reservation")
+        XCTAssertTrue(sets.isEmpty)
+        login.claim = .init(attempt: first)
+        _ = await login.claimHandler(first, mine: mine, identifier: "fixture")
+        XCTAssertEqual(sets.map(\.lastPathComponent), ["Mine.app"])
+        XCTAssertEqual(login.claim?.previous?.lastPathComponent, "Other.app")
+        // The first attempt gives the scheme back; only then may the second take it.
+        await login.releaseHandler(first)
+        XCTAssertNil(login.claim)
+        XCTAssertEqual(handler.lastPathComponent, "Other.app")
+        login.claim = .init(attempt: second)
+        _ = await login.claimHandler(second, mine: mine, identifier: "fixture")
+        // A late release of the first attempt changes nothing.
+        let before = sets.count
+        await login.releaseHandler(first)
+        XCTAssertEqual(sets.count, before)
+        XCTAssertEqual(handler.lastPathComponent, "Mine.app")
+        XCTAssertEqual(login.claim?.attempt, second)
+        await login.releaseHandler(second)
+        XCTAssertEqual(handler.lastPathComponent, "Other.app")
+        XCTAssertNil(login.claim)
     }
 }

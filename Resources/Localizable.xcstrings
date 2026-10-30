@@ -33769,6 +33769,7 @@
       }
     },
     "[!] TunnelMac: rotas obrigatórias não configuradas (%@); a conexão foi encerrada.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -33798,6 +33799,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "[!] TunnelMac: आवश्यक रूट सेट नहीं हुए (%@); कनेक्शन बंद कर दिया गया।"
+          }
+        }
+      }
+    },
+    "[!] TunnelMac: rotas ou DNS da VPN não configurados (%@); a conexão foi encerrada.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: VPN-Routen oder -DNS nicht eingerichtet (%@); die Verbindung wurde beendet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: VPN routes or DNS not set up (%@); the connection was closed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: rutas o DNS de la VPN no configurados (%@); la conexión se cerró."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac : routes ou DNS du VPN non configurés (%@) ; la connexion a été fermée."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: VPN रूट या DNS सेट नहीं हुए (%@); कनेक्शन बंद कर दिया गया।"
           }
         }
       }
