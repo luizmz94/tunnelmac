@@ -157,10 +157,13 @@ final class GlobalProtectLogin {
     /// Returns false when macOS refused the change or still names another app.
     private func claimHandler() async -> Bool {
         let mine = Bundle.main.bundleURL.standardizedFileURL
-        guard let probe = URL(string: GlobalProtectRules.callbackScheme + ":") else { return false }
+        guard let probe = URL(string: GlobalProtectRules.callbackScheme + ":"), let identifier = Bundle.main.bundleIdentifier else { return false }
         func current() -> URL? { NSWorkspace.shared.urlForApplication(toOpen: probe)?.standardizedFileURL }
+        // LaunchServices keeps the handler by bundle identifier and may report another copy of
+        // this app (e.g. /Applications next to a build); the running copy receives the event.
+        func ours(_ url: URL?) -> Bool { url.flatMap { Bundle(url: $0)?.bundleIdentifier } == identifier }
         let before = current()
-        guard before != mine else { return true }
+        guard !ours(before) else { return true }
         previousHandler = before
         claimedHandler = true
         let error: Error? = await withCheckedContinuation { continuation in
@@ -171,7 +174,7 @@ final class GlobalProtectLogin {
         guard error == nil else { return false }
         // The change can take a moment to show up in LaunchServices.
         for _ in 0..<10 {
-            if current() == mine { return true }
+            if ours(current()) { return true }
             try? await Task.sleep(nanoseconds: 100_000_000)
         }
         return false
