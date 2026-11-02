@@ -200,7 +200,8 @@ enum ShortcutValidator {
     static var doubleTapModifiers: String { String(localized: "Use ⌘, ⌥, ⌃ ou ⇧ para o toque duplo.") }
     static var systemShortcut: String { String(localized: "Este atalho já é usado pelo macOS (Ajustes › Teclado › Atalhos de Teclado).") }
     static var commonShortcut: String { String(localized: "Este atalho é usado por apps comuns; escolha outro.") }
-    static func registrationFailed(_ status: OSStatus) -> String { String(localized: "O macOS recusou este atalho (código \(Int(status))). Escolha outro.") }
+    /// The code as typed by macOS ("-9878"), not as a localized number ("-9.878").
+    static func registrationFailed(_ status: OSStatus) -> String { String(localized: "O macOS recusou este atalho (código \(String(status))). Escolha outro.") }
 
     /// App and editing shortcuts a global one would take from every app: character (in the
     /// current layout) or key code, with ⌘ alone (⇧⌘ for Z).

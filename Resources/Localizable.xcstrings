@@ -27661,36 +27661,36 @@
         }
       }
     },
-    "O macOS recusou este atalho (código %lld). Escolha outro.": {
+    "O macOS recusou este atalho (código %@). Escolha outro.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS hat diesen Kurzbefehl abgelehnt (Code %lld). Wähle einen anderen."
+            "value": "macOS hat diesen Kurzbefehl abgelehnt (Code %@). Wähle einen anderen."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS refused this shortcut (code %lld). Choose another one."
+            "value": "macOS refused this shortcut (code %@). Choose another one."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS rechazó este atajo (código %lld). Elige otro."
+            "value": "macOS rechazó este atajo (código %@). Elige otro."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS a refusé ce raccourci (code %lld). Choisissez-en un autre."
+            "value": "macOS a refusé ce raccourci (code %@). Choisissez-en un autre."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "macOS ने यह शॉर्टकट अस्वीकार किया (कोड %lld)। कोई दूसरा चुनें।"
+            "value": "macOS ने यह शॉर्टकट अस्वीकार किया (कोड %@)। कोई दूसरा चुनें।"
           }
         }
       }
