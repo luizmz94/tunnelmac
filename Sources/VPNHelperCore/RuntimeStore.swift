@@ -40,6 +40,8 @@ struct HelperState: Codable {
     var previousWireGuardRuntime: String?
     var activeOpenConnectRuntime: String?
     var previousOpenConnectRuntime: String?
+    var activeSnxRuntime: String?
+    var previousSnxRuntime: String?
 
     func active(_ kind: RuntimeKind) -> String? {
         switch kind {
@@ -47,6 +49,7 @@ struct HelperState: Codable {
         case .openvpn: return activeOpenVPNRuntime
         case .wireguard: return activeWireGuardRuntime
         case .openconnect: return activeOpenConnectRuntime
+        case .snxrs: return activeSnxRuntime
         }
     }
     mutating func activate(_ id: String, kind: RuntimeKind) {
@@ -63,11 +66,15 @@ struct HelperState: Codable {
         case .openconnect:
             if activeOpenConnectRuntime != id { previousOpenConnectRuntime = activeOpenConnectRuntime }
             activeOpenConnectRuntime = id
+        case .snxrs:
+            if activeSnxRuntime != id { previousSnxRuntime = activeSnxRuntime }
+            activeSnxRuntime = id
         }
     }
     var kept: [String] {
         [activeRuntime, previousRuntime, activeOpenVPNRuntime, previousOpenVPNRuntime,
-         activeWireGuardRuntime, previousWireGuardRuntime, activeOpenConnectRuntime, previousOpenConnectRuntime].compactMap { $0 }
+         activeWireGuardRuntime, previousWireGuardRuntime, activeOpenConnectRuntime, previousOpenConnectRuntime,
+         activeSnxRuntime, previousSnxRuntime].compactMap { $0 }
     }
 }
 
@@ -150,6 +157,10 @@ public final class RuntimeStore {
     public var dnsBaselineRecord: String { root + "/dns-baseline.json" }
     /// The helper's own vpnc-script for openconnect sessions.
     public var vpncScripts: String { root + "/vpnc" }
+    /// Check Point sessions: the trusted authority of each one (<token>.pem) and snx-rs's HOME.
+    public var checkPoint: String { root + "/checkpoint" }
+    /// Authorities for `snx-rs -m info`, readable by the unprivileged probe identity.
+    public var checkPointQueries: String { root + "/checkpoint-query" }
 
     // MARK: State
 
@@ -352,6 +363,8 @@ public final class RuntimeStore {
             case .wireguard: recognized = versionOutput.status == 0 && RuntimeCapabilities.looksLikeWireGuardGo(versionOutput.text)
             case .openconnect: recognized = RuntimeCapabilities.looksLikeOpenConnect(help?.text ?? "")
                 && versionOutput.text.contains("gp")
+            case .snxrs: recognized = versionOutput.status == 0
+                && RuntimeCapabilities.looksLikeSnxRs(help: help?.text ?? "", version: versionOutput.text)
             }
             guard recognized else {
                 let expected: String
@@ -360,6 +373,7 @@ public final class RuntimeStore {
                 case .openvpn: expected = ServiceLanguage.text("as opções esperadas do OpenVPN 2.7 ou superior (--dns-updown)")
                 case .wireguard: expected = ServiceLanguage.text("a versão do wireguard-go para macOS")
                 case .openconnect: expected = ServiceLanguage.text("as opções esperadas do OpenConnect com GlobalProtect (--protocol=gp)")
+                case .snxrs: expected = ServiceLanguage.text("as opções esperadas do snx-rs (cliente Check Point)")
                 }
                 throw failure(.runtimeRejected, ServiceLanguage.text("A cópia gerenciada não apresentou \(expected) (código \((help ?? versionOutput).status))."))
             }
@@ -375,6 +389,10 @@ public final class RuntimeStore {
             // "OpenConnect version v9.21"
             if kind == .openconnect, firstLine.hasPrefix("OpenConnect version v") {
                 firstLine = String(firstLine.dropFirst("OpenConnect version v".count))
+            }
+            // "snx-rs 6.6.1"
+            if kind == .snxrs, firstLine.hasPrefix("snx-rs ") {
+                firstLine = String(firstLine.dropFirst("snx-rs ".count))
             }
             let version = firstLine.range(of: #"^[0-9][0-9A-Za-z.+_-]{0,31}$"#, options: .regularExpression) != nil ? firstLine : "desconhecida"
             let manifest = RuntimeManifest(id: id, approvedAt: Date(), approvedByUID: uid, version: version,
@@ -434,7 +452,7 @@ public final class RuntimeStore {
     /// Removes only the helper's own managed files (runtime copies, supervisor copy,
     /// state and work directory). Nothing outside `root` is touched.
     public func removeAll() {
-        for path in [runtimes, supervisors, work, vpncScripts, wireGuardRecords, clientCertificates, internetDNSRecord, dnsBaselineRecord, statePath, registryPath] { SecureFile.removeTree(path) }
+        for path in [runtimes, supervisors, work, vpncScripts, checkPoint, checkPointQueries, wireGuardRecords, clientCertificates, internetDNSRecord, dnsBaselineRecord, statePath, registryPath] { SecureFile.removeTree(path) }
         rmdir(root)
     }
 
@@ -473,6 +491,53 @@ public final class RuntimeStore {
 
     private func clientCertificatePaths(_ token: String) -> (certificate: String, key: String) {
         (clientCertificates + "/\(token).crt", clientCertificates + "/\(token).key")
+    }
+
+    // MARK: Check Point
+
+    /// The authority a Check Point session trusts, as PEM (root only, 0400), for `ca-cert`.
+    public func writeCheckPointAuthority(_ der: Data, token: String) throws -> String {
+        guard UUID(uuidString: token) != nil else { throw HelperFailure(.internalError, ServiceLanguage.text("Sessão inválida.")) }
+        try CheckPointRules.checkAuthority(der)
+        try prepareDirectories()
+        try SecureFile.makeDirectory(checkPoint, mode: 0o700)
+        try ownership.verifyChain(checkPoint)
+        let path = checkPointAuthorityPath(token)
+        unlink(path)
+        try SecureFile.create(path, data: Data(CheckPointRules.pem(der).utf8), mode: 0o400)
+        return path
+    }
+
+    public func removeCheckPointAuthority(token: String) { unlink(checkPointAuthorityPath(token)) }
+
+    func checkPointAuthorityPath(_ token: String) -> String { checkPoint + "/\(token).pem" }
+
+    /// Authorities of sessions that are gone (helper crash or restart).
+    func sweepCheckPointAuthorities(keeping live: Set<String>) {
+        for entry in (try? FileManager.default.contentsOfDirectory(atPath: checkPoint)) ?? [] where entry.hasSuffix(".pem") {
+            if !live.contains(String(entry.dropLast(4))) { unlink(checkPoint + "/" + entry) }
+        }
+    }
+
+    /// snx-rs's HOME (root only): it keeps nothing there with ike-persist=false.
+    public func checkPointHome() throws -> String {
+        try prepareDirectories()
+        try SecureFile.makeDirectory(checkPoint, mode: 0o700)
+        let home = checkPoint + "/home"
+        try SecureFile.makeDirectory(home, mode: 0o700)
+        try ownership.verifyChain(home)
+        return home
+    }
+
+    /// A random file the probe identity can read, removed by the caller after the query.
+    func writeCheckPointQueryAuthority(_ der: Data) throws -> String {
+        try CheckPointRules.checkAuthority(der)
+        try prepareDirectories()
+        try SecureFile.makeDirectory(checkPointQueries, mode: 0o755)
+        try ownership.verifyChain(checkPointQueries)
+        let path = checkPointQueries + "/\(UUID().uuidString).pem"
+        try SecureFile.create(path, data: Data(CheckPointRules.pem(der).utf8), mode: 0o444)
+        return path
     }
 
     // MARK: vpnc-script
