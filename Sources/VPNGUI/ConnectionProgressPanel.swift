@@ -197,22 +197,14 @@ final class ConnectionProgressPanelController: ProgressPanelPresenter {
         isShown = true
         fit(animated: false)
         guard !reduceMotion else { panel.alphaValue = 1; panel.orderFrontRegardless(); return }
-        // Fades in, 8 pt from above.
-        let final = panel.frame
-        panel.setFrame(final.offsetBy(dx: 0, dy: 8), display: false)
+        // The window fades in where it belongs; the cards come 8 pt from above (their transition).
         panel.alphaValue = 0
         panel.orderFrontRegardless()
         NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.2
-            panel.animator().setFrame(final, display: true)
             panel.animator().alphaValue = 1
         }, completionHandler: { [weak self] in
-            // Lands exactly in place even if the animation was cut short.
-            MainActor.assumeIsolated {
-                guard let self, self.isShown else { return }
-                self.panel.alphaValue = 1
-                self.fit(animated: false)
-            }
+            MainActor.assumeIsolated { if let self, self.isShown { self.panel.alphaValue = 1 } }
         })
     }
 
@@ -264,7 +256,7 @@ struct ConnectionProgressView: View {
             ForEach(model.visible) { card in
                 ProgressCardView(card: card, menuBar: menuBar, center: center)
                     .modifier(ProgressCardSurface(id: card.id, namespace: glass))
-                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .offset(y: -8)))
             }
             if model.overflow > 0 {
                 Button { menuBar.showMenu() } label: {
