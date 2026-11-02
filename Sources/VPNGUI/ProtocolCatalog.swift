@@ -69,12 +69,16 @@ struct ProtocolCatalog {
         }
     }
 
-    /// The entry the quick view describes: under the mouse, else focused, else the first.
-    static func shown(hovered: String?, focused: String?, in entries: [Entry]) -> Entry? {
-        for id in [hovered, focused] {
-            if let id, let entry = entries.first(where: { $0.id == id }) { return entry }
+    /// The entry the quick view describes: the tile of the last interaction (hover or focus,
+    /// whichever changed last), else the first.
+    struct Selection: Equatable {
+        private(set) var last: String?
+        /// The pointer entered a tile; leaving it (nil) keeps the last one, so nothing flickers.
+        mutating func hovered(_ id: String?) { if let id { last = id } }
+        mutating func focused(_ id: String?) { if let id { last = id } }
+        func shown(in entries: [Entry]) -> Entry? {
+            entries.first { $0.id == last } ?? entries.first
         }
-        return entries.first
     }
 
     /// Columns of the adaptive grid for a given width (same rule as `GridItem.adaptive`).

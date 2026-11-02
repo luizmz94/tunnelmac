@@ -1015,8 +1015,8 @@ struct ConnectionEditor: View {
     }
 }
 
-/// Nova conexão, step 1: the VPN types as a grid of tiles over a fixed quick view of the one
-/// under the mouse (else the focused one, else the first). Arrows move the focus, Enter or
+/// Nova conexão, step 1: the VPN types as a grid of tiles over a quick view of the tile of the
+/// last interaction (hover or focus), else the first. Arrows move the focus, Enter or
 /// Space chooses, Tab leaves the grid for Cancelar.
 struct ProtocolChooser: View {
     let catalog: ProtocolCatalog
@@ -1027,6 +1027,7 @@ struct ProtocolChooser: View {
     let choose: (VPNProtocol) -> Void
     let cancel: () -> Void
     @State private var hovered: String?
+    @State private var selection = ProtocolCatalog.Selection()
     @FocusState private var focused: String?
     /// The single tile Tab stops at; the arrows move it.
     @State private var current: String?
@@ -1047,10 +1048,11 @@ struct ProtocolChooser: View {
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
             .onMoveCommand(perform: move)
-            if let entry = ProtocolCatalog.shown(hovered: hovered, focused: focused, in: catalog.entries) {
+            if let entry = selection.shown(in: catalog.entries) {
                 ProtocolQuickView(entry: entry, state: state(entry.kind, locale), openService: openService)
                     .padding(.horizontal, 16).padding(.bottom, 14)
             }
+            Spacer(minLength: 0)
             SheetFooter {
                 Spacer()
                 Button(LocalizedStringResource("Cancelar").string(in: locale)) { cancel() }
@@ -1060,13 +1062,16 @@ struct ProtocolChooser: View {
         .background { keyButtons }
         .defaultFocus($focused, catalog.entries.first?.id)
         .onAppear { DispatchQueue.main.async { focused = current ?? catalog.entries.first?.id } }
-        .onChange(of: focused) { if let id = $0 { current = id } }
+        .onChange(of: focused) { id in
+            if let id { current = id }
+            selection.focused(id)
+        }
     }
 
     private func tile(_ entry: ProtocolCatalog.Entry) -> some View {
         ProtocolTileButton(entry: entry, state: state(entry.kind, locale), hovering: hovered == entry.id) { choose(entry.kind) }
             .onHover { inside in
-                if inside { hovered = entry.id } else if hovered == entry.id { hovered = nil }
+                if inside { hovered = entry.id; selection.hovered(entry.id) } else if hovered == entry.id { hovered = nil }
             }
             .focusable(entry.id == (current ?? catalog.entries.first?.id))
             .focused($focused, equals: entry.id)
@@ -1167,7 +1172,7 @@ struct ProtocolTileButton: View {
     }
 }
 
-/// Fixed panel under the grid describing one type: what it is, its client, how it signs in
+/// Panel under the grid describing one type: what it is, its client, how it signs in
 /// and what the form asks for. Hidden from VoiceOver, which hears the same on the tile.
 struct ProtocolQuickView: View {
     let entry: ProtocolCatalog.Entry
@@ -1211,7 +1216,7 @@ struct ProtocolQuickView: View {
                     .controlSize(.small)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .cardSurface(cornerRadius: 14)
     }
 

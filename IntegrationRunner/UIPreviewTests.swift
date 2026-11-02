@@ -65,11 +65,16 @@ enum UIPreviewTests {
             let standard = ProtocolCatalog.standard.entries
             try require(standard.map(\.kind) == VPNProtocol.allCases, "O catálogo não cobre todos os tipos")
             try require(ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 5, "Os 5 tipos não cabem numa linha")
-            // Quick view: under the mouse, else focused, else the first.
-            try require(ProtocolCatalog.shown(hovered: "wireguard", focused: "openvpn", in: standard)?.kind == .wireguard, "Hover não tem prioridade")
-            try require(ProtocolCatalog.shown(hovered: nil, focused: "openvpn", in: standard)?.kind == .openvpn, "Foco não é usado sem hover")
-            try require(ProtocolCatalog.shown(hovered: "inexistente", focused: nil, in: standard)?.kind == .fortinet, "Sem hover nem foco, não mostra o primeiro")
-            try require(ProtocolCatalog.shown(hovered: nil, focused: nil, in: []) == nil, "Catálogo vazio mostrou algo")
+            // Quick view: the tile of the last interaction (hover or focus), else the first.
+            var selection = ProtocolCatalog.Selection()
+            try require(selection.shown(in: standard)?.kind == .fortinet, "Sem interação, não mostra o primeiro")
+            selection.focused("fortinet"); selection.hovered("wireguard"); selection.focused("openvpn")
+            try require(selection.shown(in: standard)?.kind == .openvpn, "Hover → seta: a seta não mudou o quick view")
+            selection.hovered("checkPoint")
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Seta → hover: o hover não mudou o quick view")
+            selection.hovered(nil); selection.focused(nil)
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile trocou o quick view")
+            try require(ProtocolCatalog.Selection().shown(in: []) == nil, "Catálogo vazio mostrou algo")
             // Arrows stop at the edges of a 5-column grid of 10.
             let move = { (index: Int, direction: MoveCommandDirection) in ProtocolCatalog.move(from: index, direction, count: 10, columns: 5) }
             try require(move(0, .left) == 0 && move(0, .up) == 0 && move(4, .right) == 4 && move(9, .down) == 9, "Setas deram a volta")
