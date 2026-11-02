@@ -58,6 +58,19 @@ URL. A rejected cookie permits one fresh browser login. Reconnect after a previo
 established tunnel is limited to delays of 10, 20 and 40 seconds; rejected credentials,
 TLS failures and initial connection failures do not loop automatically.
 
+### Menu bar
+
+Click the icon to open the menu; it opens without bringing TunnelMac to the front, and
+the app you were using gets the keyboard back when it closes (click outside, ⌘Tab, Esc).
+The search field at the top has the focus as soon as the menu opens. It matches name,
+server and type (or its client: openconnect, snx-rs…), ignoring case and accents; the
+order stays the list's. **↓/↑** move the highlight (they stop at the ends), **Enter**
+connects or disconnects the highlighted connection (the menu stays open; Esc closes it),
+**⌘Enter** opens it in the main window, **Esc** clears the text and, with no text, closes
+the menu, and **⌘F** returns to the field after Tab. With text, the first result is
+already highlighted; with no text and a single connection, that one is. What you type is
+not logged.
+
 ### OpenVPN
 
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**

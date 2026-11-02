@@ -17,6 +17,11 @@
   TunnelMac to the front, so the app you were using keeps the keyboard when it closes. The
   icon shows only the TunnelMac mark (with the connected count), no state symbol beside it. It closes on a click outside, ⌘Tab, a Space change, Esc, or when it opens
   a window. The icon may move back to its default place once if you had dragged it.
+- **Search in the menu**: a field at the top, focused when the menu opens, filters by name,
+  server and type or client, ignoring case and accents. ↓/↑ move a single highlight (also
+  moved by the mouse), Enter connects or disconnects it and keeps the menu open, ⌘Enter
+  opens it in the window, Esc clears the text and then closes the menu, ⌘F returns to
+  the field. VoiceOver hears the number of results and the highlighted connection.
 
 ## 1.2.0 — 2026-11-02
 
