@@ -242,21 +242,25 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         panel.onCancel = { [weak self] in self?.close() }
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        // The menu material under the view, as the system popover had: on macOS 26+ the view's
+        // The menu material behind the view, as the system popover had: on macOS 26+ the view's
         // own Liquid Glass sits on it (same 16 pt corners), before it is the whole background.
-        let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        // A sibling, not the parent: its slight transparency must not reach the text.
+        let container = NSView(frame: NSRect(origin: .zero, size: size))
+        let material = NSVisualEffectView(frame: container.bounds)
+        material.autoresizingMask = [.width, .height]
         material.material = .menu
         material.state = .active
         material.blendingMode = .behindWindow
         if #available(macOS 26, *) {
             material.maskImage = Self.roundedMask(radius: 16)
-            // A touch of the desktop through it, like the system's own glass menus (Weather).
-            material.alphaValue = 0.82
+            // A touch of the desktop through it, like the system's glass menus (Weather).
+            material.alphaValue = 0.92
         } else {
             material.maskImage = Self.roundedMask(radius: 12)
         }
-        material.addSubview(hosting)
-        panel.contentView = material
+        container.addSubview(material)
+        container.addSubview(hosting)
+        panel.contentView = container
         menuBar.objectWillChange.sink { [weak self] in self?.queueFit() }.store(in: &observers)
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification,
                                                                           object: nil, queue: .main) { [weak self] _ in
