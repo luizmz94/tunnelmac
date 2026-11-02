@@ -406,6 +406,134 @@ enum MenuBarTests {
             controller.close()
             try require(closes == 1, "Fechar duas vezes notificou duas vezes")
         }
+
+        test("Busca no menu: nome, servidor, tipo e cliente sem acento; destaque inicial, setas e ajuste") {
+            let office = Connection(name: "Escritório São Paulo", server: "vpn0.invalid", port: 443, username: "a")
+            let lab = Connection(name: "Lab", server: "portal.lab.invalid", port: 443, username: "", kind: .globalProtect)
+            let home = Connection(name: "Casa", kind: .wireguard)
+            let all = [home, office, lab]
+            func names(_ query: String) -> [String] { MenuBarSearch.results(all, query: query).map(\.name) }
+            try require(names("sao paulo") == ["Escritório São Paulo"] && names("ESCRITORIO") == ["Escritório São Paulo"], "Acento/maiúscula")
+            try require(names("forti") == ["Escritório São Paulo"] && names("fortinet") == ["Escritório São Paulo"], "Tipo Fortinet")
+            try require(names("openconnect") == ["Lab"] && names("globalprotect") == ["Lab"] && names("portal.lab") == ["Lab"], "Cliente, tipo ou servidor")
+            try require(names("wireguard") == ["Casa"] && names("  ") == ["Casa", "Escritório São Paulo", "Lab"], "Ordem da lista ou busca vazia")
+            try require(names("zzz").isEmpty, "Sem resultado")
+            // Initial highlight.
+            try require(MenuBarSearch.initialHighlight(results: [lab], query: "lab", total: 3) == lab.id, "Com texto, o 1º não ficou destacado")
+            try require(MenuBarSearch.initialHighlight(results: [home], query: "", total: 1) == home.id, "Uma conexão só não ficou destacada")
+            try require(MenuBarSearch.initialHighlight(results: all, query: "", total: 3) == nil, "Com várias e sem texto, algo ficou destacado")
+            try require(MenuBarSearch.initialHighlight(results: [], query: "zzz", total: 3) == nil, "Sem resultado com destaque")
+            // Arrows: no wrapping.
+            try require(MenuBarSearch.move(nil, down: true, in: all) == home.id && MenuBarSearch.move(nil, down: false, in: all) == home.id, "Primeira seta")
+            try require(MenuBarSearch.move(home.id, down: true, in: all) == office.id && MenuBarSearch.move(lab.id, down: true, in: all) == lab.id, "↓ deu a volta")
+            try require(MenuBarSearch.move(home.id, down: false, in: all) == home.id && MenuBarSearch.move(lab.id, down: false, in: all) == office.id, "↑ deu a volta")
+            try require(MenuBarSearch.move(home.id, down: true, in: []) == nil, "Seta sem resultado")
+            // The filter removes the highlighted row.
+            try require(MenuBarSearch.adjusted(office.id, in: [home, lab]) == home.id, "Destaque removido não foi para a 1ª")
+            try require(MenuBarSearch.adjusted(office.id, in: []) == nil && MenuBarSearch.adjusted(nil, in: all) == nil, "Destaque sem resultado")
+            try require(MenuBarSearch.adjusted(lab.id, in: all) == lab.id, "Destaque mantido")
+        }
+
+        test("Busca no menu: Enter segue a regra da linha, ⌘Enter abre a janela, Esc limpa e depois fecha") {
+            let (model, connections) = try makeModel(root, names: ["Alfa", "Beta", "Gama", "Delta"])
+            let menuBar = MenuBarCoordinator(model: model)
+            var connects: [UUID] = [], disconnects: [UUID] = [], opened = 0, beeps = 0
+            var spoken: [String] = []
+            menuBar.connectAction = { connects.append($0.id) }
+            menuBar.disconnectAction = { disconnects.append($0) }
+            menuBar.activateApp = {}
+            menuBar.setActivationPolicy = { _ in }
+            menuBar.openWindowFallback = { opened += 1 }
+            menuBar.beep = { beeps += 1 }
+            menuBar.announce = { spoken.append($0) }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            menuBar.showMenu(focusSearch: true)
+            try require(menuBar.highlightedID == nil && menuBar.searchFocusRequest > 0, "Ao abrir com várias, algo ficou destacado ou o campo não pediu o foco")
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 1 && connects.isEmpty, "Enter distraído ao abrir conectou")
+            menuBar.setSearch("alf")
+            try require(menuBar.highlightedID == connections[0].id && spoken.last == "1 conexão", "Busca não destacou o 1º ou não anunciou: \(spoken)")
+            menuBar.handleMenuKey(.enter)
+            try require(connects == [connections[0].id] && presenter.isOpen, ".connect pelo Enter (o menu continua aberto)")
+            let session = model.manager.session(connections[0].id)
+            session.state = .connected
+            menuBar.handleMenuKey(.enter)
+            try require(disconnects == [connections[0].id] && presenter.isOpen, ".disconnect pelo Enter")
+            session.state = .disconnecting; session.wantsDisconnect = true
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 2 && disconnects.count == 1, ".disconnecting não fez só beep")
+            session.state = .disconnected; session.wantsDisconnect = false
+            model.manager.session(connections[1].id).authenticationRejected = true
+            menuBar.setSearch("beta")
+            menuBar.handleMenuKey(.enter)
+            try require(opened == 1 && menuBar.pendingSelection == connections[1].id && !presenter.isOpen, ".review abriu a janela e fechou o menu")
+            // ⌘Enter opens the window on the highlighted row.
+            menuBar.showMenu()
+            menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down)
+            try require(menuBar.highlightedID == connections[2].id, "Setas no menu (ordem alfabética): \(String(describing: menuBar.highlightedID))")
+            try require(spoken.last?.hasPrefix("Gama, ") == true, "Mudança de destaque não anunciou nome e estado")
+            menuBar.handleMenuKey(.commandEnter)
+            try require(opened == 2 && menuBar.pendingSelection == connections[2].id && !presenter.isOpen, "⌘Enter não abriu a janela na conexão")
+            // Esc: clears the text first, then closes; closing clears the search.
+            menuBar.showMenu()
+            menuBar.setSearch("ga")
+            menuBar.handleMenuKey(.escape)
+            try require(presenter.isOpen && menuBar.searchText.isEmpty, "Esc com texto não só limpou")
+            menuBar.handleMenuKey(.escape)
+            try require(!presenter.isOpen && !menuBar.menuOpen, "Esc sem texto não fechou")
+            menuBar.showMenu()
+            menuBar.setSearch("zzz")
+            try require(menuBar.searchResults.isEmpty && menuBar.highlightedID == nil && spoken.last == "Nenhuma conexão encontrada", "Sem resultados")
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 3, "Enter sem resultado não fez beep")
+            menuBar.closeMenu()
+            try require(menuBar.searchText.isEmpty && menuBar.highlightedID == nil, "Fechar não zerou a busca")
+            // Unavailable service: beep.
+            let unavailableStore = try JSONStore(directory: root.appendingPathComponent(UUID().uuidString))
+            try unavailableStore.save(SavedData(connections: connections))
+            let unavailable = MenuBarCoordinator(model: AppModel(store: unavailableStore, passwords: model.passwords,
+                                                                 service: ServiceController(policy: .unavailable(reason: "teste"), registrar: nil, client: nil)))
+            var unavailableBeeps = 0
+            unavailable.beep = { unavailableBeeps += 1 }
+            unavailable.announce = { _ in }
+            unavailable.setSearch("alfa")
+            unavailable.handleMenuKey(.enter)
+            try require(unavailableBeeps == 1 && unavailable.action(for: connections[0]) == .unavailable, ".unavailable não fez só beep")
+            // One connection: highlighted at once (shortcut + Enter connects).
+            let (single, singleConnections) = try makeModel(root, names: ["Só"])
+            let one = MenuBarCoordinator(model: single)
+            one.announce = { _ in }
+            one.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            one.showMenu()
+            try require(one.highlightedID == singleConnections[0].id, "Com uma conexão, ela não ficou destacada")
+            // The pointer moves the highlight only when it really moved.
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 1, y: 1))
+            one.highlightedID = nil
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 1, y: 1))
+            try require(one.highlightedID == nil, "A lista rolando sob o ponteiro parado mudou o destaque")
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 2, y: 1))
+            try require(one.highlightedID == singleConnections[0].id, "Mover o mouse não destacou a linha")
+        }
+
+        test("Busca no menu: ao abrir, o campo é o first responder (painel real fora da tela, host falso) e as teclas chegam") {
+            let (model, connections) = try makeModel(root, names: ["A", "B"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let controller = MenuBarPanelController(menuBar: menuBar)
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: controller)
+            menuBar.showMenu(focusSearch: true)
+            defer { menuBar.closeMenu() }
+            _ = TestSupport.spin(2) { controller.searchFieldFocused }
+            try require(controller.panel.isVisible && controller.searchFieldFocused,
+                        "Campo de busca sem foco ao abrir: \(String(describing: controller.panel.firstResponder))")
+            try require(controller.handle(window: controller.panel.windowNumber, keyCode: 125, flags: [.numericPad, .function], characters: nil)
+                        && menuBar.highlightedID == connections[0].id, "↓ não chegou à busca")
+            try require(!controller.handle(window: controller.panel.windowNumber, keyCode: 48, flags: [], characters: "\t"), "Tab foi interceptado")
+            try require(!controller.handle(window: -1, keyCode: 125, flags: [], characters: nil), "Tecla de outra janela interceptada")
+            try require(controller.handle(window: controller.panel.windowNumber, keyCode: 53, flags: [], characters: nil) && !controller.isOpen,
+                        "Esc sem texto não fechou o painel real")
+        }
     }
 
 }
