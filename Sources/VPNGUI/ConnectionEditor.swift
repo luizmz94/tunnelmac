@@ -57,6 +57,10 @@ struct ConnectionEditor: View {
     @State var pendingImport: OpenVPNImport?
     @State var pendingWireGuard: WireGuardImport?
     var saved: () -> Void
+    /// Opens Configurações › Serviço privilegiado (nil where there is no window to open it from).
+    var openService: (() -> Void)?
+    /// Type chosen while its client is not usable by the service: asked before the form.
+    @State private var serviceBlock: VPNProtocol?
     @State private var password = ""
     /// Typed in this sheet (as opposed to read from the Keychain); never cleared behind the user's back.
     @State private var passwordTyped = false
@@ -71,6 +75,10 @@ struct ConnectionEditor: View {
     @State private var checkPointQueryError: String?
     @State private var checkPointQuerying = false
     @State private var checkPointQueryGeneration = 0
+    /// Gateway text of the last query, so leaving the field does not ask again for the same one.
+    @State private var checkPointQueriedText: String?
+    /// Short wait after typing or pasting a complete address before querying it.
+    @State private var checkPointDebounce: Task<Void, Never>?
     @State private var error: String?
     @State private var loaded = false
     @State private var applyDigestFix = false
@@ -87,7 +95,8 @@ struct ConnectionEditor: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(model: AppModel, connection: Connection, pendingImport: OpenVPNImport? = nil, pendingWireGuard: WireGuardImport? = nil,
-         saved: @escaping () -> Void) {
+         openService: (() -> Void)? = nil, saved: @escaping () -> Void) {
+        self.openService = openService
         _model = ObservedObject(wrappedValue: model)
         _connection = State(initialValue: connection)
         _pendingImport = State(initialValue: pendingImport)
@@ -122,19 +131,19 @@ struct ConnectionEditor: View {
             VStack(spacing: 12) {
                 ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
                              subtitle: String(localized: "Gateway FortiGate, o mesmo usado pelo FortiClient."),
-                             status: clientStatus(.fortinet)) { choose(.fortinet) }
+                             status: clientStatus(.fortinet), ready: serviceReady(.fortinet)) { choose(.fortinet) }
                 ProtocolCard(kind: .openvpn, title: "OpenVPN",
                              subtitle: String(localized: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip)."),
-                             status: clientStatus(.openvpn)) { choose(.openvpn) }
+                             status: clientStatus(.openvpn), ready: serviceReady(.openvpn)) { choose(.openvpn) }
                 ProtocolCard(kind: .wireguard, title: "WireGuard",
                              subtitle: String(localized: "Arquivo .conf do servidor ou do app WireGuard."),
-                             status: clientStatus(.wireguard)) { choose(.wireguard) }
+                             status: clientStatus(.wireguard), ready: serviceReady(.wireguard)) { choose(.wireguard) }
                 ProtocolCard(kind: .globalProtect, title: "GlobalProtect",
                              subtitle: String(localized: "Gateway Palo Alto, com login SAML no navegador ou senha."),
-                             status: clientStatus(.globalProtect)) { choose(.globalProtect) }
+                             status: clientStatus(.globalProtect), ready: serviceReady(.globalProtect)) { choose(.globalProtect) }
                 ProtocolCard(kind: .checkPoint, title: "Check Point",
                              subtitle: String(localized: "Gateway Check Point (Remote Access), com usuário e senha."),
-                             status: clientStatus(.checkPoint)) { choose(.checkPoint) }
+                             status: clientStatus(.checkPoint), ready: serviceReady(.checkPoint)) { choose(.checkPoint) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)
             }
@@ -144,6 +153,18 @@ struct ConnectionEditor: View {
             }
         }
         .sheetFrame(width: 560, height: 620)
+        .alert("Serviço privilegiado necessário", isPresented: Binding(get: { serviceBlock != nil }, set: { if !$0 { serviceBlock = nil } }),
+               presenting: serviceBlock) { kind in
+            if let openService {
+                Button("Abrir Serviço privilegiado") { serviceBlock = nil; dismiss(); openService() }
+            }
+            Button("Cadastrar mesmo assim") { serviceBlock = nil; proceed(kind) }
+            Button("Cancelar", role: .cancel) { serviceBlock = nil }
+        } message: { kind in
+            Text(String(localized: "Conexões \(kind.title) só conectam com o \(kind.runtime.title) aprovado no serviço privilegiado.")
+                 + "\n\n" + (serviceProblem(kind) ?? ""))
+                .font(.callout)
+        }
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {
@@ -152,7 +173,21 @@ struct ConnectionEditor: View {
         return String(localized: "\(kind.runtime.title) ainda não aprovado no serviço")
     }
 
+    /// Why the service cannot run this type's client now; nil while the service is still being checked.
+    private func serviceProblem(_ kind: VPNProtocol) -> String? {
+        guard model.service.health != .checking else { return nil }
+        return model.service.unavailableReason(for: kind.runtime)
+    }
+    private func serviceReady(_ kind: VPNProtocol) -> Bool { serviceProblem(kind) == nil }
+
+    /// A new connection of a type the service cannot run yet asks first, so the user learns it
+    /// before filling the form instead of at Conectar.
     private func choose(_ kind: VPNProtocol) {
+        if isNew, serviceProblem(kind) != nil { serviceBlock = kind; return }
+        proceed(kind)
+    }
+
+    private func proceed(_ kind: VPNProtocol) {
         connection.kind = kind
         error = nil
         if kind == .globalProtect && isNew { connection.authentication = .saml }
@@ -325,6 +360,16 @@ struct ConnectionEditor: View {
             }
             .formStyle(.grouped)
             .animation(Motion.state(reduceMotion), value: connection.authentication)
+            if isNew, let problem = serviceProblem(connection.kind) {
+                InlineNotice(tone: .warning, symbol: "exclamationmark.shield.fill",
+                             title: String(localized: "Esta conexão ainda não conecta: o serviço privilegiado não está pronto para o \(connection.kind.runtime.title)."),
+                             message: problem) {
+                    if let openService {
+                        Button("Abrir Serviço privilegiado") { dismiss(); openService() }
+                    }
+                }
+                .padding(.horizontal, 20).padding(.bottom, 12)
+            }
             if let error {
                 InlineNotice(tone: .danger, symbol: "exclamationmark.triangle.fill", title: error)
                     .padding(.horizontal, 20).padding(.bottom, 12)
@@ -333,10 +378,13 @@ struct ConnectionEditor: View {
             SheetFooter {
                 Spacer()
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
-                Button(isNew ? "Adicionar" : "Salvar") { save() }
+                Button(saveTitle) {
+                    if let authority = pendingAuthority { trust(authority) }
+                    save()
+                }
                     .keyboardShortcut(.defaultAction)
                     .adaptiveButtonStyle(prominent: true)
-                    .disabled(!loaded || model.writing || !model.ready)
+                    .disabled(!loaded || model.writing || !model.ready || checkPointQuerying)
             }
         }
         .sheetFrame(width: 560, height: connection.usesProfile ? 640 : 600)
@@ -413,15 +461,28 @@ struct ConnectionEditor: View {
         })
     }
 
-    /// Login types of the last query; selectable once the certificate is settled (system
-    /// validation, or the authority the user trusted).
+    /// Login types of the last query, answered through the system validation or the gateway's own
+    /// authority (trusted on save).
     private var checkPointOptions: [CheckPointLoginOption]? {
         guard let options = checkPointInfo?.loginOptions, !options.isEmpty else { return nil }
         switch checkPointCertificate {
-        case .system: return options
-        case .authority(let found): return found.sha256 == connection.checkPoint?.authority?.sha256 ? options : nil
+        case .system, .authority: return options
         default: return nil
         }
+    }
+
+    /// The gateway's authority found by the last query and not trusted yet: saving trusts it.
+    private var pendingAuthority: CheckPointAuthority? {
+        guard connection.isCheckPoint, case .authority(let found) = checkPointCertificate,
+              found.sha256 != connection.checkPoint?.authority?.sha256 else { return nil }
+        return found
+    }
+
+    private var saveTitle: String {
+        if pendingAuthority != nil {
+            return isNew ? String(localized: "Confiar no certificado e adicionar") : String(localized: "Confiar no certificado e salvar")
+        }
+        return isNew ? String(localized: "Adicionar") : String(localized: "Salvar")
     }
 
     @ViewBuilder private var checkPointSections: some View {
@@ -431,12 +492,14 @@ struct ConnectionEditor: View {
             TextField("Servidor", text: $gatewayText, prompt: Text("vpn.exemplo.com"))
                 .focused($focus, equals: .server)
                 .help("O endereço que o certificado do gateway cobre: vpn.exemplo.com ou 203.0.113.10:4443")
-                .onChange(of: gatewayText) { _ in resetCheckPointQuery() }
-            HStack {
-                if checkPointQuerying { ProgressView().controlSize(.small) }
-                Spacer()
-                Button(checkPointQuerying ? "Consultando…" : "Consultar gateway") { queryCheckPoint() }
-                    .disabled(checkPointQuerying || gatewayText.trimmingCharacters(in: .whitespaces).isEmpty)
+                .onChange(of: gatewayText) { _ in gatewayEdited() }
+                .onSubmit { queryCheckPointIfNeeded() }
+                .onChange(of: focus) { field in if field != .server { queryCheckPointIfNeeded() } }
+            if checkPointQuerying {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Consultando o gateway…").foregroundStyle(.secondary)
+                }
             }
         } header: {
             Text("Gateway")
@@ -449,7 +512,10 @@ struct ConnectionEditor: View {
             TextField("Usuário", text: $connection.username, prompt: Text("usuário"))
                 .focused($focus, equals: .username)
             passwordRow
-            if let options = checkPointOptions {
+            if let options = checkPointOptions, options.count == 1, let only = options.first, CheckPointRules.isSupported(only) {
+                // The gateway offers a single type: nothing to choose.
+                LabeledContent("Tipo de login") { Text("\(only.displayName) (\(only.id))") }
+            } else if let options = checkPointOptions {
                 Picker("Tipo de login", selection: loginType) {
                     if !options.contains(where: { $0.id == loginType.wrappedValue }) { Text("Escolha…").tag(loginType.wrappedValue) }
                     ForEach(options) { option in
@@ -472,7 +538,7 @@ struct ConnectionEditor: View {
             Text("Autenticação")
         } footer: {
             Text(checkPointOptions == nil
-                 ? "O identificador do tipo de login (vpn, vpn_Username_Password…). Consultar o gateway lista os disponíveis."
+                 ? "O identificador do tipo de login (vpn, vpn_Username_Password…). Ao informar o servidor, o app consulta o gateway e lista os disponíveis."
                  : "Só tipos de login com usuário e senha; MFA, navegador e certificado ainda não são suportados.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
@@ -481,11 +547,11 @@ struct ConnectionEditor: View {
         } header: {
             Text("Certificado do gateway")
         } footer: {
-            if case .authority = checkPointCertificate {
-                Text("Compare o SHA-256 ou as palavras com o administrador da VPN antes de confiar.")
+            if pendingAuthority != nil {
+                Text("Compare o SHA-256 ou as palavras com o administrador da VPN antes de salvar: salvar confia nesta autoridade.")
                     .font(.footnote).foregroundStyle(.secondary)
             } else if checkPointCertificate == nil && connection.checkPoint?.authority == nil {
-                Text("Consulte o gateway para conferir o certificado.").font(.footnote).foregroundStyle(.secondary)
+                Text("Informe o servidor para conferir o certificado.").font(.footnote).foregroundStyle(.secondary)
             }
         }
         Section {
@@ -511,7 +577,7 @@ struct ConnectionEditor: View {
                 if found.sha256 == connection.checkPoint?.authority?.sha256 {
                     Label("Autoridade confiada", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
                 } else {
-                    Button("Confiar nesta autoridade") { trust(found) }
+                    Label("Confiada ao salvar", systemImage: "seal").foregroundStyle(.secondary)
                 }
             }
         case .mismatch(let names, _):
@@ -552,6 +618,29 @@ struct ConnectionEditor: View {
         }
     }
 
+    /// Each edit drops the previous answer; a complete address is queried after a short pause
+    /// (typing on or pasting replaces it), anything else when the field loses focus.
+    private func gatewayEdited() {
+        guard connection.isCheckPoint else { return }
+        checkPointDebounce?.cancel()
+        resetCheckPointQuery()
+        checkPointQueriedText = nil
+        guard CheckPointGateway.isCompleteAddress(gatewayText) else { return }
+        let text = gatewayText
+        checkPointDebounce = Task {
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            guard !Task.isCancelled, text == gatewayText else { return }
+            queryCheckPointIfNeeded()
+        }
+    }
+
+    private func queryCheckPointIfNeeded() {
+        guard connection.isCheckPoint, step == .form else { return }
+        let text = gatewayText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, gatewayText != checkPointQueriedText else { return }
+        queryCheckPoint()
+    }
+
     private func resetCheckPointQuery() {
         checkPointQueryGeneration += 1
         checkPointCertificate = nil
@@ -564,6 +653,8 @@ struct ConnectionEditor: View {
     /// authority when it has one (the query sends no credential), so its fingerprint words can
     /// be compared before trusting it.
     private func queryCheckPoint() {
+        checkPointDebounce?.cancel()
+        checkPointQueriedText = gatewayText
         let gateway: (host: String, port: Int, realm: String)
         do {
             gateway = try GatewayAddress.parse(gatewayText)
@@ -623,8 +714,7 @@ struct ConnectionEditor: View {
 
     private func useGatewayName(_ name: String) {
         let port = (try? GatewayAddress.parse(gatewayText).port) ?? GatewayAddress.defaultPort
-        gatewayText = GatewayAddress.display(host: name, port: port, realm: "")
-        queryCheckPoint()
+        gatewayText = GatewayAddress.display(host: name, port: port, realm: "") // queried as a complete address
     }
 
     // MARK: GlobalProtect
@@ -952,6 +1042,8 @@ struct ProtocolCard: View {
     let title: String
     let subtitle: String
     let status: String
+    /// The service can run this type's client; otherwise the status reads as a warning.
+    var ready = true
     let action: () -> Void
     @State private var hovering = false
 
@@ -966,7 +1058,11 @@ struct ProtocolCard: View {
                     Text(title).font(.title3.weight(.semibold))
                     Text(subtitle).font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(status).font(.caption).foregroundStyle(.tertiary)
+                    if ready {
+                        Text(status).font(.caption).foregroundStyle(.tertiary)
+                    } else {
+                        Label(status, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.body.weight(.semibold)).foregroundStyle(.tertiary)

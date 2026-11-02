@@ -3085,6 +3085,40 @@
         }
       }
     },
+    "Abrir Serviço privilegiado": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privilegierten Dienst öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Privileged service"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Servicio con privilegios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir Service privilégié"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "विशेषाधिकार प्राप्त सेवा खोलें"
+          }
+        }
+      }
+    },
     "Abrir Terminal": {
       "localizations": {
         "de": {
@@ -7333,6 +7367,40 @@
         }
       }
     },
+    "Cadastrar mesmo assim": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trotzdem hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add anyway"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir de todos modos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter quand même"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फिर भी जोड़ें"
+          }
+        }
+      }
+    },
     "Caminho de dependência não cabe no comando Mach-O: %@": {
       "localizations": {
         "de": {
@@ -8999,36 +9067,36 @@
         }
       }
     },
-    "Compare o SHA-256 ou as palavras com o administrador da VPN antes de confiar.": {
+    "Compare o SHA-256 ou as palavras com o administrador da VPN antes de salvar: salvar confia nesta autoridade.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vergleiche SHA-256 oder die Wörter mit dem VPN-Administrator, bevor du vertraust."
+            "value": "Vergleiche SHA-256 oder die Wörter vor dem Sichern mit deinem VPN-Administrator: Sichern vertraut dieser Zertifizierungsstelle."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compare the SHA-256 or the words with the VPN administrator before trusting it."
+            "value": "Compare the SHA-256 or the words with your VPN administrator before saving: saving trusts this authority."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compara el SHA-256 o las palabras con el administrador de la VPN antes de confiar."
+            "value": "Compara el SHA-256 o las palabras con el administrador de la VPN antes de guardar: guardar confía en esta autoridad."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comparez le SHA-256 ou les mots avec l’administrateur du VPN avant de faire confiance."
+            "value": "Comparez le SHA-256 ou les mots avec l’administrateur du VPN avant d’enregistrer : enregistrer fait confiance à cette autorité."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "भरोसा करने से पहले SHA-256 या शब्दों को VPN व्यवस्थापक से मिलाएँ।"
+            "value": "सहेजने से पहले SHA-256 या शब्दों की तुलना VPN व्यवस्थापक से करें: सहेजने पर इस प्राधिकरण पर भरोसा किया जाता है।"
           }
         }
       }
@@ -9793,6 +9861,46 @@
         }
       }
     },
+    "Conexões %@ só conectam com o %@ aprovado no serviço privilegiado.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@-Verbindungen verbinden sich nur, wenn %2$@ im privilegierten Dienst freigegeben ist."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ connections only connect with %2$@ approved in the privileged service."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las conexiones %1$@ solo se conectan con %2$@ aprobado en el servicio con privilegios."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les connexions %1$@ ne se connectent qu’avec %2$@ approuvé dans le service privilégié."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ कनेक्शन तभी जुड़ते हैं जब विशेषाधिकार प्राप्त सेवा में %2$@ स्वीकृत हो।"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "new",
+            "value": "Conexões %1$@ só conectam com o %2$@ aprovado no serviço privilegiado."
+          }
+        }
+      }
+    },
     "Conexões que já existem aqui são substituídas.": {
       "localizations": {
         "de": {
@@ -9925,6 +10033,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "प्रमाणपत्र जाँचें…"
+          }
+        }
+      }
+    },
+    "Confiada ao salvar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Sichern vertraut"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trusted on save"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se confía al guardar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Approuvée à l’enregistrement"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सहेजने पर भरोसा किया जाएगा"
           }
         }
       }
@@ -10065,40 +10207,6 @@
         }
       }
     },
-    "Confiar nesta autoridade": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dieser Zertifizierungsstelle vertrauen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Trust this authority"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Confiar en esta autoridad"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Faire confiance à cette autorité"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "इस प्राधिकरण पर भरोसा करें"
-          }
-        }
-      }
-    },
     "Confiar neste certificado?": {
       "localizations": {
         "de": {
@@ -10129,6 +10237,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "इस प्रमाणपत्र पर भरोसा करें?"
+          }
+        }
+      }
+    },
+    "Confiar no certificado e adicionar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat vertrauen und hinzufügen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust Certificate and Add"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar en el certificado y añadir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance au certificat et ajouter"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रमाणपत्र पर भरोसा करें और जोड़ें"
+          }
+        }
+      }
+    },
+    "Confiar no certificado e salvar": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zertifikat vertrauen und sichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trust Certificate and Save"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confiar en el certificado y guardar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faire confiance au certificat et enregistrer"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रमाणपत्र पर भरोसा करें और सहेजें"
           }
         }
       }
@@ -10609,6 +10785,40 @@
         }
       }
     },
+    "Consultando o gateway…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway wird abgefragt …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Querying the gateway…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consultando el gateway…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrogation de la passerelle…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे से जानकारी ली जा रही है…"
+          }
+        }
+      }
+    },
     "Consultando o registro e o serviço privilegiado.": {
       "localizations": {
         "de": {
@@ -10673,108 +10883,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "संस्करण जाँचे जा रहे हैं"
-          }
-        }
-      }
-    },
-    "Consultando…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wird abgefragt …"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Querying…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Consultando…"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Interrogation…"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "जानकारी ली जा रही है…"
-          }
-        }
-      }
-    },
-    "Consultar gateway": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gateway abfragen"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Query gateway"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Consultar gateway"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Interroger la passerelle"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "गेटवे से जानकारी लें"
-          }
-        }
-      }
-    },
-    "Consulte o gateway para conferir o certificado.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frage das Gateway ab, um sein Zertifikat zu prüfen."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Query the gateway to check its certificate."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Consulta el gateway para comprobar su certificado."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Interrogez la passerelle pour vérifier son certificat."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "प्रमाणपत्र जाँचने के लिए गेटवे से जानकारी लें।"
           }
         }
       }
@@ -13761,6 +13869,40 @@
         }
       }
     },
+    "Esta conexão ainda não conecta: o serviço privilegiado não está pronto para o %@.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Verbindung kann sich noch nicht verbinden: Der privilegierte Dienst ist für %@ nicht bereit."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This connection cannot connect yet: the privileged service is not ready for %@."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta conexión aún no puede conectarse: el servicio con privilegios no está listo para %@."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette connexion ne peut pas encore se connecter : le service privilégié n’est pas prêt pour %@."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "यह कनेक्शन अभी नहीं जुड़ सकता: विशेषाधिकार प्राप्त सेवा %@ के लिए तैयार नहीं है।"
+          }
+        }
+      }
+    },
     "Esta conexão já tem uma sessão ativa ou encerrando.": {
       "localizations": {
         "de": {
@@ -16517,6 +16659,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "सर्वर को vpn.example.com या vpn.example.com:4443 के रूप में दर्ज करें।"
+          }
+        }
+      }
+    },
+    "Informe o servidor para conferir o certificado.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gib den Server ein, um sein Zertifikat zu prüfen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter the server to check its certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indica el servidor para comprobar su certificado."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indiquez le serveur pour vérifier son certificat."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "उसका प्रमाणपत्र जाँचने के लिए सर्वर दर्ज करें।"
           }
         }
       }
@@ -25051,36 +25227,36 @@
         }
       }
     },
-    "O identificador do tipo de login (vpn, vpn_Username_Password…). Consultar o gateway lista os disponíveis.": {
+    "O identificador do tipo de login (vpn, vpn_Username_Password…). Ao informar o servidor, o app consulta o gateway e lista os disponíveis.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Die Kennung des Anmeldetyps (vpn, vpn_Username_Password …). Die Gateway-Abfrage listet die verfügbaren auf."
+            "value": "Die Kennung des Anmeldetyps (vpn, vpn_Username_Password …). Sobald du den Server eingibst, fragt die App das Gateway ab und listet die verfügbaren auf."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "The login type identifier (vpn, vpn_Username_Password…). Querying the gateway lists the available ones."
+            "value": "The login type identifier (vpn, vpn_Username_Password…). Once you enter the server, the app queries the gateway and lists the available ones."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "El identificador del tipo de inicio de sesión (vpn, vpn_Username_Password…). Consultar el gateway muestra los disponibles."
+            "value": "El identificador del tipo de inicio de sesión (vpn, vpn_Username_Password…). Al indicar el servidor, la app consulta el gateway y muestra los disponibles."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L’identifiant du type de connexion (vpn, vpn_Username_Password…). Interroger la passerelle liste ceux disponibles."
+            "value": "L’identifiant du type de connexion (vpn, vpn_Username_Password…). Dès que vous indiquez le serveur, l’app interroge la passerelle et liste ceux qui sont disponibles."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "लॉगिन प्रकार का पहचानकर्ता (vpn, vpn_Username_Password…)। गेटवे से जानकारी लेने पर उपलब्ध प्रकार दिखते हैं।"
+            "value": "लॉगिन प्रकार का पहचानकर्ता (vpn, vpn_Username_Password…)। सर्वर दर्ज करते ही ऐप गेटवे से पूछकर उपलब्ध प्रकार दिखाता है।"
           }
         }
       }
@@ -31726,6 +31902,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "विशेषाधिकार प्राप्त सेवा उपलब्ध नहीं; प्रबंधित करें… का उपयोग करें"
+          }
+        }
+      }
+    },
+    "Serviço privilegiado necessário": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privilegierter Dienst erforderlich"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privileged service required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se requiere el servicio con privilegios"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Service privilégié requis"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "विशेषाधिकार प्राप्त सेवा आवश्यक है"
           }
         }
       }

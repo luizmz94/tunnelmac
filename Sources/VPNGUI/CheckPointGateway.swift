@@ -18,6 +18,21 @@ enum CheckPointGateway {
         case untrusted(String)
     }
 
+    /// A gateway typed or pasted far enough to query on its own: a full IPv4 or bracketed IPv6
+    /// address, or a host name with a top-level domain (optionally with a port). Anything else
+    /// waits for the field to lose focus.
+    static func isCompleteAddress(_ text: String) -> Bool {
+        guard let gateway = try? GatewayAddress.parse(text), gateway.realm.isEmpty else { return false }
+        let host = gateway.host
+        if host.hasPrefix("[") { return true }
+        let labels = host.split(separator: ".", omittingEmptySubsequences: false)
+        if labels.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) {
+            return labels.count == 4 && labels.allSatisfy { Int($0).map { (0...255).contains($0) } ?? false }
+        }
+        guard labels.count >= 2, let top = labels.last else { return false }
+        return top.count >= 2 && top.allSatisfy(\.isLetter)
+    }
+
     static func inspect(host: String, port: Int) async -> Certificate {
         var components = URLComponents()
         components.scheme = "https"

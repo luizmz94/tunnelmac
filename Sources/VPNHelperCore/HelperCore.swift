@@ -458,6 +458,8 @@ public final class HelperCore {
                                                                authorityPath: authority, allTraffic: validated.allTraffic).utf8)
             // Its data directory lives under HOME (used only with ike-persist): a root-only one.
             environment["HOME"] = try store.checkPointHome()
+            // Its tracing lines (WARN …) would otherwise carry ANSI colors into the app's log.
+            environment["NO_COLOR"] = "1"
         } catch {
             store.removeCheckPointAuthority(token: token)
             return .failure(Self.wrap(error))
@@ -511,6 +513,7 @@ public final class HelperCore {
                 authority = try validated.authority.map { try store.writeCheckPointQueryAuthority($0) }
                 var environment = runtime.environment
                 environment["HOME"] = "/var/empty"
+                environment["NO_COLOR"] = "1"
                 let output = try Probe.run(runtime.executable, CheckPointNetwork.infoArguments(server: validated.server, authorityPath: authority),
                                            environment: RuntimeEnvironment.list(environment), identity: identity, timeout: 20_000)
                 respond(.checkPointGateway(CheckPointNetwork.gatewayInfo(output.text, status: output.status)))

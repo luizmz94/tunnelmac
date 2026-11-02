@@ -100,7 +100,8 @@ struct MainView: View {
         .onAppear { evaluateOnboarding(service.health) }
         .onChange(of: service.health) { evaluateOnboarding($0) }
         .sheet(item: $editing, onDismiss: { pendingImport = nil }) { connection in
-            ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport) { selected = connection.id }
+            ConnectionEditor(model: model, connection: connection, pendingImport: pendingImport,
+                             openService: { menuBar.showServiceManagement() }) { selected = connection.id }
                 .environment(\.sheetHeightLimit, sheetLimit)
         }
         .alert("Erro", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {

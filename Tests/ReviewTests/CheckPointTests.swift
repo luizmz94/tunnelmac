@@ -589,4 +589,15 @@ extension CheckPointTests {
         let work = fixture.core.stateStore.work
         XCTAssertFalse(((try? FileManager.default.contentsOfDirectory(atPath: work)) ?? []).contains { $0.hasPrefix("cp.") })
     }
+
+    /// The editor queries the gateway by itself once the address is complete.
+    func testCompleteGatewayAddressStartsTheQuery() {
+        for complete in ["203.0.113.10", "203.0.113.10:4443", "vpn.example.com", "vpn.example.com:10443", "[2001:db8::1]", " vpn.example.com "] {
+            XCTAssertTrue(CheckPointGateway.isCompleteAddress(complete), complete)
+        }
+        for partial in ["", "203", "203.0.113", "203.0.113.", "203.0.113.256", "vpn", "vpn.", "vpn.example.c", "vpn.example.123",
+                        "vpn.example.com/realm", "vpn.example.com:"] {
+            XCTAssertFalse(CheckPointGateway.isCompleteAddress(partial), partial)
+        }
+    }
 }
