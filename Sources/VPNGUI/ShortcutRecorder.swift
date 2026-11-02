@@ -208,8 +208,7 @@ struct ShortcutSettings: View {
     @ObservedObject var recorder: ShortcutRecorderModel
 
     var body: some View {
-        SettingsSection(title: String(localized: "Atalho"),
-                        footer: String(localized: "Se outro app usar o mesmo atalho, o macOS pode entregá-lo a ele.")) {
+        SettingsSection(title: String(localized: "Atalho")) {
             SettingsRow(symbol: "command", color: .purple, title: String(localized: "Abrir o menu do TunnelMac"),
                         subtitle: String(localized: "Abre o menu com a busca pronta, de qualquer app.")) {
                 ShortcutRecorderControl(shortcut: preferences.menuShortcut, recorder: recorder)

@@ -33019,40 +33019,6 @@
         }
       }
     },
-    "Se outro app usar o mesmo atalho, o macOS pode entregá-lo a ele.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Wenn eine andere App denselben Kurzbefehl nutzt, kann macOS ihn an diese App geben."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "If another app uses the same shortcut, macOS may deliver it to that app."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Si otra app usa el mismo atajo, macOS puede entregárselo a ella."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Si une autre app utilise le même raccourci, macOS peut le lui transmettre."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "अगर कोई और ऐप वही शॉर्टकट उपयोग करता है, तो macOS उसे वह दे सकता है।"
-          }
-        }
-      }
-    },
     "Se sites mostrarem que a conexão não é privada, a rede pode inspecionar HTTPS com uma autoridade própria.": {
       "localizations": {
         "de": {
