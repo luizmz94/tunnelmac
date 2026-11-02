@@ -14,6 +14,8 @@ extension MenuBarSummary {
 
 struct MenuBarView: View {
     @ObservedObject var menuBar: MenuBarCoordinator
+    /// Its own Liquid Glass (macOS 26+); off in the menu panel, whose window is the glass.
+    var ownGlass = true
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var listHeight: CGFloat = 0
@@ -31,7 +33,7 @@ struct MenuBarView: View {
             footer.padding(.horizontal, 10).padding(.vertical, 10)
         }
         .frame(width: 360)
-        .menuBarGlass()
+        .menuBarGlass(ownGlass)
         .animation(Motion.state(reduceMotion), value: menuBar.summary)
         .onAppear {
             // Backup only: the app's commands capture the openers first (see AppCommands).
@@ -171,8 +173,8 @@ struct MenuBarView: View {
 
 private extension View {
     /// The window's own opaque panel gives way to Liquid Glass on macOS 26+.
-    @ViewBuilder func menuBarGlass() -> some View {
-        if #available(macOS 26, *) {
+    @ViewBuilder func menuBarGlass(_ enabled: Bool) -> some View {
+        if #available(macOS 26, *), enabled {
             containerBackground(.clear, for: .window)
                 .glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
         } else {

@@ -208,8 +208,9 @@ final class MenuBarPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { onCancel?() }
 }
 
-/// The menu panel: MenuBarView on the menu material with rounded corners (its own Liquid Glass
-/// on top on macOS 26+), sized to the content and placed by MenuPanelPlacement.
+/// The menu panel: MenuBarView on the system's Liquid Glass (NSGlassEffectView) on macOS 26+,
+/// on the menu material with rounded corners before, sized to the content and placed by
+/// MenuPanelPlacement.
 @MainActor
 final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelegate {
     static let width: CGFloat = 360
@@ -225,7 +226,7 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
 
     init(menuBar: MenuBarCoordinator) {
         self.menuBar = menuBar
-        hosting = NSHostingView(rootView: MenuBarView(menuBar: menuBar))
+        hosting = NSHostingView(rootView: MenuBarView(menuBar: menuBar, ownGlass: false))
         let size = NSSize(width: Self.width, height: 400)
         panel = MenuBarPanel(contentRect: NSRect(origin: .zero, size: size),
                              styleMask: [.nonactivatingPanel, .borderless, .fullSizeContentView], backing: .buffered, defer: true)
@@ -242,25 +243,24 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         panel.onCancel = { [weak self] in self?.close() }
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        // The menu material behind the view, as the system popover had: on macOS 26+ the view's
-        // own Liquid Glass sits on it (same 16 pt corners), before it is the whole background.
-        // A sibling, not the parent: its slight transparency must not reach the text.
-        let container = NSView(frame: NSRect(origin: .zero, size: size))
-        let material = NSVisualEffectView(frame: container.bounds)
-        material.autoresizingMask = [.width, .height]
-        material.material = .menu
-        material.state = .active
-        material.blendingMode = .behindWindow
         if #available(macOS 26, *) {
-            material.maskImage = Self.roundedMask(radius: 16)
-            // A touch of the desktop through it, like the system's glass menus (Weather).
-            material.alphaValue = 0.92
+            // The system's Liquid Glass, as menu bar extras like Weather have: a light, blurred
+            // view of what is behind. The view itself adds no glass of its own here.
+            let glass = NSGlassEffectView(frame: NSRect(origin: .zero, size: size))
+            glass.style = .regular
+            glass.cornerRadius = 16
+            glass.contentView = hosting
+            panel.contentView = glass
         } else {
+            // The menu material, as the system popover had.
+            let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+            material.material = .menu
+            material.state = .active
+            material.blendingMode = .behindWindow
             material.maskImage = Self.roundedMask(radius: 12)
+            material.addSubview(hosting)
+            panel.contentView = material
         }
-        container.addSubview(material)
-        container.addSubview(hosting)
-        panel.contentView = container
         menuBar.objectWillChange.sink { [weak self] in self?.queueFit() }.store(in: &observers)
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification,
                                                                           object: nil, queue: .main) { [weak self] _ in
