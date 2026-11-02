@@ -279,10 +279,12 @@ private struct ProgressCardSurface: ViewModifier {
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         if #available(macOS 26, *) {
+            // On the menu material, like the menu: readable over any background.
+            let card = content.background(VisualEffectBackground(material: .menu).clipShape(shape))
             if let id {
-                content.glassEffect(.regular, in: shape).glassEffectID(id, in: namespace)
+                card.glassEffect(.regular, in: shape).glassEffectID(id, in: namespace)
             } else {
-                content.glassEffect(.regular, in: shape)
+                card.glassEffect(.regular, in: shape)
             }
         } else {
             content
