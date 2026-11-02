@@ -295,7 +295,7 @@ struct Connection: Codable, Identifiable, Equatable {
             try ConnectionRules.checkPort(port)
             try ConnectionRules.checkRealm(realm)
             try ConnectionRules.checkConfigValue(value.username, label: String(localized: "Usuário"))
-            value.trustedCertificate = try ConnectionRules.normalizedCertificate(trustedCertificate)
+            value.trustedCertificate = try ConnectionRules.normalizedCertificate(value.trustedCertificate)
         } catch let violation as RuleViolation { throw AppFailure(violation.message) }
         guard authentication != .password || !username.isEmpty else { throw AppFailure(String(localized: "Informe o usuário.")) }
         if let reference = clientCertificate, !ClientCertificateReference.isValidHash(reference.sha1) {
