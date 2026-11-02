@@ -291,7 +291,7 @@ final class Session: ObservableObject, Identifiable {
         case .authenticationFailed:
             log(String(localized: "O gateway recusou usuário ou senha. Confira as credenciais antes de tentar de novo."))
         case .needsTTY:
-            log(String(localized: "Este login type pede um segundo fator (MFA), que o TunnelMac ainda não suporta para Check Point."))
+            log(String(localized: "Este tipo de login pede um segundo fator (MFA), que o TunnelMac ainda não suporta para Check Point."))
         case .unsupportedLoginType:
             log(String(localized: "O gateway não aceita este tipo de login. Edite a conexão e consulte o gateway de novo para escolher outro."))
         default: break

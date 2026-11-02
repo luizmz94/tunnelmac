@@ -214,7 +214,7 @@ public enum CheckPointConfigRenderer {
             throw RuleViolation(ServiceLanguage.text("Senha vazia, longa demais ou com caracteres de controle."))
         }
         guard CheckPointRules.isValidLoginType(loginType) else {
-            throw RuleViolation(ServiceLanguage.text("Login type inválido: use letras, números, ponto, hífen ou sublinhado."))
+            throw RuleViolation(ServiceLanguage.text("Tipo de login inválido: use letras, números, ponto, hífen ou sublinhado."))
         }
         var content = "server-name=\(server)\nuser-name=\(username)\n"
         content += "password=\(Data(password.utf8).base64EncodedString())\n"
