@@ -210,6 +210,48 @@ extension View {
     }
 }
 
+/// Search field of the menu: a glass capsule on macOS 26+, a rounded text field before, both
+/// with the magnifier and a clear button while there is text.
+struct MenuSearchField: View {
+    @Binding var text: String
+    let prompt: String
+    var focused: FocusState<Bool>.Binding
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .focused(focused)
+                .accessibilityLabel(prompt)
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Limpar a busca")
+                    .accessibilityLabel("Limpar a busca")
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .modifier(SearchFieldSurface())
+        .opacity(isEnabled ? 1 : 0.55)
+    }
+}
+
+private struct SearchFieldSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+            content
+                .background(shape.fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        }
+    }
+}
+
 // MARK: - Messages
 
 /// Inline message: warnings, errors and pending decisions, with optional actions.

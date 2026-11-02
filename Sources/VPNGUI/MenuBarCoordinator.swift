@@ -112,6 +112,18 @@ final class MenuBarCoordinator: ObservableObject {
     private(set) var statusItem: MenuBarStatusItem?
     private(set) var menuPresenter: MenuPanelPresenter?
     @Published private(set) var menuOpen = false
+    /// Menu search: cleared every time the menu closes. Never logged.
+    @Published private(set) var searchText = ""
+    @Published var highlightedID: UUID?
+    /// Bumped to put the keyboard focus in the search field (opening, ⌘F).
+    @Published private(set) var searchFocusRequest = 0
+    var beep: () -> Void = { NSSound.beep() }
+    /// VoiceOver announcement (the search field keeps the focus while the results change).
+    var announce: (String) -> Void = { text in
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
+    }
+    private var lastPointer: NSPoint?
     var setActivationPolicy: (NSApplication.ActivationPolicy) -> Void = { _ = NSApp?.setActivationPolicy($0) }
     private var observers = Set<AnyCancellable>()
     private var sessionObservers: [AnyCancellable] = []
@@ -142,6 +154,9 @@ final class MenuBarCoordinator: ObservableObject {
         }.store(in: &observers)
         // A @Published change inside a Session does not publish the manager's dictionary,
         // so each session is observed individually. manager.changed stays untouched.
+        model.$data.dropFirst().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.searchResultsChanged() }
+        }.store(in: &observers)
         model.manager.$sessions.sink { [weak self] sessions in
             self?.objectWillChange.send()
             self?.observe(Array(sessions.values))
@@ -209,7 +224,11 @@ final class MenuBarCoordinator: ObservableObject {
 
     func showMenu(focusSearch: Bool = false) {
         guard let menuPresenter, let statusItem, !menuPresenter.isOpen, !hasModalWindow() else { return }
+        resetSearch()
+        lastPointer = NSEvent.mouseLocation
         menuPresenter.open(anchor: statusItem.host.anchor)
+        // The search field takes the keyboard whenever the menu opens, by click or shortcut.
+        searchFocusRequest += 1
         menuOpen = true
         statusItem.host.setHighlighted(true)
     }
@@ -218,7 +237,76 @@ final class MenuBarCoordinator: ObservableObject {
 
     private func menuDidClose() {
         menuOpen = false
+        searchText = ""
+        highlightedID = nil
         statusItem?.host.setHighlighted(false)
+    }
+
+    // MARK: Search
+
+    var searchResults: [Connection] {
+        guard model.ready else { return [] }
+        return MenuBarSearch.results(model.sortedConnections, query: searchText)
+    }
+    var searchAvailable: Bool { model.ready && !model.data.connections.isEmpty }
+
+    func setSearch(_ text: String) {
+        guard text != searchText else { return }
+        searchText = text
+        let results = searchResults
+        highlightedID = MenuBarSearch.initialHighlight(results: results, query: text, total: model.data.connections.count)
+        announce(results.isEmpty ? String(localized: "Nenhuma conexão encontrada") : String(localized: "\(results.count) conexões"))
+    }
+
+    private func resetSearch() {
+        searchText = ""
+        highlightedID = MenuBarSearch.initialHighlight(results: searchResults, query: "", total: model.data.connections.count)
+    }
+
+    /// The list changed under the search (a connection added or removed).
+    func searchResultsChanged() {
+        highlightedID = MenuBarSearch.adjusted(highlightedID, in: searchResults)
+    }
+
+    /// Highlight under the pointer, only when the mouse really moved (not when the list
+    /// scrolls under a still pointer).
+    func pointerHovered(_ id: UUID, at location: NSPoint = NSEvent.mouseLocation) {
+        guard location != lastPointer else { return }
+        lastPointer = location
+        highlight(id)
+    }
+
+    private func highlight(_ id: UUID?) {
+        guard id != highlightedID else { return }
+        highlightedID = id
+        guard let id, let connection = model.data.connections.first(where: { $0.id == id }) else { return }
+        announce(String(localized: "\(connection.name), \(model.manager.session(id).state.title)"))
+    }
+
+    /// Keys of the search field. Returns false for keys left to the field.
+    @discardableResult
+    func handleMenuKey(_ key: MenuKey) -> Bool {
+        let results = searchResults
+        let highlighted = results.first { $0.id == highlightedID }
+        switch key {
+        case .up, .down:
+            highlight(MenuBarSearch.move(highlightedID, down: key == .down, in: results))
+        case .enter:
+            guard let highlighted else { beep(); return true }
+            switch action(for: highlighted) {
+            // The menu stays open to watch the state change; Esc closes it.
+            case .connect, .disconnect, .review: perform(highlighted)
+            case .disconnecting, .unavailable: beep()
+            }
+        case .commandEnter:
+            guard let highlighted else { beep(); return true }
+            showMainWindow(selecting: highlighted.id)
+        case .escape:
+            if searchText.isEmpty { closeMenu() } else { setSearch("") }
+        case .find:
+            searchFocusRequest += 1
+        }
+        return true
     }
 
     /// SwiftUI's window openers, captured where they are reliable (the app's commands); a
