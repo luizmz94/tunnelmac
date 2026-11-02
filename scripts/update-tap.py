@@ -29,7 +29,7 @@ def cask(version, digests):
 
   url "https://github.com/luizmz94/tunnelmac/releases/download/v#{version}/TunnelMac-#{version}-#{arch}.zip"
   name "TunnelMac"
-  desc "Native GUI for openfortivpn, OpenVPN and WireGuard"
+  desc "Native GUI for openfortivpn, OpenVPN, WireGuard and OpenConnect"
   homepage "https://github.com/luizmz94/tunnelmac"
 
   livecheck do
