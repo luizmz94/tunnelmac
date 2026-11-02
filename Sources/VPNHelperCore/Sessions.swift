@@ -209,7 +209,9 @@ final class SessionRunner {
                 self.finished = true
                 if let line = self.finalCheck?() { self.pump.enqueue(.line(line)) }
                 if let failure = self.observer?.cleanupFailure { self.pump.enqueue(.failed(failure)) }
-                else if code == 137 { self.pump.enqueue(.failed(ServiceLanguage.text("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar."))) }
+                // 137 is the supervisor's own SIGKILL only after a stop; otherwise the client was
+                // killed from outside (kill -9), which is a drop the app may retry.
+                else if code == 137 && self.stopRequested { self.pump.enqueue(.failed(ServiceLanguage.text("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar."))) }
                 else if code >= 0 { self.pump.enqueue(.exited(code: code)) }
                 else { self.pump.enqueue(.failed(ServiceLanguage.text("O supervisor encerrou sem status confirmado."))) }
                 self.onFinish?(self)
