@@ -23976,6 +23976,7 @@
       }
     },
     "O macOS ainda não devolveu o retorno do login ao aplicativo anterior. Tente novamente.": {
+      "extractionState": "stale",
       "localizations": {
         "de": {
           "stringUnit": {
@@ -24005,6 +24006,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS ने लॉगिन कॉलबैक अभी तक पिछले ऐप को वापस नहीं दिया है। फिर से प्रयास करें।"
+          }
+        }
+      }
+    },
+    "O macOS ainda não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará de novo ao fim deste login.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat die Anmelde-Rückgabe noch nicht an die vorherige App zurückgegeben; TunnelMac versucht es am Ende dieser Anmeldung erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS has not yet given the login return back to the previous app; TunnelMac will try again at the end of this login."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS aún no devolvió el retorno del inicio de sesión a la app anterior; TunnelMac lo intentará de nuevo al final de este inicio de sesión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS n’a pas encore rendu le retour de connexion à l’app précédente ; TunnelMac réessaiera à la fin de cette connexion."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने लॉगिन की वापसी अभी तक पिछले ऐप को नहीं लौटाई; TunnelMac इस लॉगिन के अंत में फिर कोशिश करेगा।"
           }
         }
       }

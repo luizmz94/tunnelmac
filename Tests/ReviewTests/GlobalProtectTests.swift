@@ -380,3 +380,41 @@ extension GlobalProtectTests {
         XCTAssertEqual(handler, other)
     }
 }
+
+extension GlobalProtectTests {
+    /// A restoration that keeps failing never blocks the next login: the new attempt takes the
+    /// claim over with the original app, and gives the scheme back to it once macOS allows.
+    @MainActor func testStuckRestorationIsTakenOverByTheNextLogin() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("gp-\(UUID().uuidString)")
+        let other = directory.appendingPathComponent("Other.app"), mine = directory.appendingPathComponent("Mine.app")
+        for app in [other, mine] { try FileManager.default.createDirectory(at: app, withIntermediateDirectories: true) }
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let login = GlobalProtectLogin()
+        let stuck = UUID(), next = UUID()
+        login.claim = .init(attempt: stuck, previous: other, changed: true)
+        var handler = mine
+        var allowRestore = false
+        login.schemeHandler = .init(current: { handler }, set: { url in
+            guard allowRestore else { return AppFailure("LaunchServices refused the change") }
+            handler = url; return nil
+        })
+        var logs: [String] = []
+        await login.reserveHandler(next, log: { logs.append($0) }, wait: 0)
+        XCTAssertEqual(login.claim?.attempt, next)
+        XCTAssertEqual(login.claim?.previous, other)
+        XCTAssertEqual(login.claim?.changed, true)
+        XCTAssertEqual(logs.count, 1)
+        // Already the handler: the claim keeps the original app to give the scheme back to.
+        _ = await login.claimHandler(next, mine: mine, identifier: "fixture")
+        XCTAssertEqual(login.claim?.previous, other)
+        allowRestore = true
+        let released = await login.releaseHandler(next)
+        XCTAssertTrue(released)
+        XCTAssertEqual(handler, other)
+        XCTAssertNil(login.claim)
+        // With nothing pending, a reservation simply starts a fresh claim.
+        await login.reserveHandler(UUID(), log: { logs.append($0) }, wait: 0)
+        XCTAssertEqual(login.claim?.changed, false)
+        XCTAssertEqual(logs.count, 1)
+    }
+}

@@ -84,14 +84,9 @@ final class GlobalProtectLogin {
         if !prelogin.defaultBrowser {
             log(String(localized: "O gateway não anunciou login pelo navegador padrão; o retorno pode não chegar ao TunnelMac."))
         }
-        // An earlier attempt may still be giving the scheme back (cancelled or finished).
-        for _ in 0..<50 where claim != nil { try? await Task.sleep(nanoseconds: 100_000_000) }
-        if let held = claim, pending == nil { _ = await releaseHandler(held.attempt) }
-        guard pending == nil, claim == nil else {
-            throw AppFailure(String(localized: "O macOS ainda não devolveu o retorno do login ao aplicativo anterior. Tente novamente."))
-        }
+        guard pending == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
         let attempt = UUID()
-        claim = Claim(attempt: attempt)
+        await reserveHandler(attempt, log: log)
         // The browser opens only once macOS confirms TunnelMac receives the return; otherwise
         // the official GlobalProtect app could take it and this login would wait in vain.
         guard await claimHandler(attempt) else {
@@ -199,7 +194,8 @@ final class GlobalProtectLogin {
         let before = current()
         guard claim?.attempt == attempt else { return false }
         guard !ours(before) else { return true }
-        claim?.previous = before
+        // A claim taken over from a stuck attempt keeps the app the scheme goes back to.
+        if claim?.changed != true { claim?.previous = before }
         claim?.changed = true
         guard await schemeHandler.set(mine) == nil else { return false }
         // The change can take a moment to show up in LaunchServices.
@@ -210,21 +206,42 @@ final class GlobalProtectLogin {
         return false
     }
 
+    /// Reserves the scheme for a new attempt. An earlier attempt may still be giving it back
+    /// (cancelled or finished): wait for it, then retry its restoration. If macOS still does
+    /// not report the previous handler, the new attempt takes the claim over together with the
+    /// app to give the scheme back to, so a stuck restoration never blocks the user's logins.
+    func reserveHandler(_ attempt: UUID, log: (String) -> Void, wait: Int = 50) async {
+        for _ in 0..<wait where claim != nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+        if let held = claim, !(await releaseHandler(held.attempt)), let stuck = claim {
+            log(String(localized: "O macOS ainda não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará de novo ao fim deste login."))
+            claim = Claim(attempt: attempt, previous: stuck.previous, changed: stuck.changed)
+            return
+        }
+        claim = Claim(attempt: attempt)
+    }
+
+    /// The same handler for LaunchServices: same bundle identifier (it keeps handlers by
+    /// identifier and may report another copy of that app), else the same path.
+    static func sameHandler(_ a: URL?, _ b: URL) -> Bool {
+        guard let a = a?.standardizedFileURL else { return false }
+        if let left = Bundle(url: a)?.bundleIdentifier, let right = Bundle(url: b)?.bundleIdentifier { return left == right }
+        return a == b.standardizedFileURL
+    }
+
     /// Releases the claim only after LaunchServices reports the previous handler. A failed
-    /// restoration keeps the claim so a later login can retry instead of taking ownership.
+    /// restoration keeps the claim; the next login retries it or takes it over.
     @discardableResult func releaseHandler(_ attempt: UUID) async -> Bool {
         guard let held = claim, held.attempt == attempt else { return true }
         if held.changed, let previous = held.previous, FileManager.default.fileExists(atPath: previous.path) {
-            let expected = previous.standardizedFileURL
             for _ in 0..<3 {
-                if schemeHandler.current()?.standardizedFileURL == expected { break }
+                if Self.sameHandler(schemeHandler.current(), previous) { break }
                 _ = await schemeHandler.set(previous)
                 for _ in 0..<10 {
-                    if schemeHandler.current()?.standardizedFileURL == expected { break }
+                    if Self.sameHandler(schemeHandler.current(), previous) { break }
                     try? await Task.sleep(nanoseconds: 100_000_000)
                 }
             }
-            guard schemeHandler.current()?.standardizedFileURL == expected else { return false }
+            guard Self.sameHandler(schemeHandler.current(), previous) else { return false }
         }
         if claim?.attempt == attempt { claim = nil }
         return true
