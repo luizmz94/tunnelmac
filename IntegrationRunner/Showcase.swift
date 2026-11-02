@@ -555,7 +555,7 @@ struct ShowcaseTour {
     static func write(_ windows: [NSWindow], shadow: Bool, to url: URL) {
         let ids = windows.map { UnsafeRawPointer(bitPattern: UInt($0.windowNumber)) }
         let array = ids.withUnsafeBufferPointer { CFArrayCreate(nil, UnsafeMutablePointer(mutating: $0.baseAddress), $0.count, nil) }
-        var options: CGWindowImageOption = [.bestResolution]
+        var options: CGWindowImageOption = [.nominalResolution]
         if !shadow { options.insert(.boundsIgnoreFraming) }
         guard let array, let image = CGImage.windowListImage(array, options: options) else {
             print("Showcase: falha ao capturar \(url.lastPathComponent)"); return
