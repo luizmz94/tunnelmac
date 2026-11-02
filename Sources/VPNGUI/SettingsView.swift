@@ -357,6 +357,9 @@ struct GeneralSettings: View {
                 }
             }
         }
+        if let hotKeys = menuBar.hotKeys, let recorder = menuBar.shortcutRecorder {
+            ShortcutSettings(center: hotKeys, preferences: preferences, recorder: recorder)
+        }
         InternetDNSSection(preferences: preferences)
     }
 }

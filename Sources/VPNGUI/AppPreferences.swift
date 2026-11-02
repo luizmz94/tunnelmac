@@ -22,6 +22,7 @@ final class AppPreferences: ObservableObject {
         static let appearance = "appearance"
         static let pinnedConnections = "pinnedMenuConnections"
         static let showConnectionProgress = "showConnectionProgress"
+        static let menuShortcut = "menuGlobalShortcut"
         /// Read by Foundation at launch: the app's own language order (as set by System
         /// Settings › Language & Region › Applications).
         static let languages = "AppleLanguages"
@@ -47,6 +48,10 @@ final class AppPreferences: ObservableObject {
     }
     /// Floating panel under the icon while a connection starts, connects or fails.
     @Published var showConnectionProgress: Bool { didSet { defaults.set(showConnectionProgress, forKey: Key.showConnectionProgress) } }
+    /// Global shortcut that opens the menu; none by default. Not a secret.
+    @Published var menuShortcut: GlobalShortcut? {
+        didSet { store(menuShortcut.flatMap { try? JSONEncoder().encode($0) }, Key.menuShortcut) }
+    }
     /// Light, dark or following the system (the default).
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
@@ -82,6 +87,8 @@ final class AppPreferences: ObservableObject {
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
         pinnedConnections = (defaults.stringArray(forKey: Key.pinnedConnections) ?? []).compactMap(UUID.init(uuidString:))
         showConnectionProgress = defaults.object(forKey: Key.showConnectionProgress) as? Bool ?? true
+        // Unknown or corrupted JSON is no shortcut, never a failed launch.
+        menuShortcut = defaults.data(forKey: Key.menuShortcut).flatMap { try? JSONDecoder().decode(GlobalShortcut.self, from: $0) }
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         // Only the app's own domain: the global AppleLanguages is the system's choice.
         let domain = languageDefaults.persistentDomain(forName: (realLanguage ? nil : disposableSuite) ?? Bundle.main.bundleIdentifier ?? "")

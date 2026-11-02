@@ -90,6 +90,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if !MenuBarCoordinator.isLocalChecks {
                 launched.menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: launched.menuBar))
                 launched.menuBar.installProgressPanel(ConnectionProgressPanelController(menuBar: launched.menuBar))
+                if let hotKeys = GlobalHotKeyCenter.production(menuBar: launched.menuBar) { launched.menuBar.installHotKeys(hotKeys) }
             }
         }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURL(_:reply:)),
