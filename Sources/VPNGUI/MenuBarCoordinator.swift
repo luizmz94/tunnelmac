@@ -106,6 +106,12 @@ final class MenuBarCoordinator: ObservableObject {
     /// SwiftUI's openWindow(id: "settings"), captured by any view that has it.
     var openSettingsFallback: (() -> Void)?
     var activateApp: () -> Void = { NSApplication.shared.activate(ignoringOtherApps: true) }
+    /// The app's own modal alert (Sair, errors): the menu does not open over it.
+    var hasModalWindow: () -> Bool = { NSApp?.modalWindow != nil }
+    /// The menu bar icon and its menu panel; nil in the local checks unless a fake is installed.
+    private(set) var statusItem: MenuBarStatusItem?
+    private(set) var menuPresenter: MenuPanelPresenter?
+    @Published private(set) var menuOpen = false
     var setActivationPolicy: (NSApplication.ActivationPolicy) -> Void = { _ = NSApp?.setActivationPolicy($0) }
     private var observers = Set<AnyCancellable>()
     private var sessionObservers: [AnyCancellable] = []
@@ -186,8 +192,45 @@ final class MenuBarCoordinator: ObservableObject {
     }
     func showServiceManagement() { showSettings(.service) }
 
+    // MARK: Menu
+
+    /// Installs the icon and its menu. The app passes the real ones (never in the local
+    /// checks); the checks pass fakes.
+    func installMenuBar(host: StatusItemHost, presenter: MenuPanelPresenter) {
+        presenter.onClose = { [weak self] in self?.menuDidClose() }
+        menuPresenter = presenter
+        statusItem = MenuBarStatusItem(menuBar: self, host: host)
+    }
+
+    /// Click on the icon (and, later, the global shortcut): opens or closes the menu.
+    func toggleMenu(focusSearch: Bool = false) {
+        if menuPresenter?.isOpen == true { closeMenu() } else { showMenu(focusSearch: focusSearch) }
+    }
+
+    func showMenu(focusSearch: Bool = false) {
+        guard let menuPresenter, let statusItem, !menuPresenter.isOpen, !hasModalWindow() else { return }
+        menuPresenter.open(anchor: statusItem.host.anchor)
+        menuOpen = true
+        statusItem.host.setHighlighted(true)
+    }
+
+    func closeMenu() { menuPresenter?.close() }
+
+    private func menuDidClose() {
+        menuOpen = false
+        statusItem?.host.setHighlighted(false)
+    }
+
+    /// SwiftUI's window openers, captured where they are reliable (the app's commands); a
+    /// hosted view outside a scene may not have a working openWindow.
+    func adoptWindowOpeners(main: @escaping () -> Void, settings: @escaping () -> Void) {
+        if openWindowFallback == nil { openWindowFallback = main }
+        if openSettingsFallback == nil { openSettingsFallback = settings }
+    }
+
     /// The single Configurações window, brought to the front on the requested tab.
     func showSettings(_ tab: SettingsTab? = nil) {
+        closeMenu()
         if let tab { settingsTab = tab }
         setActivationPolicy(.regular)
         activateApp()
@@ -231,6 +274,7 @@ final class MenuBarCoordinator: ObservableObject {
 
     /// Shows the single main window, recreating it only if SwiftUI released it.
     func showMainWindow(selecting id: UUID? = nil) {
+        closeMenu()
         if let id { pendingSelection = id }
         setActivationPolicy(.regular)
         activateApp()
