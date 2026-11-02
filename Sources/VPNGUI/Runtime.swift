@@ -134,6 +134,9 @@ final class Session: ObservableObject, Identifiable {
     /// The service could not configure a WireGuard tunnel (keys, addresses, routes):
     /// the session ends as a failure even though wireguard-go exits normally.
     var setupFailed = false
+    /// Check Point: snx-rs exits with 0 when the gateway ends the session or the SA expires;
+    /// after the tunnel was up and without a disconnect request that is a drop, not a disconnect.
+    var cleanExitIsDrop = false
     init(id: UUID) { self.id = id }
     func log(_ text: String) {
         logs.append(OutputRules.safe(text, secret: secret))
@@ -170,6 +173,7 @@ final class Session: ObservableObject, Identifiable {
         tunnelHandled = false
         digestFix = nil
         setupFailed = false
+        cleanExitIsDrop = false
         let routing = routedBy ?? String(localized: "pelo \(client)")
         log(String(localized: "Iniciando conexão. Rotas e DNS serão tratados \(routing); redes sobrepostas podem gerar conflitos."))
     }
@@ -254,8 +258,48 @@ final class Session: ObservableObject, Identifiable {
             log(String(localized: "O gateway recusou a sessão do login SAML. Conecte de novo para abrir um novo login no navegador."))
         }
     }
+    /// snx-rs (Check Point) output plus the helper's markers. Connected only when the helper
+    /// confirms the tunnel (its DNS key or interface); snx-rs translates its messages, so its
+    /// errors are recognized in each of its languages. A failed login is final: no retry.
+    func acceptCheckPoint(_ line: String) {
+        let kind = CheckPointOutput.classify(line)
+        switch kind {
+        case .certificateFailed:
+            certificateValidationFailed = true
+            retryBlocked = true
+        case .authenticationFailed:
+            authenticationRejected = true
+            retryBlocked = true
+        case .needsTTY, .unsupportedLoginType:
+            retryBlocked = true
+        default: break
+        }
+        if line.hasPrefix(CheckPointRules.networkFailure) {
+            setupFailed = true
+            retryBlocked = true
+        }
+        if line.hasPrefix(CheckPointRules.networkReady) && !wantsDisconnect {
+            if connectedAt == nil { connectedAt = Date() }
+            wasConnected = true
+            tunnelUp = true
+            state = .connected
+        }
+        log(CheckPointMarkers.display(line))
+        switch kind {
+        case .certificateFailed:
+            log(String(localized: "O certificado do gateway não foi validado. Edite a conexão, consulte o gateway e confira o endereço e a autoridade confiada."))
+        case .authenticationFailed:
+            log(String(localized: "O gateway recusou usuário ou senha. Confira as credenciais antes de tentar de novo."))
+        case .needsTTY:
+            log(String(localized: "Este tipo de login pede um segundo fator (MFA), que o TunnelMac ainda não suporta para Check Point."))
+        case .unsupportedLoginType:
+            log(String(localized: "O gateway não aceita este tipo de login. Edite a conexão e consulte o gateway de novo para escolher outro."))
+        default: break
+        }
+    }
     func accept(_ line: String, connection: Connection, openBrowser: (URL) -> Void) {
         if connection.isOpenVPN { acceptOpenVPN(line); return }
+        if connection.isCheckPoint { acceptCheckPoint(line); return }
         if connection.isGlobalProtect { acceptGlobalProtect(line, saml: connection.authentication == .saml); return }
         if connection.isWireGuard { acceptWireGuard(line); return }
         if line.range(of: #"(?i)^ERROR:.*(?:certificate|\bTLS\b|\bSSL\b|authenticate|SAML|No password|No cookie|\bOTP\b)"#, options: .regularExpression) != nil {
@@ -294,10 +338,14 @@ final class Session: ObservableObject, Identifiable {
         if let connectedAt, Date().timeIntervalSince(connectedAt) >= 60 { reconnectAttempts = 0 }
         connectedAt = nil
         if let error { log(error) }
+        let dropped = cleanExitIsDrop && wasConnected && !wantsDisconnect
         if wantsDisconnect && exit != nil && !setupFailed {
             state = .disconnected
-        } else if exit == 0 && error == nil && !setupFailed { state = .disconnected }
+        } else if exit == 0 && error == nil && !setupFailed && !dropped { state = .disconnected }
         else { state = .failed }
+        if dropped && exit == 0 {
+            log(String(localized: "O snx-rs encerrou o túnel sem pedido de desconexão (o gateway encerrou a sessão ou ela expirou)."))
+        }
         if let exit { log(String(localized: "Processo encerrado (código \(exit)).")) }
         pid = nil
         token = nil
@@ -334,6 +382,7 @@ final class VPNManager: ObservableObject {
         var openVPNLaunched: ((Session, OpenVPNRequest) -> Void)? = nil
         var wireGuardLaunched: ((Session, WireGuardRequest) -> Void)? = nil
         var globalProtectLaunched: ((Session, GlobalProtectRequest) -> Void)? = nil
+        var checkPointLaunched: ((Session, CheckPointRequest) -> Void)? = nil
         /// Local checks: the browser login's result (nil = the real browser flow).
         var globalProtectLogin: ((Connection) async throws -> GlobalProtectCookie)? = nil
     }
@@ -360,8 +409,13 @@ final class VPNManager: ObservableObject {
         case .openvpn: session.begin(retrying: retrying, client: "OpenVPN")
         case .wireguard: session.begin(retrying: retrying, client: "WireGuard", routedBy: String(localized: "pelo serviço do TunnelMac, a partir do perfil WireGuard"))
         case .globalProtect: session.begin(retrying: retrying, client: "OpenConnect", routedBy: String(localized: "pelo script de rede do serviço do TunnelMac"))
+        case .checkPoint: session.begin(retrying: retrying, client: "snx-rs", routedBy: String(localized: "pelo snx-rs"))
         }
         session.secret = password
+        if connection.isCheckPoint {
+            startCheckPoint(session, connection: connection, password: password)
+            return
+        }
         if connection.isGlobalProtect {
             if connection.authentication == .saml { queueOrStart(session, connection: connection, password: nil) }
             else { startGlobalProtect(session, connection: connection, password: password, cookie: nil) }
@@ -594,6 +648,43 @@ final class VPNManager: ObservableObject {
         guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
         launch(session, plan: LaunchPlan(clientArguments: [], mode: .none)) { completion in
             transport.startOpenVPN(request, completion: completion)
+        }
+    }
+    /// The official client's daemon; while it is connected it competes for routes and DNS.
+    static let checkPointOfficialClient = "/Library/Application Support/Checkpoint/Endpoint Connect/trac"
+    /// Whether that client is installed (the demo answers for itself, whatever this Mac has).
+    var officialCheckPointClientInstalled: () -> Bool = { FileManager.default.fileExists(atPath: VPNManager.checkPointOfficialClient) }
+    private func startCheckPoint(_ session: Session, connection: Connection, password: String?) {
+        session.state = .authorizing
+        session.cleanExitIsDrop = true
+        changed?()
+        if harness == nil {
+            guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
+            if let reason = transport.unavailableReason(for: .snxrs) { end(session, exit: nil, error: reason); return }
+        }
+        if session.wantsDisconnect { end(session, exit: 0); return }
+        // snx-rs removes the DNS of any other snx-rs when it starts (the helper refuses too).
+        if running.contains(where: { $0.key != session.id && $0.value.isCheckPoint }) {
+            session.retryBlocked = true
+            end(session, exit: nil, error: String(localized: "Já existe uma conexão Check Point ativa; desconecte-a antes."))
+            return
+        }
+        let request: CheckPointRequest
+        do {
+            let c = try connection.validated()
+            guard let password, !password.isEmpty else { throw AppFailure(String(localized: "Senha não encontrada no Keychain. Edite e salve novamente.")) }
+            request = CheckPointRequest(connectionID: c.id, host: c.server, port: c.port, username: c.username, password: password,
+                                        loginType: c.checkPoint?.loginType ?? "", authorityDER: c.checkPoint?.authority?.der,
+                                        allTraffic: c.allTraffic)
+        } catch { end(session, exit: nil, error: error.localizedDescription); return }
+        if officialCheckPointClientInstalled() {
+            session.log(String(localized: "O cliente oficial da Check Point está instalado; se ele estiver conectado, disputa rotas e DNS com o TunnelMac. Desconecte-o antes."))
+        }
+        running[session.id] = connection
+        if let harness { harness.checkPointLaunched?(session, request); return }
+        guard let transport else { end(session, exit: nil, error: String(localized: "Serviço privilegiado indisponível.")); return }
+        launch(session, plan: LaunchPlan(clientArguments: [], mode: .none)) { completion in
+            transport.startCheckPoint(request, completion: completion)
         }
     }
     private func startWireGuard(_ session: Session, connection: Connection, profile: String?) {
@@ -871,6 +962,21 @@ final class VPNManager: ObservableObject {
         for id in waiting { disconnect(id) }
         let active = sessions.values.filter { $0.state.active }.map(\.id)
         for id in active { disconnect(id) }
+    }
+}
+
+/// The helper writes its Check Point lines in Portuguese; the log shows them in the app's language.
+enum CheckPointMarkers {
+    static func display(_ line: String) -> String {
+        if line.hasPrefix(CheckPointRules.networkReady) {
+            let interface = line.dropFirst(CheckPointRules.networkReady.count).trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            return String(localized: "[+] TunnelMac: túnel Check Point pronto em \(interface).")
+        }
+        if line.hasPrefix(CheckPointRules.networkFailure) {
+            let detail = line.dropFirst(CheckPointRules.networkFailure.count).trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            return String(localized: "[!] TunnelMac: a interface \(detail) do túnel Check Point não existe; a conexão foi encerrada.")
+        }
+        return line
     }
 }
 

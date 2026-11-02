@@ -5,6 +5,7 @@
 //        VPNSupervisor --openvpn <client>                              (openvpn, no other argument)
 //        VPNSupervisor --wireguard <client>                            (wireguard-go, no other argument)
 //        VPNSupervisor --openconnect <client> <server>                 (openconnect, GlobalProtect)
+//        VPNSupervisor --snx <client>                                  (snx-rs, Check Point, no other argument)
 //   fd 0      control channel: "STOP\n" or EOF requests a normal stop
 //   fd 1, 2   output channel (the same socket as fd 0)
 //   fd 3      protected configuration: an already-unlinked regular file, mode 0600
@@ -16,6 +17,8 @@
 // foreground on a new utun ("-f utun") and never sees fd 3: the helper sends its keys over
 // the root-only UAPI socket and configures addresses, routes and DNS itself. openconnect
 // reads "--config=/dev/fd/3 --passwd-on-stdin <server>"; its vpnc-script is the helper's own.
+// snx-rs runs "-m standalone -c /dev/fd/3" with the password (base64) inside that config and
+// stdin on /dev/null, so a login step that asks for input fails at once instead of waiting.
 #define __STDC_WANT_LIB_EXT1__ 1 // memset_s
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -156,7 +159,7 @@ static int load_secret(int *descriptor) {
 }
 
 int main(int argc, char **argv) {
-    int use_cookie = 0, openvpn = 0, wireguard = 0, openconnect = 0;
+    int use_cookie = 0, openvpn = 0, wireguard = 0, openconnect = 0, snx = 0;
     if (argc >= 2 && strcmp(argv[1], "--cookie-fd") == 0) {
         use_cookie = 1;
         argv += 1; argc -= 1;
@@ -175,6 +178,11 @@ int main(int argc, char **argv) {
         argv += 1; argc -= 1;
         // Only the server; every option is in the protected configuration.
         if (argc != 3 || argv[2][0] == '-' || argv[2][0] == '\0') { errno = EINVAL; return fail("argumentos inválidos para openconnect"); }
+    } else if (argc >= 2 && strcmp(argv[1], "--snx") == 0) {
+        snx = 1;
+        argv += 1; argc -= 1;
+        // Everything, the password included, is in the protected configuration.
+        if (argc != 2) { errno = EINVAL; return fail("argumentos inválidos para snx-rs"); }
     }
     if (argc < 2 || argv[1][0] != '/') { errno = EINVAL; return fail("argumentos inválidos"); }
     for (int i = 2; i < argc; ++i) {
@@ -201,7 +209,12 @@ int main(int argc, char **argv) {
     if (!arguments) { if (cookie >= 0) close(cookie); return fail("memória insuficiente"); }
     int position = 0;
     arguments[position++] = argv[1];
-    if (openconnect) {
+    if (snx) {
+        arguments[position++] = "-m";
+        arguments[position++] = "standalone";
+        arguments[position++] = "-c";
+        arguments[position++] = "/dev/fd/3";
+    } else if (openconnect) {
         arguments[position++] = "--config=/dev/fd/3";
         arguments[position++] = "--passwd-on-stdin";
         arguments[position++] = argv[2];
@@ -212,7 +225,7 @@ int main(int argc, char **argv) {
     if (wireguard) {
         arguments[position++] = "-f";
         arguments[position++] = "utun";
-    } else if (!openconnect) {
+    } else if (!openconnect && !snx) {
         arguments[position++] = openvpn ? "--config" : "-c";
         arguments[position++] = "/dev/fd/3";
     }

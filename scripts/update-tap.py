@@ -29,7 +29,7 @@ def cask(version, digests):
 
   url "https://github.com/luizmz94/tunnelmac/releases/download/v#{version}/TunnelMac-#{version}-#{arch}.zip"
   name "TunnelMac"
-  desc "Native GUI for openfortivpn, OpenVPN, WireGuard and OpenConnect"
+  desc "Native GUI for openfortivpn, OpenVPN, WireGuard, OpenConnect and snx-rs"
   homepage "https://github.com/luizmz94/tunnelmac"
 
   livecheck do
@@ -85,8 +85,9 @@ def cask(version, digests):
 
   caveats <<~EOS
     First use: open TunnelMac and follow the setup guide. Pick the VPN types you
-    use and install only those clients (brew install openfortivpn, openvpn
-    and/or wireguard-go; the guide shows the command), activate its service,
+    use and install only those clients (brew install openfortivpn, openvpn,
+    wireguard-go, openconnect and/or snx-rs; the guide shows the command),
+    activate its service,
     approve it in System Settings and approve each client once.
 
     Updates: TunnelMac offers new versions and installs them itself

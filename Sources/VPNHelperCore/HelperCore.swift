@@ -25,12 +25,16 @@ public final class HelperCore {
         public var wireGuardInterval: TimeInterval
         /// Per-domain DNS of openfortivpn sessions (production: the dynamic store).
         public var supplementalDNS: SupplementalDNS
+        /// DNS keys of snx-rs (Check Point) sessions (production: the dynamic store).
+        public var checkPointDNS: CheckPointDNSStore
         public init(stateDirectory: String, ownership: TrustedOwnership, supervisorSource: String,
                     supervisorRequirement: String?, helperVersion: String, probeIdentity: (uid_t, gid_t)?,
                     authorizer: AdminAuthorizing, idleTimeout: TimeInterval = 30, onIdle: (() -> Void)? = nil,
                     wireGuardHost: WireGuardHost = SystemWireGuardHost(), wireGuardInterval: TimeInterval = 3,
-                    supplementalDNS: SupplementalDNS = SystemSupplementalDNS()) {
+                    supplementalDNS: SupplementalDNS = SystemSupplementalDNS(),
+                    checkPointDNS: CheckPointDNSStore = SystemCheckPointDNSStore()) {
             self.supplementalDNS = supplementalDNS
+            self.checkPointDNS = checkPointDNS
             self.stateDirectory = stateDirectory; self.ownership = ownership; self.supervisorSource = supervisorSource
             self.supervisorRequirement = supervisorRequirement; self.helperVersion = helperVersion
             self.probeIdentity = probeIdentity; self.authorizer = authorizer
@@ -79,6 +83,10 @@ public final class HelperCore {
             let live = Set(self.registry.stale(excluding: []).map(\.token))
             self.store.sweepClientCertificates(keeping: live)
             GlobalProtectNetwork.recover(work: self.store.work, live: live, host: self.configuration.wireGuardHost)
+            let store = self.store
+            CheckPointNetwork.recover(work: store.work, live: live, dns: self.configuration.checkPointDNS,
+                                      host: self.configuration.wireGuardHost) { store.removeCheckPointAuthority(token: $0) }
+            store.sweepCheckPointAuthorities(keeping: live)
             // Per-domain DNS left by sessions of an earlier helper process.
             let dns = self.configuration.supplementalDNS
             let leftovers = dns.tokens().filter { !live.contains($0) }
@@ -200,6 +208,8 @@ public final class HelperCore {
             case .startOpenVPN(let connection): respond(self.startOpenVPN(connection, for: client))
             case .startWireGuard(let connection): respond(self.startWireGuard(connection, for: client))
             case .startGlobalProtect(let connection): respond(self.startGlobalProtect(connection, for: client))
+            case .startCheckPoint(let connection): respond(self.startCheckPoint(connection, for: client))
+            case .queryCheckPointGateway(let query): self.queryCheckPointGateway(query, client: client, respond: respond)
             case .stop(let token): respond(self.stop(token, for: client))
             case .stopAll:
                 for session in self.sessions.values where session.ownerID == client.id { session.stop() }
@@ -232,6 +242,9 @@ public final class HelperCore {
             case .inspectOpenConnectRuntime(let path): self.inspect(path: path, kind: .openconnect, client: client, respond: respond)
             case .approveOpenConnectRuntime(let path, let digest, let authorization):
                 self.approve(path: path, digest: digest, authorization: authorization, kind: .openconnect, client: client, respond: respond)
+            case .inspectSnxRsRuntime(let path): self.inspect(path: path, kind: .snxrs, client: client, respond: respond)
+            case .approveSnxRsRuntime(let path, let digest, let authorization):
+                self.approve(path: path, digest: digest, authorization: authorization, kind: .snxrs, client: client, respond: respond)
             case .removeManagedFiles(let authorization):
                 self.removeManagedFiles(authorization: authorization, client: client, respond: respond)
             }
@@ -265,6 +278,9 @@ public final class HelperCore {
         var openConnect: RuntimeSummary?
         var openConnectProblem: String?
         do { openConnect = try store.loadActive(.openconnect).summary } catch { openConnectProblem = Self.wrap(error).message }
+        var snx: RuntimeSummary?
+        var snxProblem: String?
+        do { snx = try store.loadActive(.snxrs).summary } catch { snxProblem = Self.wrap(error).message }
         let authorized = (try? store.loadState().authorizedUsers.contains(client.uid)) ?? false
         let stale = registry.stale(excluding: Set(sessions.keys)).filter { $0.uid == client.uid }.map(\.connectionID)
         return HelperStatus(protocolVersion: HelperConstants.protocolVersion, helperVersion: configuration.helperVersion,
@@ -273,7 +289,8 @@ public final class HelperCore {
                             stoppingConnections: Array(Set(stale)),
                             openVPNRuntime: openVPN, openVPNRuntimeProblem: openVPNProblem,
                             wireGuardRuntime: wireGuard, wireGuardRuntimeProblem: wireGuardProblem,
-                            openConnectRuntime: openConnect, openConnectRuntimeProblem: openConnectProblem)
+                            openConnectRuntime: openConnect, openConnectRuntimeProblem: openConnectProblem,
+                            snxRuntime: snx, snxRuntimeProblem: snxProblem)
     }
 
     /// Checks shared by every client kind, before anything is prepared.
@@ -413,6 +430,97 @@ public final class HelperCore {
         }
     }
 
+    /// snx-rs in standalone mode with the helper's config (fd 3, the password inside in
+    /// base64) and stdin on /dev/null. snx-rs sets routes and DNS itself; CheckPointSession
+    /// detects readiness and removes what a killed snx-rs leaves behind.
+    private func startCheckPoint(_ request: CheckPointRequest, for client: Client) -> HelperResponse {
+        if let refusal = admit(request.connectionID, for: client) { return .failure(refusal) }
+        // snx-rs removes every snx-rs-* DNS key when it starts: one Check Point session at a time.
+        let stale = registry.stale(excluding: Set(sessions.keys))
+        guard !sessions.values.contains(where: { !$0.finished && $0.runtimeKind == .snxrs }),
+              !stale.contains(where: { $0.kind == .snxrs }) else {
+            return .failure(HelperFailure(.busy, ServiceLanguage.text("Já existe uma conexão Check Point ativa; desconecte-a antes.")))
+        }
+        let runtime: ActiveRuntime
+        do { runtime = try store.loadActive(.snxrs) } catch { return .failure(Self.wrap(error)) }
+        let validated: CheckPointRequest
+        do { validated = try request.validated() } catch { return .failure(Self.wrap(error)) }
+        let dns = configuration.checkPointDNS, host = configuration.wireGuardHost, store = self.store
+        let live = Set(sessions.keys).union(stale.map(\.token))
+        CheckPointNetwork.recover(work: store.work, live: live, dns: dns, host: host) { store.removeCheckPointAuthority(token: $0) }
+        let token = UUID().uuidString
+        var content: Data
+        var environment = runtime.environment
+        do {
+            let authority = try validated.authorityDER.map { try store.writeCheckPointAuthority($0, token: token) }
+            content = Data(try CheckPointConfigRenderer.render(host: validated.host, port: validated.port, username: validated.username,
+                                                               password: validated.password, loginType: validated.loginType,
+                                                               authorityPath: authority, allTraffic: validated.allTraffic).utf8)
+            // Its data directory lives under HOME (used only with ike-persist): a root-only one.
+            environment["HOME"] = try store.checkPointHome()
+            // Its tracing lines (WARN …) would otherwise carry ANSI colors into the app's log.
+            environment["NO_COLOR"] = "1"
+        } catch {
+            store.removeCheckPointAuthority(token: token)
+            return .failure(Self.wrap(error))
+        }
+        defer { content.resetBytes(in: 0..<content.count) }
+        // No other Check Point session runs: any snx-rs key now is a leftover (snx-rs would drop it too).
+        dns.interfaces().forEach(dns.remove(interface:))
+        let gateway = CheckPointNetwork.gatewayAddress(validated.host, port: validated.port, resolver: host)
+        let record = CheckPointNetwork.Record(gateway: gateway,
+                                              hadHostRoute: gateway.map { CheckPointNetwork.physicalHostRoute($0, host: host) != nil } ?? false,
+                                              interface: nil)
+        let recordPath = CheckPointNetwork.recordPath(work: store.work, token: token)
+        CheckPointNetwork.write(record, to: recordPath)
+        // The password and its base64 (the config line) never leave the helper in a log line.
+        let secrets = [validated.password, Data(validated.password.utf8).base64EncodedString()].filter { $0.count >= 4 }
+        let response = launch(connectionID: request.connectionID, client: client, runtime: runtime, content: content, cookie: nil,
+                              supervisorArguments: ["--snx", runtime.executable], plan: LaunchPlan(clientArguments: [], mode: .none),
+                              secrets: secrets, token: token, environment: environment) { [queue] runner in
+            let session = CheckPointSession(token: token, record: record, recordPath: recordPath, dns: dns, host: host) {
+                store.removeCheckPointAuthority(token: token)
+            }
+            session.emit = { [weak runner] line in queue.async { runner?.pump.enqueue(.line(line)) } }
+            session.fail = { [weak runner] in queue.async { runner?.stop() } }
+            return session
+        }
+        if case .failure = response {
+            store.removeCheckPointAuthority(token: token)
+            unlink(recordPath)
+        }
+        return response
+    }
+
+    /// `snx-rs -m info` as the probe identity (production: nobody), never root: the gateway's
+    /// login types and fingerprint words. The authority goes in a file that identity can read.
+    private func queryCheckPointGateway(_ query: CheckPointGatewayQuery, client: Client, respond: @escaping (HelperResponse) -> Void) {
+        guard client.uid != 0, (try? store.loadState().authorizedUsers.contains(client.uid)) == true else {
+            respond(.failure(HelperFailure(.userNotAuthorized, ServiceLanguage.text("Este usuário do macOS ainda não foi autorizado por um administrador para usar o serviço."))))
+            return
+        }
+        let runtime: ActiveRuntime
+        let validated: (server: String, authority: Data?)
+        do {
+            runtime = try store.loadActive(.snxrs)
+            validated = try query.validated()
+        } catch { respond(.failure(Self.wrap(error))); return }
+        let store = self.store, identity = configuration.probeIdentity
+        work.async {
+            var authority: String?
+            defer { if let authority { unlink(authority) } }
+            do {
+                authority = try validated.authority.map { try store.writeCheckPointQueryAuthority($0) }
+                var environment = runtime.environment
+                environment["HOME"] = "/var/empty"
+                environment["NO_COLOR"] = "1"
+                let output = try Probe.run(runtime.executable, CheckPointNetwork.infoArguments(server: validated.server, authorityPath: authority),
+                                           environment: RuntimeEnvironment.list(environment), identity: identity, timeout: 20_000)
+                respond(.checkPointGateway(CheckPointNetwork.gatewayInfo(output.text, status: output.status)))
+            } catch { respond(.failure(Self.wrap(error))) }
+        }
+    }
+
     private func start(_ request: ConnectionRequest, for client: Client) -> HelperResponse {
         if let refusal = admit(request.connectionID, for: client) { return .failure(refusal) }
         let runtime: ActiveRuntime
@@ -498,6 +606,7 @@ public final class HelperCore {
         let pump = EventPump(token: token, sink: client.sink)
         let runner = SessionRunner(token: token, ownerID: client.id, uid: client.uid, connectionID: connectionID,
                                    supervisorPID: pid, control: control, queue: queue, pump: pump)
+        runner.runtimeKind = runtime.kind
         runner.observer = observer?(runner)
         runner.finalCheck = { [weak self] in self?.settleDNSBaseline() }
         runner.onFinish = { [weak self] runner in
@@ -512,7 +621,7 @@ public final class HelperCore {
             if runner.pump.sink == nil || runner.pump.isDrained { finish() } else { runner.pump.onIdle = finish }
         }
         sessions[token] = runner
-        do { try registry.add(token: token, uid: client.uid, connectionID: connectionID, pid: pid) }
+        do { try registry.add(token: token, uid: client.uid, connectionID: connectionID, pid: pid, kind: runtime.kind) }
         catch {
             runner.stop()
             runner.startReading(captureCookie: false, secrets: secrets)

@@ -31,6 +31,9 @@ extension VPNProtocol {
         case .wireguard: return Color(red: 0xA8 / 255, green: 0x1D / 255, blue: 0x21 / 255)
         // No vendor mark is shipped for GlobalProtect: a system symbol in a neutral blue.
         case .globalProtect: return Color(red: 0x1F / 255, green: 0x6F / 255, blue: 0xC5 / 255)
+        // Nor for Check Point: Simple Icons has no Check Point mark and the brand guidelines ask
+        // for written approval for non-editorial use. A system symbol in a dark magenta of our own.
+        case .checkPoint: return Color(red: 0xB0 / 255, green: 0x00 / 255, blue: 0x5E / 255)
         }
     }
     var fallbackSymbol: String {
@@ -39,6 +42,7 @@ extension VPNProtocol {
         case .openvpn: return "lock.shield"
         case .wireguard: return "point.3.connected.trianglepath.dotted"
         case .globalProtect: return "globe.badge.chevron.backward"
+        case .checkPoint: return "checkmark.shield.fill"
         }
     }
 }
@@ -48,9 +52,14 @@ struct ProtocolIcon: View {
     var size: CGFloat = 28
     @Environment(\.colorScheme) private var scheme
     /// WireGuard's dark red disappears on dark surfaces; there it takes the brighter red
-    /// the TunnelMac brand uses on dark backgrounds.
+    /// the TunnelMac brand uses on dark backgrounds. Check Point's magenta is lifted the same way.
     private var color: Color {
-        kind == .wireguard && scheme == .dark ? Color(red: 0xE0 / 255, green: 0x52 / 255, blue: 0x4F / 255) : kind.brandColor
+        guard scheme == .dark else { return kind.brandColor }
+        switch kind {
+        case .wireguard: return Color(red: 0xE0 / 255, green: 0x52 / 255, blue: 0x4F / 255)
+        case .checkPoint: return Color(red: 0xF0 / 255, green: 0x50 / 255, blue: 0x9A / 255)
+        default: return kind.brandColor
+        }
     }
     var body: some View {
         Group {

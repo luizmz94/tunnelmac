@@ -122,6 +122,7 @@ final class ClientVersionChecker: ObservableObject {
                     case .openvpn: request = .inspectOpenVPNRuntime(path: fact.path)
                     case .wireguard: request = .inspectWireGuardRuntime(path: fact.path)
                     case .openconnect: request = .inspectOpenConnectRuntime(path: fact.path)
+                    case .snxrs: request = .inspectSnxRsRuntime(path: fact.path)
                     }
                     helper.request(request, timeout: 60) { [weak self] result in
                         guard let self, generation == self.localGeneration else { return }

@@ -29,7 +29,7 @@ Besides VPN/gateway/IdP traffic, automatic update checks use an
 anonymous HTTPS `GET` to the public GitHub releases API of luizmz94/tunnelmac
 (ephemeral session, no cookies, cache or token, no redirects, 1 MiB response limit).
 The service panel also queries the public Homebrew formula JSON endpoints for the
-three client versions (512 KiB limit). Both automatic checks can be turned off in
+client versions (512 KiB limit). Both automatic checks can be turned off in
 Configurações → Atualizações. Only release pages of this repository are linked;
 release notes are shown as plain text. The check itself downloads nothing.
 
@@ -65,6 +65,11 @@ update then installs on the next quit); the service registration is kept, as wit
 Passwords and SAML cookies use Keychain and authenticated XPC, then anonymous
 file descriptors. They are excluded from argv, environment, JSON and logs. TLS is
 not disabled; trusting a certificate digest requires explicit profile approval.
+snx-rs (Check Point, supervisor `--snx`) reads its whole configuration, the password
+in base64 included, from the anonymous fd 3, with stdin on /dev/null; the password and
+its base64 are filtered from its output. Its ignore-server-cert option is never used;
+a gateway's own CA is used only after the user trusts it in the editor. `snx-rs -m info`
+(Consultar gateway) runs as the unprivileged probe identity with no credentials.
 Closing the window preserves sessions; Sair requests normal disconnect and waits
 for cleanup. Lost GUI/XPC connections stop their sessions; lost helper channels
 ask supervisors to stop normally.

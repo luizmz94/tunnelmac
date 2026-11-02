@@ -170,6 +170,7 @@ struct ServicePanel: View {
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard (wireguard-go)"
         case .openconnect: return "GlobalProtect (OpenConnect)"
+        case .snxrs: return "Check Point (snx-rs)"
         }
     }
 

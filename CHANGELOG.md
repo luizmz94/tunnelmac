@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.2.0 — 2026-11-02
+
+- Check Point connections (Remote Access / Endpoint Security VPN gateways) through
+  snx-rs (`brew install snx-rs`, approved in Serviço privilegiado like the other
+  clients), without the official client or a site name: gateway, user, password in
+  Keychain (backups included), login type and, when the gateway uses its own internal CA,
+  the authority the user trusted.
+- **Consultar gateway** in the editor: reads the gateway certificate, shows its internal
+  CA (subject, validity, SHA-256 and the gateway's fingerprint words) to trust explicitly,
+  points out an address the certificate does not cover and offers the ones it does, and
+  lists the gateway's login types (`snx-rs -m info`, run by the service as an unprivileged
+  user). Only user-and-password login types are supported; MFA, SAML and client
+  certificates are listed but not yet available.
+- snx-rs runs in standalone mode with its configuration (the password inside, never in
+  argv or the environment) on a protected descriptor; its ignore-server-cert option is
+  never used. It sets routes and DNS itself; the connection shows Conectada once the
+  service sees the tunnel's DNS (or its interface), in any language snx-rs prints. If
+  snx-rs is killed, the service removes its DNS entry and the gateway route it left, and
+  the connection reconnects like the others. One Check Point connection at a time.
+- A VPN client killed from outside now reports its exit, so the retry policy applies.
+- Helper protocol 10: update the service together with the app.
+- Downgrade is not supported once a Check Point connection is saved: older versions do not
+  read the connection list with it (as with GlobalProtect in 1.1.0).
+
 ## 1.1.0 — 2026-10-30
 
 - GlobalProtect connections through OpenConnect (`brew install openconnect`, approved

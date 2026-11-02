@@ -150,6 +150,33 @@ After a SAML login (GlobalProtect or Fortinet) the app closes the page left in t
 default browser (Safari, Chrome, Brave, Edge or Vivaldi); macOS asks once whether
 TunnelMac may control it.
 
+### Check Point
+
+Install snx-rs (`brew install snx-rs`), then approve **Check Point (snx-rs)** in
+Configurações → Serviço privilegiado. Never start it with `brew services`: the helper runs
+its own protected copy in standalone mode, one session at a time. Neither the official
+Check Point client nor a site name is used.
+
+Use **+** (⌘N) → **Check Point** with the address the gateway's certificate covers (a host
+name or IP, optionally `:port`), your user and password (saved in Keychain). **Consultar
+gateway** reads the gateway's certificate and, when it is issued by the gateway's own
+internal CA (ICA), shows that authority: subject, validity, SHA-256 and the gateway's
+fingerprint words. Compare the SHA-256 or the words with the VPN administrator before
+**Confiar nesta autoridade**. If the certificate is valid for another address (for example
+another IP of the same gateway), the editor says which ones and **Usar …** switches to it.
+The query also lists the gateway's login types (`snx-rs -m info`, run by the service as an
+unprivileged user); only login types with user and password are supported for now: MFA
+(OTP), SAML/identity provider and client certificates are listed but cannot be chosen.
+
+snx-rs configures the tunnel itself: the gateway's routes (or all traffic with **Todo o
+tráfego pela VPN**), a host route to the gateway and the VPN's DNS for its domains. The
+connection shows Conectada once the service sees that DNS (or the tunnel interface). On
+disconnect snx-rs removes its routes and DNS; if it is killed, the service removes the DNS
+entry and the gateway route it left. Only one Check Point connection can be active at a
+time (snx-rs replaces the DNS of any other one). A wrong password stops without retrying.
+If the official Check Point client is connected, it competes for routes and DNS:
+disconnect it first.
+
 ### Fortinet client certificates and gateway certificates
 
 A Fortinet connection can use a client certificate from your Keychain (FortiClient's

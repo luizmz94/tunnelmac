@@ -123,6 +123,8 @@ final class SessionRunner {
     let uid: uid_t
     let connectionID: UUID
     let supervisorPID: pid_t
+    /// Client kind of the session (set before it is registered).
+    var runtimeKind: RuntimeKind?
     private let control: Int32
     private let queue: DispatchQueue
     let pump: EventPump
@@ -207,7 +209,9 @@ final class SessionRunner {
                 self.finished = true
                 if let line = self.finalCheck?() { self.pump.enqueue(.line(line)) }
                 if let failure = self.observer?.cleanupFailure { self.pump.enqueue(.failed(failure)) }
-                else if code == 137 { self.pump.enqueue(.failed(ServiceLanguage.text("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar."))) }
+                // 137 is the supervisor's own SIGKILL only after a stop; otherwise the client was
+                // killed from outside (kill -9), which is a drop the app may retry.
+                else if code == 137 && self.stopRequested { self.pump.enqueue(.failed(ServiceLanguage.text("Cliente exigiu encerramento forçado após 10 s. Confira a conectividade e o estado da rede antes de reconectar."))) }
                 else if code >= 0 { self.pump.enqueue(.exited(code: code)) }
                 else { self.pump.enqueue(.failed(ServiceLanguage.text("O supervisor encerrou sem status confirmado."))) }
                 self.onFinish?(self)
@@ -245,9 +249,12 @@ public final class SessionRegistry {
         var pid: Int32
         var startSeconds: UInt64
         var startMicroseconds: UInt64
-        public init(token: String, uid: UInt32, connectionID: UUID, pid: Int32, startSeconds: UInt64, startMicroseconds: UInt64) {
+        /// Client kind; nil in entries written before Check Point support.
+        var kind: RuntimeKind?
+        public init(token: String, uid: UInt32, connectionID: UUID, pid: Int32, startSeconds: UInt64, startMicroseconds: UInt64,
+                    kind: RuntimeKind? = nil) {
             self.token = token; self.uid = uid; self.connectionID = connectionID; self.pid = pid
-            self.startSeconds = startSeconds; self.startMicroseconds = startMicroseconds
+            self.startSeconds = startSeconds; self.startMicroseconds = startMicroseconds; self.kind = kind
         }
     }
     let path: String?
@@ -269,9 +276,9 @@ public final class SessionRegistry {
         guard let (seconds, micros) = identity(of: entry.pid) else { return false }
         return seconds == entry.startSeconds && micros == entry.startMicroseconds
     }
-    public func add(token: String, uid: uid_t, connectionID: UUID, pid: pid_t) throws {
+    public func add(token: String, uid: uid_t, connectionID: UUID, pid: pid_t, kind: RuntimeKind? = nil) throws {
         guard let (seconds, micros) = Self.identity(of: pid) else { throw failure(.internalError, ServiceLanguage.text("Identidade do supervisor não pôde ser registrada.")) }
-        entries.append(Entry(token: token, uid: uid, connectionID: connectionID, pid: pid, startSeconds: seconds, startMicroseconds: micros))
+        entries.append(Entry(token: token, uid: uid, connectionID: connectionID, pid: pid, startSeconds: seconds, startMicroseconds: micros, kind: kind))
         try persist()
     }
     func remove(token: String) {
