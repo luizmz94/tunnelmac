@@ -71,6 +71,9 @@ the menu, and **⌘F** returns to the field after Tab. With text, the first resu
 already highlighted; with no text and a single connection, that one is. What you type is
 not logged.
 
+Active connections and the ones you pin (the pin on the highlighted row, or **Fixar no
+topo** in its context menu) stay at the top of the menu, above a separator.
+
 ### OpenVPN
 
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**

@@ -22,6 +22,8 @@
   moved by the mouse), Enter connects or disconnects it and keeps the menu open, ⌘Enter
   opens it in the window, Esc clears the text and then closes the menu, ⌘F returns to
   the field. VoiceOver hears the number of results and the highlighted connection.
+- Menu: active connections and the ones you pin (pin button on the row, or its context
+  menu) stay on top, above a separator; the list is taller and uses more of the screen.
 
 ## 1.2.0 — 2026-11-02
 
