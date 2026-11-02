@@ -34,6 +34,14 @@
   until closed. One card per connection, up to four plus "+N". It never takes the
   keyboard, hides while the menu is open and is announced by VoiceOver. On by default;
   Configurações › Geral › Mostrar o progresso das conexões.
+- **Global shortcut** to open the menu with the search ready, from any app and without
+  bringing TunnelMac to the front (also with the icon hidden). None by default; recorded in
+  Configurações › Geral › Atalho as a combination with ⌘ or ⌃, an F key alone (F1–F12 with a
+  note about fn) or a double tap of ⌘, ⌥, ⌃ or ⇧. Combinations and F keys use Carbon's
+  RegisterEventHotKey and need no permission; the double tap is opt-in, asks for Input
+  Monitoring after an explanation and listens to modifier changes only (SECURITY.md).
+  Shortcuts macOS uses and common app shortcuts (⌘Q, ⌘C, ⌘Space…) are refused; a saved
+  shortcut that macOS refuses at launch stays saved with a warning.
 
 ## 1.2.0 — 2026-11-02
 

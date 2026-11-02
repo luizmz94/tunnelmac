@@ -74,6 +74,18 @@ Closing the window preserves sessions; Sair requests normal disconnect and waits
 for cleanup. Lost GUI/XPC connections stop their sessions; lost helper channels
 ask supervisors to stop normally.
 
+The optional global shortcut (Configurações → Geral → Atalho) is stored in the app's
+`UserDefaults`; it is not a secret. A key combination or a single F key is registered with
+Carbon's `RegisterEventHotKey` and needs no permission. The double tap of a modifier is
+opt-in and the only part that asks macOS for a permission (Input Monitoring, requested
+only after an explanation): while that form is chosen, and only then, the app runs a
+listen-only event tap whose mask is modifier changes (`flagsChanged`) alone, so it never
+receives the keys typed; besides the changed modifier it reads only the system-wide count
+of key presses (a number) to ignore taps like ⌘C. Nothing it sees is stored, logged or
+sent, and it neither changes nor consumes events. Choosing another form or removing the
+shortcut invalidates the tap; the permission can then be revoked in System Settings.
+The menu's search text is never logged.
+
 Backups (Configurações → Backup) are the only export of passwords and private keys.
 The file is AES-256-GCM with a key from PBKDF2-HMAC-SHA256 (600,000 iterations,
 16-byte random salt, header authenticated) under a password the app rates strong

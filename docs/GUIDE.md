@@ -86,6 +86,27 @@ Up to four cards are shown, then "+N em andamento". The panel never takes the ke
 hides while the menu is open, and is off with **Mostrar o progresso das conexões** in
 Configurações › Geral.
 
+### Global shortcut
+
+Configurações › Geral › **Atalho** records a shortcut that opens the menu with the search
+ready, from any app, without bringing TunnelMac to the front (it also works with the menu
+bar icon hidden: the menu opens in the top right corner). There is none by default. Click
+**Gravar atalho** and press it; **Esc** cancels and **⌫** removes it. Three forms:
+
+- **A combination** with ⌘ or ⌃ (⌃⌥⌘K, ⇧⌘F5…). No permission.
+- **An F key alone** (F1–F20). No permission. On Apple keyboards F1–F12 control brightness
+  and sound: press them with fn or turn on "Use F1, F2, etc. keys as standard function keys".
+- **A double tap of ⌘, ⌥, ⌃ or ⇧** (either side by default, or the side you tapped). This one
+  needs **Input Monitoring** (System Settings › Privacy & Security), asked only after an
+  explanation; until it is allowed the shortcut stays saved but inactive. TunnelMac then
+  listens to modifier changes only, never to the keys you type (see SECURITY.md). macOS may
+  require reopening the app before it applies (**Reabrir agora**).
+
+Refused, with a message: keys without ⌘ or ⌃ (Option and Shift type characters), letters or
+Space alone, shortcuts macOS itself uses, and app shortcuts such as ⌘Q, ⌘W, ⌘C or ⌘Space.
+macOS does not tell an app that another one registered the same shortcut; if one does, it may
+get it instead. While you record, the current shortcut is suspended.
+
 ### OpenVPN
 
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**
