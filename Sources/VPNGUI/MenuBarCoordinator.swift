@@ -224,6 +224,7 @@ final class MenuBarCoordinator: ObservableObject {
 
     func showMenu(focusSearch: Bool = false) {
         guard let menuPresenter, let statusItem, !menuPresenter.isOpen, !hasModalWindow() else { return }
+        activeWhenOpened = Set(model.manager.sessions.values.filter { $0.state.active }.map(\.id))
         resetSearch()
         lastPointer = NSEvent.mouseLocation
         menuPresenter.open(anchor: statusItem.host.anchor)
@@ -236,6 +237,7 @@ final class MenuBarCoordinator: ObservableObject {
     func closeMenu() { menuPresenter?.close() }
 
     private func menuDidClose() {
+        activeWhenOpened = nil
         menuOpen = false
         searchText = ""
         highlightedID = nil
@@ -252,8 +254,14 @@ final class MenuBarCoordinator: ObservableObject {
     var searchResults: [Connection] { let sections = searchSections; return sections.top + sections.rest }
 
     func isPinned(_ id: UUID) -> Bool { preferences.pinnedConnections.contains(id) }
+    /// Active connections when the menu opened: while it is open, a connection that connects or
+    /// disconnects keeps its place, so no row moves under the pointer (a click could hit
+    /// another connection's switch). Pins apply at once: the user just asked for them.
+    private var activeWhenOpened: Set<UUID>?
     private func isOnTop(_ connection: Connection) -> Bool {
-        isPinned(connection.id) || model.manager.session(connection.id).state.active
+        if isPinned(connection.id) { return true }
+        if let activeWhenOpened { return activeWhenOpened.contains(connection.id) }
+        return model.manager.session(connection.id).state.active
     }
 
     /// Pins a connection to the top of the menu, or unpins it.

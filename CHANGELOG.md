@@ -23,7 +23,9 @@
   opens it in the window, Esc clears the text and then closes the menu, ⌘F returns to
   the field. VoiceOver hears the number of results and the highlighted connection.
 - Menu: active connections and the ones you pin (pin button on the row, or its context
-  menu) stay on top, above a separator; the list is taller and uses more of the screen.
+  menu) stay on top, above a separator (a connection that connects while the menu is open
+  moves there the next time it opens, so no row moves under the pointer); the list is
+  taller and uses more of the screen.
 
 ## 1.2.0 — 2026-11-02
 

@@ -451,6 +451,18 @@ enum MenuBarTests {
             menuBar.togglePin(connections[3].id)
             model.manager.session(connections[2].id).state = .disconnected
             try require(menuBar.searchSections.top.isEmpty && !menuBar.isPinned(connections[3].id), "Desafixar ou desconectar não devolveu às demais")
+            // With the menu open, connecting or disconnecting moves no row; pins still apply at once.
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            menuBar.showMenu()
+            model.manager.session(connections[0].id).state = .connecting
+            try require(menuBar.searchSections.top.isEmpty, "Linha subiu com o menu aberto (sob o ponteiro)")
+            menuBar.togglePin(connections[1].id)
+            try require(names(menuBar.searchSections.top) == ["Beta"], "Fixar com o menu aberto não subiu na hora")
+            menuBar.closeMenu(); menuBar.showMenu()
+            try require(names(menuBar.searchSections.top) == ["Alfa", "Beta"], "Ao reabrir, a ativa não foi para o topo")
+            menuBar.closeMenu()
+            menuBar.togglePin(connections[1].id)
+            model.manager.session(connections[0].id).state = .disconnected
         }
 
         test("Busca no menu: Enter segue a regra da linha, ⌘Enter abre a janela, Esc limpa e depois fecha") {

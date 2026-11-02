@@ -72,7 +72,8 @@ already highlighted; with no text and a single connection, that one is. What you
 not logged.
 
 Active connections and the ones you pin (the pin on the highlighted row, or **Fixar no
-topo** in its context menu) stay at the top of the menu, above a separator.
+topo** in its context menu) stay at the top of the menu, above a separator. While the menu
+is open, a connection that connects or disconnects keeps its place until the menu opens again.
 
 ### OpenVPN
 
