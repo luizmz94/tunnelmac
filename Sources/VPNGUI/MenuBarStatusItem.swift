@@ -242,8 +242,8 @@ final class MenuBarPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { onCancel?() }
 }
 
-/// The menu panel: MenuBarView over Liquid Glass (its own) on macOS 26+, over the menu
-/// material with rounded corners before, sized to the content and placed by MenuPanelPlacement.
+/// The menu panel: MenuBarView on the menu material with rounded corners (its own Liquid Glass
+/// on top on macOS 26+), sized to the content and placed by MenuPanelPlacement.
 @MainActor
 final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelegate {
     static let width: CGFloat = 360
@@ -276,17 +276,15 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         panel.onCancel = { [weak self] in self?.close() }
         hosting.frame = NSRect(origin: .zero, size: size)
         hosting.autoresizingMask = [.width, .height]
-        if #available(macOS 26, *) {
-            panel.contentView = hosting
-        } else {
-            let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-            material.material = .menu
-            material.state = .active
-            material.blendingMode = .behindWindow
-            material.maskImage = Self.roundedMask(radius: 12)
-            material.addSubview(hosting)
-            panel.contentView = material
-        }
+        // The menu material under the view, as the system popover had: on macOS 26+ the view's
+        // own Liquid Glass sits on it (same 16 pt corners), before it is the whole background.
+        let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
+        material.material = .menu
+        material.state = .active
+        material.blendingMode = .behindWindow
+        if #available(macOS 26, *) { material.maskImage = Self.roundedMask(radius: 16) } else { material.maskImage = Self.roundedMask(radius: 12) }
+        material.addSubview(hosting)
+        panel.contentView = material
         menuBar.objectWillChange.sink { [weak self] in self?.queueFit() }.store(in: &observers)
         spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.activeSpaceDidChangeNotification,
                                                                           object: nil, queue: .main) { [weak self] _ in
