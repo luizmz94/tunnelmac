@@ -89,6 +89,8 @@ final class ShowcaseDemo: ObservableObject {
             self?.play(session, ShowcaseDemo.wireGuardOutput)
         }, globalProtectLaunched: { [weak self] session, _ in
             self?.play(session, ShowcaseDemo.globalProtectOutput)
+        }, checkPointLaunched: { [weak self] session, _ in
+            self?.play(session, ShowcaseDemo.checkPointOutput)
         }, globalProtectLogin: { _ in
             // Stands in for the browser login (SAML in the default browser).
             try? await Task.sleep(nanoseconds: 300_000_000)
@@ -110,7 +112,8 @@ final class ShowcaseDemo: ObservableObject {
                             runtimeProblem: nil, userAuthorized: true, activeSessions: 0, stoppingConnections: [],
                             openVPNRuntime: runtime("openvpn", "2.7.8", "/opt/homebrew/Cellar/openvpn/2.7.8_1/sbin/openvpn", help: ""),
                             wireGuardRuntime: runtime("wireguard-go", "0.0.20250522", "/opt/homebrew/Cellar/wireguard-go/0.0.20250522/bin/wireguard-go", help: ""),
-                            openConnectRuntime: runtime("openconnect", "9.21", "/opt/homebrew/Cellar/openconnect/9.21/bin/openconnect", help: ""))
+                            openConnectRuntime: runtime("openconnect", "9.21", "/opt/homebrew/Cellar/openconnect/9.21/bin/openconnect", help: ""),
+                            snxRuntime: runtime("snx-rs", "6.6.1", "/opt/homebrew/Cellar/snx-rs/6.6.1/bin/snx-rs", help: ""))
     }
 
     // MARK: Fictitious connections (reserved .example names and documentation addresses)
@@ -164,6 +167,12 @@ final class ShowcaseDemo: ObservableObject {
         try model.save(globalProtect, password: "")
         connections[globalProtect.name] = globalProtect
 
+        // "Head Office" is already the Fortinet demo; the Check Point one has its own name.
+        let checkPoint = Connection(name: "Initech HQ", server: "vpn.initech.example", username: "alex.morgan", kind: .checkPoint,
+                                    checkPoint: CheckPointSettings(loginType: "vpn"))
+        try model.save(checkPoint, password: "demo-only")
+        connections[checkPoint.name] = checkPoint
+
         for connection in connections.values { observeDisconnect(connection) }
     }
 
@@ -174,6 +183,7 @@ final class ShowcaseDemo: ObservableObject {
         connect("Head Office", fast: true, since: 4_325)
         connect("Home", fast: true, since: 1_268)
         connect("Branch Office", fast: true, since: 2_140)
+        connect("Initech HQ", fast: true, since: 812)
         if let directory = ShowcaseApp.captureDirectory {
             Task { await ShowcaseTour(demo: self, directory: directory).run() }
         } else {
@@ -249,6 +259,26 @@ final class ShowcaseDemo: ObservableObject {
         (0.3, "INFO:   Tunnel is up and running.", nil)
     ]
 
+    /// snx-rs standalone (en-US labels) and the helper's ready marker.
+    private static let checkPointOutput: [(TimeInterval, String, ConnectionState?)] = [
+        (0.4, "INFO snxcore::platform::macos: Cleaning up stale DNS entries", nil),
+        (0.5, "INFO snxcore::tunnel::ipsec::connector: IPsec authentication succeeded", nil),
+        (0.4, "         Server name: vpn.initech.example", nil),
+        (0.1, "           User name: alex.morgan", nil),
+        (0.1, "          Login type: vpn", nil),
+        (0.1, "         Tunnel type: IPSec", nil),
+        (0.1, "IPsec transport type: UDP TUN", nil),
+        (0.1, "          IP address: 172.16.10.19/24", nil),
+        (0.1, "         DNS servers: 198.51.100.53, 198.51.100.54", nil),
+        (0.1, "      Search domains: initech.example", nil),
+        (0.1, "           Interface: utun7", nil),
+        (0.1, "      DNS configured: true", nil),
+        (0.1, "  Routing configured: true", nil),
+        (0.1, "       Default route: false", nil),
+        (0.2, "Tunnel connected, press Ctrl-C to exit.", nil),
+        (0.2, CheckPointRules.networkReady + "utun7", nil)
+    ]
+
     private static let globalProtectOutput: [(TimeInterval, String, ConnectionState?)] = [
         (0.4, "POST https://vpn.globex.example/ssl-vpn/prelogin.esp?tmp=tmp&clientVer=4100&clientos=Mac", nil),
         (0.3, "Connected to 203.0.113.60:443", nil),
@@ -295,6 +325,7 @@ final class ShowcaseDemo: ObservableObject {
         case .openvpn: return ["SIGTERM[hard,] received, process exiting"]
         case .wireguard: return ["[#] Routes and DNS restored; interface removed."]
         case .globalProtect: return ["Logout successful.", "[#] Rotas e DNS da VPN removidos."]
+        case .checkPoint: return ["Tunnel disconnected"]
         }
     }
 
@@ -333,6 +364,9 @@ struct ShowcaseTour {
             select("Branch Office")
             await pause(1.0)
             capture([window], "globalprotect-\(suffix)")
+            select("Initech HQ")
+            await pause(1.0)
+            capture([window], "checkpoint-\(suffix)")
 
             let panel = menuBarPanel()
             await pause(1.0)
@@ -404,12 +438,13 @@ struct ShowcaseTour {
             versions.setForChecks(local: [.openfortivpn: .init(path: "/opt/homebrew/bin/openfortivpn", exists: true, version: "1.24.1", sourceChanged: false),
                                           .openvpn: .init(path: "/opt/homebrew/sbin/openvpn", exists: true, version: "2.7.8", sourceChanged: false),
                                           .wireguard: .init(path: "/opt/homebrew/bin/wireguard-go", exists: false, version: nil, sourceChanged: false),
-                                          .openconnect: .init(path: "/opt/homebrew/bin/openconnect", exists: true, version: "9.21", sourceChanged: false)],
-                                  latest: [.openfortivpn: "1.24.1", .openvpn: "2.7.10", .wireguard: "0.0.20250522", .openconnect: "9.21"])
+                                          .openconnect: .init(path: "/opt/homebrew/bin/openconnect", exists: true, version: "9.21", sourceChanged: false),
+                                          .snxrs: .init(path: "/opt/homebrew/bin/snx-rs", exists: true, version: "6.6.1", sourceChanged: false)],
+                                  latest: [.openfortivpn: "1.24.1", .openvpn: "2.7.10", .wireguard: "0.0.20250522", .openconnect: "9.21", .snxrs: "6.6.1"])
         }
         fake()
         let guide = ServiceOnboardingSheet(model: model, versions: versions, forcedStep: .clients,
-                                           chosen: [.openfortivpn, .openvpn, .wireguard, .openconnect]) { _ in }
+                                           chosen: [.openfortivpn, .openvpn, .wireguard, .openconnect, .snxrs]) { _ in }
         let controller = NSHostingController(rootView: guide)
         window.contentViewController?.presentAsSheet(controller)
         await pause(0.8)

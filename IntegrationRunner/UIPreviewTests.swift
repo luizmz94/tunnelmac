@@ -118,6 +118,16 @@ enum UIPreviewTests {
             wireGuardSession.logs = ["[+] Interface do WireGuard: utun8", "[#] ifconfig utun8 inet 10.8.0.3/32 10.8.0.3 alias",
                                      "[#] route -q -n add -inet 0.0.0.0/1 -interface utun8", "\(WireGuardMarkers.ready) em utun8.",
                                      "\(WireGuardMarkers.handshake) com 203.0.113.10:51820."]
+            var checkPoint = Connection(name: "Matriz Check Point", server: "vpn.exemplo.invalid", username: "luiz.carlos", kind: .checkPoint,
+                                        checkPoint: CheckPointSettings(loginType: "vpn"))
+            checkPoint.checkPoint?.authority = CheckPointAuthority(der: Data([1]), sha256: String(repeating: "ab", count: 32), subject: "O=gw-exemplo",
+                                                                   notAfter: Date().addingTimeInterval(86_400 * 365), fingerprintWords: "BOAT HIT GAS MOLD ICY FEN AWE TOOL BIT RAN SOD WAND")
+            created.append(checkPoint.id)
+            let checkPointSession = model.manager.session(checkPoint.id)
+            defer { checkPointSession.state = .disconnected; checkPointSession.connectedAt = nil }
+            checkPointSession.state = .connected
+            checkPointSession.connectedAt = Date().addingTimeInterval(-96)
+            checkPointSession.logs = ["           Interface: utun7", "Tunnel connected, press Ctrl-C to exit.", "[+] TunnelMac: túnel Check Point pronto em utun7."]
             let bothService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
             bothService.useForLocalChecks(status: bothStatus)
             let bothModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("both")), passwords: passwords, service: bothService)
@@ -190,6 +200,9 @@ enum UIPreviewTests {
                            NSSize(width: 640, height: 560), "detail-wireguard-connected")
                 try render(ConnectionDetail(connection: openVPN, session: openVPNSession, model: model, edit: {}, delete: {}),
                            NSSize(width: 640, height: 560), "detail-openvpn-digest")
+                try render(ConnectionDetail(connection: checkPoint, session: checkPointSession, model: model, edit: {}, delete: {}),
+                           NSSize(width: 640, height: 560), "detail-checkpoint-connected")
+                try render(ConnectionEditor(model: model, connection: checkPoint, saved: {}), NSSize(width: 560, height: 600), "editor-checkpoint")
                 let versions = ClientVersionChecker(transport: DisabledUpdateTransport())
                 versions.setForChecks(local: [.openvpn: .init(path: "/opt/homebrew/sbin/openvpn", exists: true, version: "2.7.8", sourceChanged: false),
                                               .openfortivpn: .init(path: "/opt/homebrew/bin/openfortivpn", exists: true, version: "1.24.1", sourceChanged: false),

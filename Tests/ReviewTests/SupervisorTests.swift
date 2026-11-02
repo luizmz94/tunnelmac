@@ -93,3 +93,51 @@ extension ReviewTests {
         XCTAssertTrue(try run(["--openconnect", script.path, "vpn.example.invalid"], secret: "a\nb").contains("credencial em formato inesperado"))
     }
 }
+
+extension ReviewTests {
+    /// --snx: snx-rs gets "-m standalone -c /dev/fd/3" and nothing else, reads the protected
+    /// config there, sees EOF on stdin (no prompt can wait) and never inherits descriptor 4.
+    func testSupervisorSnxModeRunsStandaloneWithTheConfigOnly() throws {
+        let root = try temporary()
+        let script = root.appendingPathComponent("snx-rs")
+        try Data("#!/bin/sh\necho \"ARGS:$*\"\nIFS= read -r line && echo \"STDIN:$line\" || echo EOF\necho \"CONFIG:$(/bin/cat /dev/fd/3)\"\n[ -e /dev/fd/4 ] && echo FD4 || echo NOFD4\n".utf8).write(to: script)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+        let supervisor = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/VPNSupervisor").path
+        func run(_ arguments: [String]) throws -> String {
+            let config = try ProtectedDescriptor.anonymousFile(Data("login-type=vpn".utf8), directory: root.path)
+            defer { close(config) }
+            let channel = try ProtectedDescriptor.pipe(Data("unexpected".utf8))
+            defer { close(channel) }
+            var argv = ([supervisor] + arguments).map { strdup($0) } + [nil]
+            var env = [strdup("PATH=/usr/bin:/bin"), nil]
+            defer { argv.forEach { free($0) }; env.forEach { free($0) } }
+            var pid: pid_t = 0
+            let control = argv.withUnsafeMutableBufferPointer { a in env.withUnsafeMutableBufferPointer { e in
+                vpn_spawn_supervisor(supervisor, a.baseAddress, e.baseAddress, config, channel, &pid)
+            } }
+            guard control >= 0 else { return "" }
+            defer { close(control) }
+            var output = "", bytes = [UInt8](repeating: 0, count: 4096)
+            let deadline = Date().addingTimeInterval(5)
+            while !output.contains("__VPNGUI_EXIT__"), Date() < deadline {
+                var descriptor = pollfd(fd: control, events: Int16(POLLIN), revents: 0)
+                if poll(&descriptor, 1, 100) > 0 {
+                    let count = read(control, &bytes, bytes.count)
+                    if count <= 0 { break }
+                    output += String(decoding: bytes.prefix(count), as: UTF8.self)
+                }
+            }
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            return output
+        }
+        let output = try run(["--snx", script.path])
+        XCTAssertTrue(output.contains("ARGS:-m standalone -c /dev/fd/3\n"), output)
+        XCTAssertTrue(output.contains("\nEOF\n"), output)
+        XCTAssertTrue(output.contains("CONFIG:login-type=vpn"), output)
+        XCTAssertTrue(output.contains("NOFD4"), output)
+        XCTAssertFalse(output.contains("unexpected"), output)
+        let refused = try run(["--snx", script.path, "-X", "true"])
+        XCTAssertTrue(refused.contains("argumentos inválidos para snx-rs") && !refused.contains("ARGS:"), refused)
+    }
+}
