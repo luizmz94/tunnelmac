@@ -26,6 +26,13 @@
   menu) stay on top, above a separator (a connection that connects while the menu is open
   moves there the next time it opens, so no row moves under the pointer); the list is
   taller and uses more of the screen.
+- **Progress panel**: while a connection starts, connects or fails, from any origin
+  (menu, window, search or an automatic reconnect), a floating panel under the menu bar
+  icon shows its state, with Cancelar; it disappears 2.5 s after connecting, and a failure
+  stays with its reason (credentials refused, untrusted certificate or the last error line
+  of the filtered log) and Ver logs until closed. One card per connection, up to four plus
+  "+N". It never takes the keyboard, hides while the menu is open and is announced by
+  VoiceOver. On by default; Configurações › Geral › Mostrar o progresso das conexões.
 
 ## 1.2.0 — 2026-11-02
 
