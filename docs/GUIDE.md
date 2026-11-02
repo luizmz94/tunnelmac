@@ -76,7 +76,8 @@ topo** in its context menu) stay at the top of the menu, above a separator. Whil
 is open, a connection that connects or disconnects keeps its place until the menu opens again.
 
 While a connection starts, connects or fails, whatever started it (menu, window, search
-or an automatic reconnect), a small panel under the icon shows its progress: Iniciando,
+or an automatic reconnect), a small panel in the top right corner of the screen shows its
+progress: Iniciando,
 Na fila do SAML, Aguardando SAML, Conectando, Reconectando (attempt N of 3), then
 Conectada for 2.5 s, or the failure with its reason (credentials refused, untrusted
 gateway certificate, or the last error line of the log) until you close it. **Cancelar**

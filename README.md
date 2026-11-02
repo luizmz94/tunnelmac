@@ -36,7 +36,7 @@
   **All traffic through the VPN** is one switch away.
 - **Several tunnels at once.** Each connection has its own session, timer and live log.
 - **Lives in the menu bar.** Close the window and your VPNs keep running. A small panel
-  under the icon follows each connection as it starts, connects or fails.
+  in the corner of the screen follows each connection as it starts, connects or fails.
 - **DNS that just works.** Internal names resolve through each VPN, everything else
   keeps your DNS (or Cloudflare, Google, AdGuard), and it is restored when you disconnect.
 - **Secure by design.** Passwords and SAML sessions stay in Keychain. A small signed
@@ -133,9 +133,9 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
     <td align="center" colspan="2">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/progress-dark.png">
-        <img src="docs/assets/progress-light.png" alt="Progress panel under the menu bar icon while a VPN connects" width="320">
+        <img src="docs/assets/progress-light.png" alt="Progress panel in the corner of the screen while a VPN connects" width="320">
       </picture>
-      <br><sub>Progress under the menu bar icon while a VPN connects, with Cancel</sub>
+      <br><sub>Progress in the corner of the screen while a VPN connects, with Cancel</sub>
     </td>
   </tr>
 </table>
