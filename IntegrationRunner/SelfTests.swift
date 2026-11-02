@@ -408,6 +408,7 @@ enum SelfTests {
         failures += WireGuardTests.run()
         failures += ClientCertificateTests.run()
         failures += UIPreviewTests.run()
+        failures += GlobalHotKeyTests.run()
         failures += SettingsTests.run() // After UIPreviewTests, which recreates ui-review/.
         failures += BackupLocalTests.run() // Also renders into ui-review/.
         print("\(failures == 0 ? "OK" : "FAIL"): \(failures) falha(s). Nenhuma VPN foi acessada; nenhum privilégio foi solicitado; nenhum serviço foi registrado.")
