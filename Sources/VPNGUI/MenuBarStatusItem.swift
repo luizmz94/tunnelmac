@@ -36,8 +36,9 @@ struct MenuAnchor: Equatable {
     func close()
 }
 
-/// Position of the menu panel: top edge 6 pt under the button, right edges aligned, kept
-/// 8 pt inside the visible frame; without a button, the top right corner of that frame.
+/// Position of the menu panel: top edge 6 pt under the button, opening to the right from the
+/// button's left edge like other menu bar apps, kept 8 pt inside the visible frame; without a
+/// button, the top right corner of that frame.
 enum MenuPanelPlacement {
     static let gap: CGFloat = 6, margin: CGFloat = 8
 
@@ -45,68 +46,33 @@ enum MenuPanelPlacement {
         let visible = anchor.visibleFrame
         let height = min(size.height, max(visible.height - 40, 1))
         let top = min(anchor.button.map { $0.minY - gap } ?? visible.maxY - gap, visible.maxY)
-        let right = anchor.button?.maxX ?? visible.maxX - margin
-        let x = min(max(right - size.width, visible.minX + margin), visible.maxX - margin - size.width)
+        let left = anchor.button?.minX ?? visible.maxX - margin - size.width
+        let x = min(max(left, visible.minX + margin), visible.maxX - margin - size.width)
         let y = max(top - height, visible.minY)
         return NSRect(x: x, y: y, width: size.width, height: height)
     }
 }
 
 /// What the icon shows: the brand mark (in color with a tunnel up), turned during transitions
-/// (never with Reduce Motion), the connected count in a badge and the summary's symbol.
+/// (never with Reduce Motion) and the connected count in a badge. Nothing else beside it.
 struct MenuBarIconState: Equatable {
     static let steps = 24
     static let interval: TimeInterval = 0.125
     var connected: Bool
     var angle: CGFloat
     var badge: Int
-    /// nil while idle.
-    var symbol: String?
     var spinning: Bool
 
-    static func of(connectedCount: Int, pendingCount: Int, summary: MenuBarSummary, reduceMotion: Bool, step: Int) -> MenuBarIconState {
+    static func of(connectedCount: Int, pendingCount: Int, reduceMotion: Bool, step: Int) -> MenuBarIconState {
         let spinning = pendingCount > 0 && !reduceMotion
         return MenuBarIconState(connected: connectedCount > 0,
                                 angle: spinning ? CGFloat(step % steps) * 360 / CGFloat(steps) : 0,
                                 badge: connectedCount,
-                                symbol: summary == .idle ? nil : summary.symbol,
                                 spinning: spinning)
     }
 
-    /// The mark followed by the summary symbol, as one image (a template while no tunnel is up).
-    @MainActor var image: NSImage? {
-        guard let mark = BrandAssets.menuIcon(connected: connected, angle: angle, badge: badge) else { return nil }
-        guard let symbol, let glyph = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-            .withSymbolConfiguration(.init(pointSize: 10, weight: .semibold)) else { return mark }
-        let spacing: CGFloat = 3
-        let size = NSSize(width: mark.size.width + spacing + glyph.size.width, height: max(mark.size.height, glyph.size.height))
-        let connected = connected
-        let image = NSImage(size: size, flipped: false) { rect in
-            mark.draw(in: NSRect(x: 0, y: (rect.height - mark.size.height) / 2, width: mark.size.width, height: mark.size.height))
-            let target = NSRect(x: mark.size.width + spacing, y: (rect.height - glyph.size.height) / 2,
-                                width: glyph.size.width, height: glyph.size.height)
-            let dark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            // Template: black, tinted by the menu bar. In color: the mark's own ink.
-            let ink = connected ? NSColor(hex: dark ? 0xE9F0F2 : 0x0E1720) : NSColor.black
-            MenuBarIconState.draw(glyph, in: target, color: ink)
-            return true
-        }
-        image.isTemplate = !connected
-        return image
-    }
-}
-
-extension MenuBarIconState {
-    /// Draws a symbol in one color (symbols are templates: their alpha is the shape).
-    fileprivate static func draw(_ glyph: NSImage, in rect: NSRect, color: NSColor) {
-        guard let context = NSGraphicsContext.current?.cgContext,
-              let mask = glyph.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return }
-        context.saveGState()
-        context.clip(to: rect, mask: mask)
-        color.setFill()
-        context.fill(rect)
-        context.restoreGState()
-    }
+    /// The mark (a template while no tunnel is up).
+    @MainActor var image: NSImage? { BrandAssets.menuIcon(connected: connected, angle: angle, badge: badge) }
 }
 
 /// The app's menu bar icon: inserted and removed with "Ícone na barra de menus", redrawn as
@@ -158,7 +124,7 @@ final class MenuBarStatusItem {
     func refresh() {
         guard host.isInserted else { return }
         let state = MenuBarIconState.of(connectedCount: menuBar.connectedCount, pendingCount: menuBar.pendingCount,
-                                        summary: menuBar.summary, reduceMotion: reduceMotion(), step: step)
+                                        reduceMotion: reduceMotion(), step: step)
         if state.spinning { startSpinning() } else { stopSpinning() }
         guard state != lastState else { return }
         lastState = state
@@ -282,7 +248,13 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         material.material = .menu
         material.state = .active
         material.blendingMode = .behindWindow
-        if #available(macOS 26, *) { material.maskImage = Self.roundedMask(radius: 16) } else { material.maskImage = Self.roundedMask(radius: 12) }
+        if #available(macOS 26, *) {
+            material.maskImage = Self.roundedMask(radius: 16)
+            // A touch of the desktop through it, like the system's own glass menus (Weather).
+            material.alphaValue = 0.82
+        } else {
+            material.maskImage = Self.roundedMask(radius: 12)
+        }
         material.addSubview(hosting)
         panel.contentView = material
         menuBar.objectWillChange.sink { [weak self] in self?.queueFit() }.store(in: &observers)

@@ -274,20 +274,18 @@ enum MenuBarTests {
             session.state = .disconnected
         }
 
-        test("Barra de menus: ícone anima só com conexão pendente, parado com Reduzir movimento, badge e símbolo") {
-            let idle = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, summary: .idle, reduceMotion: false, step: 5)
-            try require(!idle.spinning && idle.angle == 0 && idle.symbol == nil && !idle.connected && idle.badge == 0, "Ícone parado: \(idle)")
-            try require(idle.image?.isTemplate == true, "Ícone sem túnel não é template")
-            let pending = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, summary: .transitioning, reduceMotion: false, step: 6)
-            try require(pending.spinning && pending.angle == 90 && pending.symbol == MenuBarSummary.transitioning.symbol, "Ícone em andamento: \(pending)")
-            let still = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, summary: .transitioning, reduceMotion: true, step: 6)
+        test("Barra de menus: ícone anima só com conexão pendente, parado com Reduzir movimento, badge e nada ao lado") {
+            let idle = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, reduceMotion: false, step: 5)
+            try require(!idle.spinning && idle.angle == 0 && !idle.connected && idle.badge == 0, "Ícone parado: \(idle)")
+            try require(idle.image?.isTemplate == true && idle.image?.size == NSSize(width: 18, height: 18), "Ícone sem túnel não é o template de 18 pt")
+            let pending = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, reduceMotion: false, step: 6)
+            try require(pending.spinning && pending.angle == 90, "Ícone em andamento: \(pending)")
+            let still = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, reduceMotion: true, step: 6)
             try require(!still.spinning && still.angle == 0, "Ícone girou com Reduzir movimento")
-            let connected = MenuBarIconState.of(connectedCount: 2, pendingCount: 1, summary: .connected, reduceMotion: false, step: 30)
-            try require(connected.connected && connected.badge == 2 && connected.symbol == MenuBarSummary.connected.symbol
-                        && connected.angle == 90, "Ícone conectado: \(connected)")
-            try require(connected.image?.isTemplate == false && (connected.image?.size.width ?? 0) > 18, "Ícone colorido com o símbolo do resumo")
-            let attention = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, summary: .attention, reduceMotion: false, step: 0)
-            try require(attention.symbol == MenuBarSummary.attention.symbol && !attention.spinning, "Falha sem o símbolo de atenção")
+            let connected = MenuBarIconState.of(connectedCount: 2, pendingCount: 1, reduceMotion: false, step: 30)
+            try require(connected.connected && connected.badge == 2 && connected.angle == 90, "Ícone conectado: \(connected)")
+            // Only the mark: no state symbol beside it.
+            try require(connected.image?.isTemplate == false && connected.image?.size == NSSize(width: 18, height: 18), "Algo ao lado do ícone")
         }
 
         test("Barra de menus: a preferência insere e remove o item (host falso), sem eco, e o app fica no Dock") {
@@ -363,12 +361,14 @@ enum MenuBarTests {
             }
             let button = NSRect(x: 1200, y: 950, width: 30, height: 28)
             var frame = try check(MenuAnchor(button: button, visibleFrame: main), "Ícone no meio")
-            try require(frame.maxX == button.maxX && frame.maxY == button.minY - 6 && frame.width == 360, "Não alinhou ao ícone: \(frame)")
+            try require(frame.minX == button.minX && frame.maxY == button.minY - 6 && frame.width == 360, "Não abriu para a direita a partir do ícone: \(frame)")
             frame = try check(MenuAnchor(button: NSRect(x: 1490, y: 950, width: 22, height: 28), visibleFrame: main), "Ícone na borda direita")
             try require(frame.maxX == main.maxX - 8, "Não respeitou a margem direita: \(frame)")
             // Secondary screen to the left, below the main one, with negative coordinates.
             let left = NSRect(x: -1920, y: -200, width: 1920, height: 1055)
             frame = try check(MenuAnchor(button: NSRect(x: -1900, y: 856, width: 30, height: 24), visibleFrame: left), "Monitor secundário")
+            try require(frame.minX == -1900, "Monitor secundário não abriu a partir do ícone: \(frame)")
+            frame = try check(MenuAnchor(button: NSRect(x: -1918, y: 856, width: 30, height: 24), visibleFrame: left), "Ícone na borda esquerda")
             try require(frame.minX == left.minX + 8, "Não respeitou a margem esquerda: \(frame)")
             // Hidden icon (preference, Menu Bar settings or the notch): top right corner.
             frame = try check(MenuAnchor(button: nil, visibleFrame: main), "Sem ícone")
