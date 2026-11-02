@@ -200,28 +200,31 @@ final class ConnectionProgressPanelController: ProgressPanelPresenter {
         // The window fades in where it belongs; the cards come 8 pt from above (their transition).
         panel.alphaValue = 0
         panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.fade
             panel.animator().alphaValue = 1
-        }, completionHandler: { [weak self] in
-            MainActor.assumeIsolated { if let self, self.isShown { self.panel.alphaValue = 1 } }
-        })
+        }
+        // The end state does not depend on the animation running (window animations may be off).
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fade + 0.02) { [weak self] in
+            if let self, self.isShown { self.panel.alphaValue = 1 }
+        }
     }
+
+    private static let fade: TimeInterval = 0.2
 
     func hide() {
         guard isShown else { return }
         isShown = false
         guard !reduceMotion else { panel.orderOut(nil); return }
-        NSAnimationContext.runAnimationGroup({ context in
-            context.duration = 0.2
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.fade
             panel.animator().alphaValue = 0
-        }, completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, !self.isShown else { return }
-                self.panel.orderOut(nil)
-                self.panel.alphaValue = 1
-            }
-        })
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.fade + 0.02) { [weak self] in
+            guard let self, !self.isShown else { return }
+            self.panel.orderOut(nil)
+            self.panel.alphaValue = 1
+        }
     }
 
     private func fit(animated: Bool) {

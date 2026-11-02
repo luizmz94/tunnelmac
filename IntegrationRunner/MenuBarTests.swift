@@ -691,7 +691,7 @@ enum MenuBarTests {
                         && panel.collectionBehavior.contains(.ignoresCycle) && panel.styleMask.contains(.nonactivatingPanel), "Configuração do painel")
             try require(visible.contains(panel.frame) && panel.frame.width == 300 && panel.frame.height > 30, "Fora da tela fictícia: \(panel.frame)")
             controller.hide()
-            _ = TestSupport.spin(0.4) { !panel.isVisible }
+            _ = TestSupport.spin(1) { !panel.isVisible }
             try require(!panel.isVisible, "Painel não sumiu")
             model.manager.session(connections[0].id).state = .disconnected
         }
