@@ -247,6 +247,8 @@ struct ConnectionProgressView: View {
         cards(model)
             .padding(10)
             .frame(width: ConnectionProgressPanelController.width)
+            // The panel is never key; its buttons still take clicks, so they must not look disabled.
+            .environment(\.controlActiveState, .key)
             .animation(Motion.state(reduceMotion), value: model)
     }
 
