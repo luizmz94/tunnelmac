@@ -652,6 +652,8 @@ final class VPNManager: ObservableObject {
     }
     /// The official client's daemon; while it is connected it competes for routes and DNS.
     static let checkPointOfficialClient = "/Library/Application Support/Checkpoint/Endpoint Connect/trac"
+    /// Whether that client is installed (the demo answers for itself, whatever this Mac has).
+    var officialCheckPointClientInstalled: () -> Bool = { FileManager.default.fileExists(atPath: VPNManager.checkPointOfficialClient) }
     private func startCheckPoint(_ session: Session, connection: Connection, password: String?) {
         session.state = .authorizing
         session.cleanExitIsDrop = true
@@ -675,7 +677,7 @@ final class VPNManager: ObservableObject {
                                         loginType: c.checkPoint?.loginType ?? "", authorityDER: c.checkPoint?.authority?.der,
                                         allTraffic: c.allTraffic)
         } catch { end(session, exit: nil, error: error.localizedDescription); return }
-        if FileManager.default.fileExists(atPath: Self.checkPointOfficialClient) {
+        if officialCheckPointClientInstalled() {
             session.log(String(localized: "O cliente oficial da Check Point está instalado; se ele estiver conectado, disputa rotas e DNS com o TunnelMac. Desconecte-o antes."))
         }
         running[session.id] = connection

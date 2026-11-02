@@ -118,6 +118,7 @@ struct ConnectionEditor: View {
         VStack(spacing: 0) {
             SheetHeader(symbol: "plus.circle", tone: .neutral, title: String(localized: "Nova conexão"), subtitle: String(localized: "Escolha o tipo de VPN"), brand: true)
                 .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
+            ScrollView {
             VStack(spacing: 12) {
                 ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
                              subtitle: String(localized: "Gateway FortiGate, o mesmo usado pelo FortiClient."),
@@ -136,13 +137,13 @@ struct ConnectionEditor: View {
                              status: clientStatus(.checkPoint)) { choose(.checkPoint) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)
-            Spacer(minLength: 0)
+            }
             SheetFooter {
                 Spacer()
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
-        .sheetFrame(width: 560, height: 700)
+        .sheetFrame(width: 560, height: 620)
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {

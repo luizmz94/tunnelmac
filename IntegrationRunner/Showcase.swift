@@ -72,6 +72,7 @@ final class ShowcaseDemo: ObservableObject {
         // The demo bundle has its own identifier: the language survives "Reabrir agora".
         let preferences = AppPreferences.disposable(realLanguage: true)
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
+        model.manager.officialCheckPointClientInstalled = { false }
         menuBar = MenuBarCoordinator(model: model, preferences: preferences)
         // The window and the menu bar re-read the real status when they appear; this demo
         // has no service behind it, so it keeps the fictitious one.
