@@ -191,6 +191,25 @@ extension View {
     }
 }
 
+extension View {
+    /// Surface of a choosable tile: interactive Liquid Glass on macOS 26+,
+    /// a soft grouped fill with a hairline before.
+    @ViewBuilder func tileSurface(cornerRadius: CGFloat = 18) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(macOS 26, *) {
+            glassEffect(.regular.interactive(), in: shape)
+        } else {
+            background(shape.fill(Color.primary.opacity(0.045)))
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        }
+    }
+
+    /// The system focus ring follows `shape` (macOS 14+; a rectangle before).
+    @ViewBuilder func focusRingShape<S: Shape>(_ shape: S) -> some View {
+        if #available(macOS 14, *) { contentShape(.focusEffect, shape) } else { self }
+    }
+}
+
 // MARK: - Messages
 
 /// Inline message: warnings, errors and pending decisions, with optional actions.

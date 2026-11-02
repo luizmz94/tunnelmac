@@ -124,35 +124,9 @@ struct ConnectionEditor: View {
     // MARK: Step 1 — type
 
     private var kindChooser: some View {
-        VStack(spacing: 0) {
-            SheetHeader(symbol: "plus.circle", tone: .neutral, title: String(localized: "Nova conexão"), subtitle: String(localized: "Escolha o tipo de VPN"), brand: true)
-                .padding(.horizontal, 22).padding(.top, 20).padding(.bottom, 4)
-            ScrollView {
-            VStack(spacing: 12) {
-                ProtocolCard(kind: .fortinet, title: "Fortinet SSL VPN",
-                             subtitle: String(localized: "Gateway FortiGate, o mesmo usado pelo FortiClient."),
-                             status: clientStatus(.fortinet), ready: serviceReady(.fortinet)) { choose(.fortinet) }
-                ProtocolCard(kind: .openvpn, title: "OpenVPN",
-                             subtitle: String(localized: "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip)."),
-                             status: clientStatus(.openvpn), ready: serviceReady(.openvpn)) { choose(.openvpn) }
-                ProtocolCard(kind: .wireguard, title: "WireGuard",
-                             subtitle: String(localized: "Arquivo .conf do servidor ou do app WireGuard."),
-                             status: clientStatus(.wireguard), ready: serviceReady(.wireguard)) { choose(.wireguard) }
-                ProtocolCard(kind: .globalProtect, title: "GlobalProtect",
-                             subtitle: String(localized: "Gateway Palo Alto, com login SAML no navegador ou senha."),
-                             status: clientStatus(.globalProtect), ready: serviceReady(.globalProtect)) { choose(.globalProtect) }
-                ProtocolCard(kind: .checkPoint, title: "Check Point",
-                             subtitle: String(localized: "Gateway Check Point (Remote Access), com usuário e senha."),
-                             status: clientStatus(.checkPoint), ready: serviceReady(.checkPoint)) { choose(.checkPoint) }
-            }
-            .padding(.horizontal, 22).padding(.vertical, 16)
-            }
-            SheetFooter {
-                Spacer()
-                Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
-            }
-        }
-        .sheetFrame(width: 560, height: 620)
+        ProtocolChooser(catalog: .standard, state: clientState, openService: openService.map { open in { dismiss(); open() } },
+                        cancelDisabled: model.writing, choose: choose, cancel: { dismiss() })
+        .sheetFrame(width: 560, height: 500)
         .alert("Serviço privilegiado necessário", isPresented: Binding(get: { serviceBlock != nil }, set: { if !$0 { serviceBlock = nil } }),
                presenting: serviceBlock) { kind in
             if let openService {
@@ -167,10 +141,14 @@ struct ConnectionEditor: View {
         }
     }
 
-    private func clientStatus(_ kind: VPNProtocol) -> String {
-        guard let status = model.service.status else { return String(localized: "Usa o \(kind.runtime.title)") }
-        if let runtime = status.runtime(kind.runtime) { return String(localized: "\(kind.runtime.title) \(runtime.version) aprovado") }
-        return String(localized: "\(kind.runtime.title) ainda não aprovado no serviço")
+    /// Client line of a type in the chooser, in the locale the chooser is shown in.
+    private func clientState(_ kind: VPNProtocol, locale: Locale) -> ProtocolClientState {
+        if let problem = serviceProblem(kind) { return ProtocolClientState(kind: .problem, text: problem) }
+        guard model.service.health != .checking else {
+            return ProtocolClientState(kind: .checking, text: LocalizedStringResource("Verificando o serviço…").string(in: locale))
+        }
+        let runtime = model.service.status?.runtime(kind.runtime)
+        return ProtocolClientState(kind: .ready, text: LocalizedStringResource("\(kind.runtime.title) \(runtime?.version ?? "") aprovado").string(in: locale))
     }
 
     /// Why the service cannot run this type's client now; nil while the service is still being checked.
@@ -178,13 +156,14 @@ struct ConnectionEditor: View {
         guard model.service.health != .checking else { return nil }
         return model.service.unavailableReason(for: kind.runtime)
     }
-    private func serviceReady(_ kind: VPNProtocol) -> Bool { serviceProblem(kind) == nil }
 
     /// A new connection of a type the service cannot run yet asks first, so the user learns it
     /// before filling the form instead of at Conectar.
     private func choose(_ kind: VPNProtocol) {
-        if isNew, serviceProblem(kind) != nil { serviceBlock = kind; return }
-        proceed(kind)
+        switch ProtocolChoice.decide(isNew: isNew, problem: serviceProblem(kind)) {
+        case .askService: serviceBlock = kind
+        case .proceed: proceed(kind)
+        }
     }
 
     private func proceed(_ kind: VPNProtocol) {
@@ -1036,46 +1015,221 @@ struct ConnectionEditor: View {
     }
 }
 
-/// One VPN type in the Nova conexão chooser.
-struct ProtocolCard: View {
-    let kind: VPNProtocol
-    let title: String
-    let subtitle: String
-    let status: String
-    /// The service can run this type's client; otherwise the status reads as a warning.
-    var ready = true
-    let action: () -> Void
-    @State private var hovering = false
+/// Nova conexão, step 1: the VPN types as a grid of tiles over a fixed quick view of the one
+/// under the mouse (else the focused one, else the first). Arrows move the focus, Enter or
+/// Space chooses, Tab leaves the grid for Cancelar.
+struct ProtocolChooser: View {
+    let catalog: ProtocolCatalog
+    let state: (VPNProtocol, Locale) -> ProtocolClientState
+    /// Opens Serviço privilegiado from the quick view of a type whose client is missing.
+    var openService: (() -> Void)?
+    var cancelDisabled = false
+    let choose: (VPNProtocol) -> Void
+    let cancel: () -> Void
+    @State private var hovered: String?
+    @FocusState private var focused: String?
+    /// The single tile Tab stops at; the arrows move it.
+    @State private var current: String?
+    @Environment(\.locale) private var locale
+
+    /// The 560 pt sheet minus the grid's margins: five tiles in a row.
+    static let gridWidth: CGFloat = 528
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 16) {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(kind.brandColor.opacity(0.12))
-                    .frame(width: 56, height: 56)
-                    .overlay(ProtocolIcon(kind: kind, size: 30))
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.title3.weight(.semibold))
-                    Text(subtitle).font(.callout).foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if ready {
-                        Text(status).font(.caption).foregroundStyle(.tertiary)
-                    } else {
-                        Label(status, systemImage: "exclamationmark.triangle.fill").font(.caption).foregroundStyle(.orange)
+        VStack(spacing: 0) {
+            SheetHeader(symbol: "plus.circle", tone: .neutral, title: LocalizedStringResource("Nova conexão").string(in: locale),
+                        subtitle: LocalizedStringResource("Escolha o tipo de VPN").string(in: locale), brand: true)
+                .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 2)
+            // No GlassGroup: the container draws the tiles' glass above their state badges.
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: ProtocolTileButton.minimumWidth), spacing: ProtocolTileButton.spacing)],
+                      spacing: ProtocolTileButton.spacing) {
+                ForEach(catalog.entries) { tile($0) }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 10)
+            .onMoveCommand(perform: move)
+            if let entry = ProtocolCatalog.shown(hovered: hovered, focused: focused, in: catalog.entries) {
+                ProtocolQuickView(entry: entry, state: state(entry.kind, locale), openService: openService)
+                    .padding(.horizontal, 16).padding(.bottom, 14)
+            }
+            SheetFooter {
+                Spacer()
+                Button(LocalizedStringResource("Cancelar").string(in: locale)) { cancel() }
+                    .keyboardShortcut(.cancelAction).disabled(cancelDisabled)
+            }
+        }
+        .background { keyButtons }
+        .defaultFocus($focused, catalog.entries.first?.id)
+        .onAppear { DispatchQueue.main.async { focused = current ?? catalog.entries.first?.id } }
+        .onChange(of: focused) { if let id = $0 { current = id } }
+    }
+
+    private func tile(_ entry: ProtocolCatalog.Entry) -> some View {
+        ProtocolTileButton(entry: entry, state: state(entry.kind, locale), hovering: hovered == entry.id) { choose(entry.kind) }
+            .onHover { inside in
+                if inside { hovered = entry.id } else if hovered == entry.id { hovered = nil }
+            }
+            .focusable(entry.id == (current ?? catalog.entries.first?.id))
+            .focused($focused, equals: entry.id)
+    }
+
+    private func move(_ direction: MoveCommandDirection) {
+        let entries = catalog.entries
+        guard let index = entries.firstIndex(where: { $0.id == (focused ?? current) }) else { return }
+        let next = entries[ProtocolCatalog.move(from: index, direction, count: entries.count,
+                                                columns: ProtocolCatalog.columns(width: Self.gridWidth))].id
+        guard next != entries[index].id else { return }
+        // The tile becomes focusable first, then takes the focus.
+        current = next
+        DispatchQueue.main.async { focused = next }
+    }
+
+    /// Enter and Space choose the focused tile; with the focus elsewhere they do nothing here.
+    private var keyButtons: some View {
+        ZStack {
+            Button(action: chooseFocused) { EmptyView() }.keyboardShortcut(.defaultAction)
+            Button(action: chooseFocused) { EmptyView() }.keyboardShortcut(.space, modifiers: [])
+        }
+        .disabled(focused == nil)
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
+    }
+
+    private func chooseFocused() {
+        guard let entry = catalog.entries.first(where: { $0.id == focused }) else { return }
+        choose(entry.kind)
+    }
+}
+
+/// One VPN type in the Nova conexão grid: mark, short name, one-line subtitle and a badge
+/// with the client state (the quick view and VoiceOver say it in words).
+struct ProtocolTileButton: View {
+    static let minimumWidth: CGFloat = 96
+    static let spacing: CGFloat = 12
+    static let height: CGFloat = 100
+    private static let iconTop: CGFloat = 12
+    let entry: ProtocolCatalog.Entry
+    let state: ProtocolClientState
+    var hovering = false
+    let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+        VStack(spacing: 6) {
+            ProtocolTile(kind: entry.kind, state: .disconnected, size: 44)
+            VStack(spacing: 1) {
+                Text(entry.shortName).font(.callout.weight(.semibold))
+                Text(entry.tileSubtitle.string(in: locale)).font(.caption).foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, Self.iconTop)
+        .frame(maxWidth: .infinity, minHeight: Self.height, maxHeight: Self.height, alignment: .top)
+        .tileSurface(cornerRadius: 18)
+        .overlay(shape.strokeBorder(entry.kind.brandColor.opacity(0.8), lineWidth: 1.5).opacity(hovering ? 1 : 0))
+        // On the icon's corner, outside the glass (which would tint it).
+        .overlay(alignment: .top) { badge.offset(x: 22, y: Self.iconTop - 6) }
+        .contentShape(shape)
+        .focusRingShape(shape)
+        .scaleEffect(hovering && !reduceMotion ? 1.03 : 1)
+        .animation(Motion.state(reduceMotion), value: hovering)
+        .onTapGesture(perform: action)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(spoken.label)
+        .accessibilityValue(spoken.value)
+        .accessibilityHint(spoken.hint)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction(.default, action)
+    }
+
+    /// What VoiceOver reads for the tile: name, client state and what the form asks for.
+    struct Spoken: Equatable { var label, value, hint: String }
+    static func spoken(_ entry: ProtocolCatalog.Entry, _ state: ProtocolClientState, locale: Locale) -> Spoken {
+        Spoken(label: entry.title, value: state.text, hint: entry.hint.string(in: locale))
+    }
+    private var spoken: Spoken { Self.spoken(entry, state, locale: locale) }
+
+    @ViewBuilder private var badge: some View {
+        switch state.kind {
+        case .ready:
+            Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .green)
+                .font(.system(size: 14, weight: .semibold)).background(Circle().fill(.background).padding(1))
+        case .problem:
+            Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .orange)
+                .font(.system(size: 13, weight: .semibold))
+        case .checking:
+            EmptyView()
+        }
+    }
+}
+
+/// Fixed panel under the grid describing one type: what it is, its client, how it signs in
+/// and what the form asks for. Hidden from VoiceOver, which hears the same on the tile.
+struct ProtocolQuickView: View {
+    let entry: ProtocolCatalog.Entry
+    let state: ProtocolClientState
+    var openService: (() -> Void)?
+    @Environment(\.locale) private var locale
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    ProtocolTile(kind: entry.kind, state: .disconnected, size: 32)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(entry.title).font(.headline)
+                        Text(entry.about.string(in: locale)).font(.callout).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right").font(.body.weight(.semibold)).foregroundStyle(.tertiary)
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {
+                    GridRow {
+                        label("Cliente")
+                        client.frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    GridRow {
+                        label("Autenticação")
+                        Text(entry.authentication.string(in: locale)).fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    GridRow {
+                        label("O cadastro pede")
+                        Text(entry.requires.string(in: locale)).fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .font(.callout)
             }
-            .padding(16)
-            .contentShape(Rectangle())
-            .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.primary.opacity(hovering ? 0.07 : 0.035)))
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(hovering ? kind.brandColor.opacity(0.7) : Color(nsColor: .separatorColor), lineWidth: hovering ? 1.5 : 0.5))
+            .accessibilityHidden(true)
+            if state.kind == .problem, let openService {
+                Button(LocalizedStringResource("Abrir Serviço privilegiado…").string(in: locale), action: openService)
+                    .adaptiveButtonStyle()
+                    .controlSize(.small)
+            }
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .accessibilityLabel("\(title). \(subtitle)")
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .cardSurface(cornerRadius: 14)
+    }
+
+    private func label(_ text: LocalizedStringResource) -> some View {
+        Text(text.string(in: locale)).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+    }
+
+    @ViewBuilder private var client: some View {
+        switch state.kind {
+        case .ready:
+            Label { Text(state.text) } icon: { Image(systemName: "checkmark.circle.fill").foregroundStyle(.green) }
+        case .checking:
+            Label { Text(state.text) } icon: { Image(systemName: "clock").foregroundStyle(.secondary) }
+        case .problem:
+            VStack(alignment: .leading, spacing: 2) {
+                Text(entry.kind.runtime.title).fontWeight(.medium)
+                Label { Text(state.text).lineLimit(3).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
+            }
+        }
     }
 }

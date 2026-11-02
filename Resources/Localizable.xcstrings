@@ -673,40 +673,6 @@
         }
       }
     },
-    "%@ ainda não aprovado no serviço": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ im Dienst noch nicht genehmigt"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ not yet approved in the service"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ aún no aprobado en el servicio"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ pas encore approuvé dans le service"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ अभी सेवा में अनुमोदित नहीं है"
-          }
-        }
-      }
-    },
     "%@ está em local alterável sem senha de administrador (dono uid %u). A aprovação congela exatamente estes bytes numa cópia protegida; confira a origem antes de aprovar.": {
       "localizations": {
         "de": {
@@ -1145,17 +1111,6 @@
           "stringUnit": {
             "state": "new",
             "value": "%1$@, %2$@"
-          }
-        }
-      },
-      "shouldTranslate": false
-    },
-    "%@. %@": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "new",
-            "value": "%1$@. %2$@"
           }
         }
       },
@@ -3119,6 +3074,40 @@
         }
       }
     },
+    "Abrir Serviço privilegiado…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privilegierten Dienst öffnen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Privileged service…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Servicio con privilegios…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir Service privilégié…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "विशेषाधिकार प्राप्त सेवा खोलें…"
+          }
+        }
+      }
+    },
     "Abrir Terminal": {
       "localizations": {
         "de": {
@@ -4887,36 +4876,138 @@
         }
       }
     },
-    "Arquivo .conf do servidor ou do app WireGuard.": {
+    "Arquivo .conf": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": ".conf-Datei vom Server oder aus der WireGuard-App."
+            "value": ".conf-Datei"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": ".conf file from the server or the WireGuard app."
+            "value": ".conf file"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Archivo .conf del servidor o de la app WireGuard."
+            "value": "Archivo .conf"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fichier .conf du serveur ou de l’app WireGuard."
+            "value": "Fichier .conf"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "सर्वर या WireGuard ऐप की .conf फ़ाइल।"
+            "value": ".conf फ़ाइल"
+          }
+        }
+      }
+    },
+    "Arquivo .conf do servidor ou do app WireGuard. Scripts do perfil não são executados.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ".conf-Datei vom Server oder aus der WireGuard-App. Skripte im Profil werden nicht ausgeführt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The .conf file from the server or the WireGuard app. Profile scripts are not run."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivo .conf del servidor o de la app WireGuard. Los scripts del perfil no se ejecutan."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier .conf du serveur ou de l’app WireGuard. Les scripts du profil ne sont pas exécutés."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सर्वर या WireGuard ऐप की .conf फ़ाइल। प्रोफ़ाइल की स्क्रिप्ट नहीं चलाई जातीं।"
+          }
+        }
+      }
+    },
+    "Arquivo .conf.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine .conf-Datei."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A .conf file."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un archivo .conf."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un fichier .conf."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "एक .conf फ़ाइल।"
+          }
+        }
+      }
+    },
+    "Arquivo .ovpn/.conf, pasta .visc ou .zip.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ".ovpn/.conf-Datei, .visc-Ordner oder .zip."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An .ovpn/.conf file, a .visc folder or a .zip."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Archivo .ovpn/.conf, carpeta .visc o .zip."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier .ovpn/.conf, dossier .visc ou .zip."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ".ovpn/.conf फ़ाइल, .visc फ़ोल्डर या .zip।"
           }
         }
       }
@@ -8353,6 +8444,40 @@
         }
       }
     },
+    "Chave do perfil.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schlüssel aus dem Profil."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The profile's key."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clave del perfil."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La clé du profil."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "प्रोफ़ाइल की कुंजी।"
+          }
+        }
+      }
+    },
     "Chave estática (secret) não é suportada; ela foi removida do OpenVPN 2.7.": {
       "localizations": {
         "de": {
@@ -8553,6 +8678,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "हल्का"
+          }
+        }
+      }
+    },
+    "Cliente": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliente"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Client"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "क्लाइंट"
           }
         }
       }
@@ -15365,6 +15524,9 @@
         }
       }
     },
+    "FortiGate": {
+      "shouldTranslate": false
+    },
     "Força da senha: %@": {
       "localizations": {
         "de": {
@@ -15501,104 +15663,308 @@
         }
       }
     },
-    "Gateway Check Point (Remote Access), com usuário e senha.": {
+    "Gateway (host, porta e realm).": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check Point-Gateway (Remote Access), mit Benutzername und Passwort."
+            "value": "Das Gateway (Host, Port und Realm)."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check Point gateway (Remote Access), with user name and password."
+            "value": "The gateway (host, port and realm)."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gateway Check Point (Remote Access), con usuario y contraseña."
+            "value": "El gateway (host, puerto y realm)."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Passerelle Check Point (Remote Access), avec utilisateur et mot de passe."
+            "value": "La passerelle (hôte, port et realm)."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Check Point गेटवे (Remote Access), उपयोगकर्ता नाम और पासवर्ड के साथ।"
+            "value": "गेटवे (होस्ट, पोर्ट और realm)।"
           }
         }
       }
     },
-    "Gateway FortiGate, o mesmo usado pelo FortiClient.": {
+    "Gateway (o editor consulta o certificado).": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "FortiGate-Gateway, dasselbe wie bei FortiClient."
+            "value": "Das Gateway (der Editor fragt das Zertifikat ab)."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "FortiGate gateway, the same one FortiClient uses."
+            "value": "The gateway (the editor checks its certificate)."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gateway FortiGate, el mismo que usa FortiClient."
+            "value": "El gateway (el editor consulta el certificado)."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Passerelle FortiGate, la même que celle de FortiClient."
+            "value": "La passerelle (l’éditeur consulte le certificat)."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "FortiGate गेटवे, वही जो FortiClient उपयोग करता है।"
+            "value": "गेटवे (एडिटर प्रमाणपत्र की जाँच करता है)।"
           }
         }
       }
     },
-    "Gateway Palo Alto, com login SAML no navegador ou senha.": {
+    "Gateway (portal).": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palo-Alto-Gateway, mit SAML-Anmeldung im Browser oder Passwort."
+            "value": "Das Gateway (Portal)."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palo Alto gateway, with SAML login in the browser or a password."
+            "value": "The gateway (portal)."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Gateway de Palo Alto, con inicio de sesión SAML en el navegador o contraseña."
+            "value": "El gateway (portal)."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Passerelle Palo Alto, avec connexion SAML dans le navigateur ou mot de passe."
+            "value": "La passerelle (portail)."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "Palo Alto गेटवे, ब्राउज़र में SAML लॉगिन या पासवर्ड के साथ।"
+            "value": "गेटवे (पोर्टल)।"
+          }
+        }
+      }
+    },
+    "Gateway Check Point (Remote Access), com usuário e senha. Conecta pelo snx-rs, sem o cliente oficial.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check-Point-Gateway (Remote Access) mit Benutzername und Passwort. Verbindet über snx-rs, ohne den offiziellen Client."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Point gateway (Remote Access), with user name and password. Connects through snx-rs, without the official client."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway Check Point (Remote Access), con usuario y contraseña. Se conecta con snx-rs, sin el cliente oficial."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle Check Point (Remote Access), avec nom d’utilisateur et mot de passe. Se connecte via snx-rs, sans le client officiel."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Point गेटवे (Remote Access), उपयोगकर्ता नाम और पासवर्ड के साथ। आधिकारिक क्लाइंट के बिना snx-rs से कनेक्ट होता है।"
+          }
+        }
+      }
+    },
+    "Gateway Check Point, com usuário e senha. Pede o gateway.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check-Point-Gateway mit Benutzername und Passwort. Fragt nach dem Gateway."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Point gateway, with user name and password. Asks for the gateway."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway Check Point, con usuario y contraseña. Pide el gateway."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle Check Point, avec nom d’utilisateur et mot de passe. Demande la passerelle."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Check Point गेटवे, उपयोगकर्ता नाम और पासवर्ड के साथ। गेटवे माँगता है।"
+          }
+        }
+      }
+    },
+    "Gateway FortiGate, com usuário e senha, SAML ou certificado. Pede o gateway.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate-Gateway mit Benutzername und Passwort, SAML oder Zertifikat. Fragt nach dem Gateway."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate gateway, with user name and password, SAML or a certificate. Asks for the gateway."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway FortiGate, con usuario y contraseña, SAML o certificado. Pide el gateway."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle FortiGate, avec nom d’utilisateur et mot de passe, SAML ou certificat. Demande la passerelle."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate गेटवे, उपयोगकर्ता नाम और पासवर्ड, SAML या प्रमाणपत्र के साथ। गेटवे माँगता है।"
+          }
+        }
+      }
+    },
+    "Gateway FortiGate, o mesmo usado pelo FortiClient. Conecta pelo openfortivpn.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate-Gateway, dasselbe wie bei FortiClient. Verbindet über openfortivpn."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate gateway, the same one FortiClient uses. Connects through openfortivpn."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway FortiGate, el mismo que usa FortiClient. Se conecta con openfortivpn."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle FortiGate, la même que celle de FortiClient. Se connecte via openfortivpn."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FortiGate गेटवे, वही जो FortiClient उपयोग करता है। openfortivpn से कनेक्ट होता है।"
+          }
+        }
+      }
+    },
+    "Gateway Palo Alto GlobalProtect, com SAML no navegador ou senha. Pede o gateway.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo-Alto-GlobalProtect-Gateway mit SAML im Browser oder Passwort. Fragt nach dem Gateway."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto GlobalProtect gateway, with SAML in the browser or a password. Asks for the gateway."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway Palo Alto GlobalProtect, con SAML en el navegador o contraseña. Pide el gateway."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle Palo Alto GlobalProtect, avec SAML dans le navigateur ou mot de passe. Demande la passerelle."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto GlobalProtect गेटवे, ब्राउज़र में SAML या पासवर्ड के साथ। गेटवे माँगता है।"
+          }
+        }
+      }
+    },
+    "Gateway Palo Alto, com login SAML no navegador ou senha. Conecta pelo OpenConnect.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo-Alto-Gateway mit SAML-Anmeldung im Browser oder Passwort. Verbindet über OpenConnect."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto gateway, with SAML login in the browser or a password. Connects through OpenConnect."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway Palo Alto, con inicio de sesión SAML en el navegador o contraseña. Se conecta con OpenConnect."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passerelle Palo Alto, avec connexion SAML dans le navigateur ou mot de passe. Se connecte via OpenConnect."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Palo Alto गेटवे, ब्राउज़र में SAML लॉगिन या पासवर्ड के साथ। OpenConnect से कनेक्ट होता है।"
           }
         }
       }
@@ -24241,6 +24607,40 @@
         }
       }
     },
+    "O cadastro pede": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benötigt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Setup asks for"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El registro pide"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "À fournir"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सेटअप में चाहिए"
+          }
+        }
+      }
+    },
     "O cadastro, a senha salva e a sessão SAML guardada serão removidos.": {
       "localizations": {
         "de": {
@@ -26424,6 +26824,40 @@
         }
       }
     },
+    "O que o perfil define: certificado, usuário e senha.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Was das Profil festlegt: Zertifikat, Benutzername und Passwort."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Whatever the profile sets: certificate, user name and password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo que define el perfil: certificado, usuario y contraseña."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que définit le profil : certificat, nom d’utilisateur et mot de passe."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जो प्रोफ़ाइल तय करे: प्रमाणपत्र, उपयोगकर्ता नाम और पासवर्ड।"
+          }
+        }
+      }
+    },
     "O runtime OpenVPN não possui dns-updown protegido; reinstale o cliente e aprove novamente para garantir o DNS da VPN.": {
       "localizations": {
         "de": {
@@ -27666,6 +28100,9 @@
         }
       }
     },
+    "Palo Alto": {
+      "shouldTranslate": false
+    },
     "Para Fortinet SSL VPN.": {
       "localizations": {
         "de": {
@@ -28092,36 +28529,70 @@
         }
       }
     },
-    "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip).": {
+    "Perfil .ovpn": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": ".ovpn-Profil oder .visc-Ordner von Viscosity (auch als .zip)."
+            "value": ".ovpn-Profil"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": ".ovpn profile or Viscosity .visc folder (also as .zip)."
+            "value": ".ovpn profile"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Perfil .ovpn o carpeta .visc de Viscosity (también en .zip)."
+            "value": "Perfil .ovpn"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Profil .ovpn ou dossier .visc de Viscosity (aussi en .zip)."
+            "value": "Profil .ovpn"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": ".ovpn प्रोफ़ाइल या Viscosity का .visc फ़ोल्डर (.zip में भी)।"
+            "value": ".ovpn प्रोफ़ाइल"
+          }
+        }
+      }
+    },
+    "Perfil .ovpn ou pasta .visc do Viscosity (também em .zip), importado com os certificados.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ".ovpn-Profil oder .visc-Ordner von Viscosity (auch als .zip), mit den Zertifikaten importiert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "An .ovpn profile or a Viscosity .visc folder (also zipped), imported with its certificates."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perfil .ovpn o carpeta .visc de Viscosity (también en .zip), importado con los certificados."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil .ovpn ou dossier .visc de Viscosity (aussi en .zip), importé avec ses certificats."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": ".ovpn प्रोफ़ाइल या Viscosity का .visc फ़ोल्डर (.zip में भी), प्रमाणपत्रों के साथ आयात किया गया।"
           }
         }
       }
@@ -28292,6 +28763,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "OpenVPN प्रोफ़ाइल उपलब्ध नहीं; इसे फिर से आयात करें।"
+          }
+        }
+      }
+    },
+    "Perfil OpenVPN, com o que o perfil define. Pede o arquivo .ovpn, a pasta .visc ou o .zip.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenVPN-Profil, Anmeldung wie im Profil festgelegt. Fragt nach der .ovpn-Datei, dem .visc-Ordner oder der .zip."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenVPN profile, signing in as the profile sets. Asks for the .ovpn file, the .visc folder or the .zip."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Perfil OpenVPN, con lo que define el perfil. Pide el archivo .ovpn, la carpeta .visc o el .zip."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profil OpenVPN, avec ce que définit le profil. Demande le fichier .ovpn, le dossier .visc ou le .zip."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OpenVPN प्रोफ़ाइल, जैसा प्रोफ़ाइल तय करे। .ovpn फ़ाइल, .visc फ़ोल्डर या .zip माँगता है।"
           }
         }
       }
@@ -29560,6 +30065,9 @@
         }
       }
     },
+    "Remote Access": {
+      "shouldTranslate": false
+    },
     "Remover o serviço privilegiado?": {
       "localizations": {
         "de": {
@@ -30168,6 +30676,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "SAML (ब्राउज़र)"
+          }
+        }
+      }
+    },
+    "SAML no navegador ou senha.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML im Browser oder Passwort."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML in the browser or a password."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML en el navegador o contraseña."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML dans le navigateur ou mot de passe."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ब्राउज़र में SAML या पासवर्ड।"
           }
         }
       }
@@ -33853,6 +34395,40 @@
         }
       }
     },
+    "Túnel WireGuard, com a chave do perfil. Pede o arquivo .conf.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard-Tunnel mit dem Schlüssel aus dem Profil. Fragt nach der .conf-Datei."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard tunnel, with the profile's key. Asks for the .conf file."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Túnel WireGuard, con la clave del perfil. Pide el archivo .conf."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tunnel WireGuard, avec la clé du profil. Demande le fichier .conf."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "WireGuard टनल, प्रोफ़ाइल की कुंजी के साथ। .conf फ़ाइल माँगता है।"
+          }
+        }
+      }
+    },
     "Um .ovpn ou .conf": {
       "localizations": {
         "de": {
@@ -34053,40 +34629,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "हटाने के दौरान एक सत्र शुरू हो गया; कुछ भी नहीं हटाया गया।"
-          }
-        }
-      }
-    },
-    "Usa o %@": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Verwendet %@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Uses %@"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usa %@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Utilise %@"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%@ का उपयोग करता है"
           }
         }
       }
@@ -34539,6 +35081,40 @@
         }
       }
     },
+    "Usuário e senha (MFA, SAML e certificado ainda não).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzername und Passwort (MFA, SAML und Zertifikat noch nicht)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User name and password (MFA, SAML and certificates not yet)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usuario y contraseña (MFA, SAML y certificado todavía no)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom d’utilisateur et mot de passe (MFA, SAML et certificat pas encore)."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "उपयोगकर्ता नाम और पासवर्ड (MFA, SAML और प्रमाणपत्र अभी नहीं)।"
+          }
+        }
+      }
+    },
     "Usuário e senha lidos de %@; a senha passa a ficar no Keychain.": {
       "localizations": {
         "de": {
@@ -34569,6 +35145,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "उपयोगकर्ता नाम और पासवर्ड %@ से पढ़े गए; अब पासवर्ड कीचेन में रहेगा।"
+          }
+        }
+      }
+    },
+    "Usuário e senha, SAML no navegador e certificado do cliente.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Benutzername und Passwort, SAML im Browser und Client-Zertifikat."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "User name and password, SAML in the browser and a client certificate."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usuario y contraseña, SAML en el navegador y certificado de cliente."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nom d’utilisateur et mot de passe, SAML dans le navigateur et certificat client."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "उपयोगकर्ता नाम और पासवर्ड, ब्राउज़र में SAML और क्लाइंट प्रमाणपत्र।"
           }
         }
       }
