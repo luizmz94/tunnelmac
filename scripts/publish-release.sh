@@ -21,7 +21,8 @@ if gh release view "v$version" --repo "$repo" >/dev/null 2>&1; then echo 'Releas
 if git ls-remote --exit-code --tags origin "refs/tags/v$version" >/dev/null 2>&1; then echo 'Tag exists; refusing reuse.' >&2; exit 1; fi
 out="$PWD/build/releases/$version"
 for app in "$@"; do ./scripts/package-release.sh "$app"; done
-notes=packaging/release-notes.md
+notes="$out/release-notes.md"
+python3 -I scripts/release-notes.py "$version" packaging/release-notes.md > "$notes" || { echo "packaging/release-notes.md has no section for $version." >&2; exit 1; }
 python3 -I scripts/appcast.py "$version" --dir "$out" --notes "$notes" \
   --tools "${SPARKLE_TOOLS_DIR:-$PWD/.build/artifacts/sparkle/Sparkle/bin}"
 prerelease=()

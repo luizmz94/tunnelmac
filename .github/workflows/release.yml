@@ -175,11 +175,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/sparkle"
           tar -xf "$RUNNER_TEMP/sparkle.tar.xz" -C "$RUNNER_TEMP/sparkle"
           notes="$RUNNER_TEMP/release-notes.md"
-          # Hand-written notes only when they describe this version; otherwise GitHub's
-          # generated list of changes since the previous release.
-          if grep -qF "Changes in $RELEASE:" packaging/release-notes.md; then
-            cp packaging/release-notes.md "$notes"
-          else
+          # Hand-written notes only when they describe this version (the introduction and this
+          # version's section, never the earlier ones); otherwise GitHub's generated list of
+          # changes since the previous release.
+          if ! python3 -I scripts/release-notes.py "$RELEASE" packaging/release-notes.md > "$notes"; then
             { printf 'Automatic release from main. Details in CHANGELOG.md.\n\n'
               gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" -f tag_name="v$RELEASE" \
                 -f target_commitish="$(git rev-parse origin/main)" --jq .body; } > "$notes"
