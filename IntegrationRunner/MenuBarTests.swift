@@ -303,8 +303,15 @@ enum MenuBarTests {
             try require(!host.isInserted && host.removes == 1 && policies.last == .regular, "Desligar não removeu o item ou tirou o app do Dock")
             preferences.showMenuBarIcon = false
             try require(host.removes == 1, "Remover duas vezes")
+            host.forgetDrawing()
             preferences.showMenuBarIcon = true
             try require(host.isInserted && host.inserts == 2, "Religar não inseriu o item")
+            try require(host.image != nil && host.label.hasPrefix("TunnelMac"), "Item religado ficou sem imagem ou rótulo (ícone invisível)")
+            // The label follows the summary even when the image stays the same.
+            model.error = "erro local"
+            _ = TestSupport.spin(0.2) { host.label.contains("erro") }
+            try require(host.label.contains("erro"), "Rótulo de acessibilidade não acompanhou o resumo: \(host.label)")
+            model.error = nil
             // The icon follows the sessions.
             model.manager.session(connections[0].id).state = .connected
             _ = TestSupport.spin(0.2) { menuBar.statusItem?.lastState?.connected == true }
@@ -416,6 +423,8 @@ final class FakeStatusItemHost: StatusItemHost {
                             visibleFrame: NSRect(x: -30000, y: -30000, width: 1440, height: 870))
     func insert(action: @escaping () -> Void) { isInserted = true; inserts += 1; self.action = action }
     func remove() { isInserted = false; removes += 1; action = nil }
+    /// A new NSStatusItem starts without image or label.
+    func forgetDrawing() { image = nil; label = "" }
     func update(image: NSImage?, label: String) { self.image = image; self.label = label }
     func setHighlighted(_ highlighted: Bool) { self.highlighted = highlighted }
 }

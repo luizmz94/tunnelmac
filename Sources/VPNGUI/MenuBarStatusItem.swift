@@ -86,6 +86,7 @@ final class MenuBarStatusItem {
     private var timer: Timer?
     private var refreshQueued = false
     private(set) var lastState: MenuBarIconState?
+    private var lastLabel: String?
     /// Injectable for the checks.
     var reduceMotion: () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
 
@@ -104,6 +105,9 @@ final class MenuBarStatusItem {
     private func apply(shown: Bool) {
         if shown, !host.isInserted {
             host.insert { [weak self] in self?.menuBar.toggleMenu() }
+            // A new item has no image yet: draw it whatever was drawn on the previous one.
+            lastState = nil
+            lastLabel = nil
             refresh()
         } else if !shown, host.isInserted {
             stopSpinning()
@@ -126,9 +130,12 @@ final class MenuBarStatusItem {
         let state = MenuBarIconState.of(connectedCount: menuBar.connectedCount, pendingCount: menuBar.pendingCount,
                                         reduceMotion: reduceMotion(), step: step)
         if state.spinning { startSpinning() } else { stopSpinning() }
-        guard state != lastState else { return }
+        // The label changes without the image (data loaded, an error): both are compared.
+        let label = menuBar.accessibilityDescription
+        guard state != lastState || label != lastLabel else { return }
         lastState = state
-        host.update(image: state.image, label: menuBar.accessibilityDescription)
+        lastLabel = label
+        host.update(image: state.image, label: label)
     }
 
     private func startSpinning() {
