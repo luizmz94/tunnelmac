@@ -164,14 +164,21 @@ public struct GlobalProtectRequest: Codable, Equatable, Sendable {
 
 /// The VPN clients the helper can freeze and run. Each has its own approved copy.
 public enum RuntimeKind: String, Codable, CaseIterable, Sendable {
-    case openfortivpn, openvpn, wireguard, openconnect
-    public var executableName: String { self == .wireguard ? "wireguard-go" : rawValue }
+    case openfortivpn, openvpn, wireguard, openconnect, snxrs
+    public var executableName: String {
+        switch self {
+        case .wireguard: return "wireguard-go"
+        case .snxrs: return "snx-rs"
+        default: return rawValue
+        }
+    }
     public var title: String {
         switch self {
         case .openfortivpn: return "openfortivpn"
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard"
         case .openconnect: return "OpenConnect"
+        case .snxrs: return "snx-rs"
         }
     }
 }
@@ -199,6 +206,12 @@ public enum HelperRequest: Codable, Equatable, Sendable {
     case inspectOpenConnectRuntime(path: String)
     case approveOpenConnectRuntime(path: String, digest: String, authorization: Data)
     case startGlobalProtect(GlobalProtectRequest)
+    /// Same flow for snx-rs (Check Point); it sets routes and DNS itself.
+    case inspectSnxRsRuntime(path: String)
+    case approveSnxRsRuntime(path: String, digest: String, authorization: Data)
+    case startCheckPoint(CheckPointRequest)
+    /// `snx-rs -m info` as an unprivileged user: login types and fingerprint of a gateway.
+    case queryCheckPointGateway(CheckPointGatewayQuery)
     case stop(token: String)
     case stopAll
     /// Refuse unless every client and stale supervisor is idle; prevent new starts.
@@ -244,11 +257,16 @@ public struct HelperStatus: Codable, Equatable, Sendable {
     /// Approved openconnect copy (GlobalProtect).
     public var openConnectRuntime: RuntimeSummary?
     public var openConnectRuntimeProblem: String?
+    /// Approved snx-rs copy (Check Point).
+    public var snxRuntime: RuntimeSummary?
+    public var snxRuntimeProblem: String?
     public init(protocolVersion: Int, helperVersion: String, runtime: RuntimeSummary?, runtimeProblem: String?,
                 userAuthorized: Bool, activeSessions: Int, stoppingConnections: [UUID],
                 openVPNRuntime: RuntimeSummary? = nil, openVPNRuntimeProblem: String? = nil,
                 wireGuardRuntime: RuntimeSummary? = nil, wireGuardRuntimeProblem: String? = nil,
-                openConnectRuntime: RuntimeSummary? = nil, openConnectRuntimeProblem: String? = nil) {
+                openConnectRuntime: RuntimeSummary? = nil, openConnectRuntimeProblem: String? = nil,
+                snxRuntime: RuntimeSummary? = nil, snxRuntimeProblem: String? = nil) {
+        self.snxRuntime = snxRuntime; self.snxRuntimeProblem = snxRuntimeProblem
         self.openConnectRuntime = openConnectRuntime; self.openConnectRuntimeProblem = openConnectRuntimeProblem
         self.protocolVersion = protocolVersion; self.helperVersion = helperVersion; self.runtime = runtime
         self.runtimeProblem = runtimeProblem; self.userAuthorized = userAuthorized
@@ -262,6 +280,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
         case .openvpn: return openVPNRuntime
         case .wireguard: return wireGuardRuntime
         case .openconnect: return openConnectRuntime
+        case .snxrs: return snxRuntime
         }
     }
     public func runtimeProblem(_ kind: RuntimeKind) -> String? {
@@ -270,6 +289,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
         case .openvpn: return openVPNRuntimeProblem
         case .wireguard: return wireGuardRuntimeProblem
         case .openconnect: return openConnectRuntimeProblem
+        case .snxrs: return snxRuntimeProblem
         }
     }
     /// At least one VPN client is approved.
@@ -326,6 +346,7 @@ public enum HelperResponse: Codable, Equatable, Sendable {
     case inspection(RuntimeInspection)
     case started(token: String, plan: LaunchPlan)
     case stopped(remaining: Int)
+    case checkPointGateway(CheckPointGatewayInfo)
     case done
     case failure(HelperFailure)
 }
