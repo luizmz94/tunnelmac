@@ -238,7 +238,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 58, "Renders esperados: 58, gerados: \(files.count)")
+            try require(files.count == 62, "Renders esperados: 62, gerados: \(files.count)")
         }
         return failures
     }
