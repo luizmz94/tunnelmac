@@ -276,7 +276,8 @@ enum UIPreviewTests {
                                NSSize(width: 640, height: 520), "detail-\(name)")
                 }
                 try render(MainView(model: unavailableModel, menuBar: emptyMenuBar), NSSize(width: 900, height: 560), "main-no-connections")
-                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 520), "menubar-list")
+                menuBar.preferences.pinnedConnections = [connections[6].id] // pinned, next to the active ones
+                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 640), "menubar-list")
                 try render(MenuBarView(menuBar: emptyMenuBar), NSSize(width: 360, height: 300), "menubar-empty-service")
                 // Menu search: results with the first highlighted, a row highlighted by the arrows, and nothing found.
                 for (name, query, highlight) in [("menubar-search-results", "lab", nil as UUID?), ("menubar-search-highlight", "", connections[4].id),

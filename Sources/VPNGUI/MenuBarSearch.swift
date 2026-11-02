@@ -17,6 +17,12 @@ enum MenuBarSearch {
 
     static func isEmpty(_ query: String) -> Bool { query.allSatisfy(\.isWhitespace) }
 
+    /// Pinned and active connections first, the others after a separator; each group keeps the
+    /// list order.
+    static func sections(_ results: [Connection], onTop: (Connection) -> Bool) -> (top: [Connection], rest: [Connection]) {
+        (results.filter(onTop), results.filter { !onTop($0) })
+    }
+
     /// With text, the first result (Enter acts at once); without text, the only connection, if
     /// there is just one; otherwise nothing until the first arrow, so a stray Enter does nothing.
     static func initialHighlight(results: [Connection], query: String, total: Int) -> UUID? {

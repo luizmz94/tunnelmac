@@ -20,6 +20,7 @@ final class AppPreferences: ObservableObject {
         static let internetDNS = "internetDNSSelection"
         static let customDNS = "customInternetDNS"
         static let appearance = "appearance"
+        static let pinnedConnections = "pinnedMenuConnections"
         /// Read by Foundation at launch: the app's own language order (as set by System
         /// Settings › Language & Region › Applications).
         static let languages = "AppleLanguages"
@@ -39,6 +40,10 @@ final class AppPreferences: ObservableObject {
     @Published var lastUpdateSuccess: Date? { didSet { store(lastUpdateSuccess, Key.lastUpdateSuccess) } }
     /// Id of the chosen "DNS da internet" (preset, custom or `InternetDNSOption.offID`).
     @Published var internetDNSSelection: String { didSet { defaults.set(internetDNSSelection, forKey: Key.internetDNS) } }
+    /// Connections pinned to the top of the menu (ids; unknown ones are ignored).
+    @Published var pinnedConnections: [UUID] {
+        didSet { defaults.set(pinnedConnections.map(\.uuidString), forKey: Key.pinnedConnections) }
+    }
     /// Light, dark or following the system (the default).
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
@@ -72,6 +77,7 @@ final class AppPreferences: ObservableObject {
         lastUpdateAttempt = defaults.object(forKey: Key.lastUpdateAttempt) as? Date
         lastUpdateSuccess = defaults.object(forKey: Key.lastUpdateSuccess) as? Date
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
+        pinnedConnections = (defaults.stringArray(forKey: Key.pinnedConnections) ?? []).compactMap(UUID.init(uuidString:))
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         // Only the app's own domain: the global AppleLanguages is the system's choice.
         let domain = languageDefaults.persistentDomain(forName: (realLanguage ? nil : disposableSuite) ?? Bundle.main.bundleIdentifier ?? "")

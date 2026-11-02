@@ -244,9 +244,21 @@ final class MenuBarCoordinator: ObservableObject {
 
     // MARK: Search
 
-    var searchResults: [Connection] {
-        guard model.ready else { return [] }
-        return MenuBarSearch.results(model.sortedConnections, query: searchText)
+    /// Pinned and active connections on top, the rest below; the keyboard follows this order.
+    var searchSections: (top: [Connection], rest: [Connection]) {
+        guard model.ready else { return ([], []) }
+        return MenuBarSearch.sections(MenuBarSearch.results(model.sortedConnections, query: searchText), onTop: isOnTop)
+    }
+    var searchResults: [Connection] { let sections = searchSections; return sections.top + sections.rest }
+
+    func isPinned(_ id: UUID) -> Bool { preferences.pinnedConnections.contains(id) }
+    private func isOnTop(_ connection: Connection) -> Bool {
+        isPinned(connection.id) || model.manager.session(connection.id).state.active
+    }
+
+    /// Pins a connection to the top of the menu, or unpins it.
+    func togglePin(_ id: UUID) {
+        if isPinned(id) { preferences.pinnedConnections.removeAll { $0 == id } } else { preferences.pinnedConnections.append(id) }
     }
     var searchAvailable: Bool { model.ready && !model.data.connections.isEmpty }
 

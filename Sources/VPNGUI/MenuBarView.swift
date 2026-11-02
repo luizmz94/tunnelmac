@@ -21,7 +21,8 @@ struct MenuBarView: View {
     @State private var listHeight: CGFloat = 0
     @FocusState private var searchFocused: Bool
     private var model: AppModel { menuBar.model }
-    private static let maxListHeight: CGFloat = 380
+    /// Tall enough to use the screen; the panel itself never passes the visible frame.
+    private static let maxListHeight: CGFloat = 620
     /// Two rows: the panel never shrinks below this while searching, so it does not jump.
     private static let minSearchHeight: CGFloat = 104
 
@@ -81,13 +82,14 @@ struct MenuBarView: View {
             let searching = !menuBar.searchText.isEmpty
             ScrollViewReader { proxy in
                 ScrollView(.vertical) {
+                    let sections = menuBar.searchSections
                     VStack(spacing: 2) {
-                        ForEach(menuBar.searchResults) { connection in
-                            MenuBarRow(connection: connection, session: model.manager.session(connection.id),
-                                       showsServer: duplicated.contains(connection.name.lowercased()), menuBar: menuBar,
-                                       highlighted: menuBar.highlightedID == connection.id)
-                                .id(connection.id)
+                        // Pinned and active connections on top, a separator, then the others.
+                        ForEach(sections.top) { row($0, duplicated) }
+                        if !sections.top.isEmpty && !sections.rest.isEmpty {
+                            Divider().padding(.horizontal, 8).padding(.vertical, 4).accessibilityHidden(true)
                         }
+                        ForEach(sections.rest) { row($0, duplicated) }
                     }
                     .padding(.horizontal, 6).padding(.vertical, 6)
                     .background(GeometryReader { proxy in
@@ -102,6 +104,13 @@ struct MenuBarView: View {
                 }
             }
         }
+    }
+
+    private func row(_ connection: Connection, _ duplicated: Set<String>) -> some View {
+        MenuBarRow(connection: connection, session: model.manager.session(connection.id),
+                   showsServer: duplicated.contains(connection.name.lowercased()), menuBar: menuBar,
+                   highlighted: menuBar.highlightedID == connection.id, pinned: menuBar.isPinned(connection.id))
+            .id(connection.id)
     }
 
     private func message(title: String, symbol: String, tone: StatusTone, detail: String) -> some View {
@@ -239,6 +248,8 @@ struct MenuBarRow: View {
     let menuBar: MenuBarCoordinator
     /// The keyboard (or pointer) highlight of the search; the only hover look of the rows.
     var highlighted = false
+    /// Pinned to the top by the user.
+    var pinned = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
 
@@ -271,8 +282,10 @@ struct MenuBarRow: View {
             .help("\(connection.name) — \(connection.endpoint)")
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(highlighted ? .isSelected : [])
+            .accessibilityAction(named: Text(pinned ? "Desafixar" : "Fixar no topo")) { menuBar.togglePin(connection.id) }
             .accessibilityAction(named: Text("Ver logs")) { if showsLogsLink { showLogs() } }
             Spacer(minLength: 6)
+            pinButton
             VStack(alignment: .trailing, spacing: 3) {
                 if action == .review {
                     Button("Revisar…") { menuBar.perform(connection) }
@@ -309,10 +322,29 @@ struct MenuBarRow: View {
         .onContinuousHover { phase in
             if case .active = phase { menuBar.pointerHovered(connection.id) }
         }
+        .contextMenu {
+            Button(pinned ? "Desafixar" : "Fixar no topo") { menuBar.togglePin(connection.id) }
+        }
         .animation(Motion.state(reduceMotion), value: session.state)
     }
 
     private var highlightShape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+
+    /// Filled while pinned; otherwise shown only on the highlighted row.
+    private var pinButton: some View {
+        Button { menuBar.togglePin(connection.id) } label: {
+            Image(systemName: pinned ? "pin.fill" : "pin")
+                .font(.system(size: 11, weight: .semibold))
+                .rotationEffect(.degrees(45))
+                .foregroundStyle(pinned ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(pinned || highlighted ? 1 : 0)
+        .help(pinned ? "Desafixar do topo" : "Fixar no topo do menu")
+        .accessibilityHidden(true) // the row's own action
+    }
 
     /// A failure says where its details are; review and certificate cases have their own action.
     private var showsLogsLink: Bool {

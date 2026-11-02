@@ -434,6 +434,25 @@ enum MenuBarTests {
             try require(MenuBarSearch.adjusted(lab.id, in: all) == lab.id, "Destaque mantido")
         }
 
+        test("Menu: ativas e fixadas no topo, separadas das demais; o pino persiste e as setas seguem essa ordem") {
+            let (model, connections) = try makeModel(root, names: ["Alfa", "Beta", "Gama", "Delta"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let names = { (list: [Connection]) in list.map(\.name) }
+            try require(menuBar.searchSections.top.isEmpty && names(menuBar.searchSections.rest) == ["Alfa", "Beta", "Delta", "Gama"], "Sem ativas nem fixadas")
+            model.manager.session(connections[2].id).state = .connecting   // Gama active
+            menuBar.togglePin(connections[3].id)                             // Delta pinned
+            try require(names(menuBar.searchSections.top) == ["Delta", "Gama"] && names(menuBar.searchSections.rest) == ["Alfa", "Beta"],
+                        "Topo: \(names(menuBar.searchSections.top)), demais: \(names(menuBar.searchSections.rest))")
+            try require(names(menuBar.searchResults) == ["Delta", "Gama", "Alfa", "Beta"], "As setas não seguem a ordem das seções")
+            try require(AppPreferences(defaults: menuBar.preferences.defaults).pinnedConnections == [connections[3].id], "Pino não persistiu")
+            menuBar.setSearch("a")
+            try require(names(menuBar.searchSections.top) == ["Delta", "Gama"] && menuBar.highlightedID == connections[3].id, "Busca não manteve o topo")
+            menuBar.togglePin(connections[3].id)
+            model.manager.session(connections[2].id).state = .disconnected
+            try require(menuBar.searchSections.top.isEmpty && !menuBar.isPinned(connections[3].id), "Desafixar ou desconectar não devolveu às demais")
+        }
+
         test("Busca no menu: Enter segue a regra da linha, ⌘Enter abre a janela, Esc limpa e depois fecha") {
             let (model, connections) = try makeModel(root, names: ["Alfa", "Beta", "Gama", "Delta"])
             let menuBar = MenuBarCoordinator(model: model)
