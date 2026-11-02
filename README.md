@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <b>One native Mac app for your Fortinet, OpenVPN, WireGuard and GlobalProtect connections.</b><br>
+  <b>One native Mac app for your Fortinet, OpenVPN, WireGuard, GlobalProtect and Check Point connections.</b><br>
   Connect from the menu bar. No admin password on every connect. Nothing bundled you didn't approve.
 </p>
 
@@ -27,9 +27,10 @@
 
 ## Why TunnelMac
 
-- **Four protocols, one list.** Fortinet SSL VPN (password, SAML in the browser or
+- **Five protocols, one list.** Fortinet SSL VPN (password, SAML in the browser or
   client certificate), OpenVPN 2.7+ profiles (`.ovpn` or Viscosity `.visc`), WireGuard
-  `.conf` files and GlobalProtect gateways (SAML in your default browser or password).
+  `.conf` files, GlobalProtect gateways (SAML in your default browser or password) and
+  Check Point Remote Access gateways (user and password, no site name or official client).
 - **Only the company network through the VPN.** GlobalProtect connections route just the
   internal networks by default, so the rest of the internet stays on your own network;
   **All traffic through the VPN** is one switch away.
@@ -103,6 +104,15 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
     </td>
   </tr>
   <tr>
+    <td align="center" colspan="2">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="docs/assets/checkpoint-dark.png">
+        <img src="docs/assets/checkpoint-light.png" alt="Check Point connection details" width="640">
+      </picture>
+      <br><sub>Check Point through snx-rs: the gateway's routes, login type and the authority you trusted</sub>
+    </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/menubar-dark.png">
@@ -147,6 +157,7 @@ from Homebrew. Thanks to their authors and contributors.
 | OpenVPN | [**OpenVPN**](https://github.com/OpenVPN/openvpn) by OpenVPN Inc. and contributors | GPL-2.0 |
 | WireGuard | [**wireguard-go**](https://git.zx2c4.com/wireguard-go) by Jason A. Donenfeld and the WireGuard contributors | MIT |
 | GlobalProtect | [**OpenConnect**](https://www.infradead.org/openconnect/) by David Woodhouse and contributors | LGPL-2.1 |
+| Check Point | [**snx-rs**](https://github.com/ancwrd1/snx-rs) by Dmitry Pankratov and contributors | AGPL-3.0 |
 
 None of them is bundled: each user installs and approves their own copy.
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) has the details.
@@ -161,6 +172,7 @@ Security issues: see [SECURITY.md](SECURITY.md).
 ---
 
 <sub>MIT licensed. TunnelMac (formerly OpenFortiDesk) is independent of, and not affiliated
-with, Fortinet, OpenVPN Inc., the WireGuard project, Palo Alto Networks, OpenConnect or
-openfortivpn. Fortinet, OpenVPN, WireGuard and GlobalProtect are trademarks of their
-respective owners.</sub>
+with, Fortinet, OpenVPN Inc., the WireGuard project, Palo Alto Networks, Check Point
+Software Technologies, OpenConnect, snx-rs or openfortivpn. Fortinet, OpenVPN, WireGuard and
+GlobalProtect are trademarks of their respective owners. Check Point is a trademark of Check
+Point Software Technologies Ltd.</sub>
