@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0 — unreleased
+
+- **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without
+  scrolling, each with a badge for its client (approved, or something missing in the
+  service). A fixed panel below describes the type under the mouse or the keyboard focus:
+  what it is, its client and state, how it signs in and what the form asks for, with
+  Abrir Serviço privilegiado… when the client is missing. Arrow keys move between tiles,
+  Enter or Space chooses and Esc cancels; VoiceOver reads each tile's name, client state
+  and what it asks for. Liquid Glass tiles on macOS 26 and later.
+
 ## 1.2.0 — 2026-11-02
 
 - Check Point connections (Remote Access / Endpoint Security VPN gateways) through
