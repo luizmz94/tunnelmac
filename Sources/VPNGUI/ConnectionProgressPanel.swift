@@ -2,7 +2,8 @@ import SwiftUI
 import AppKit
 import Combine
 
-// A small floating panel under the menu bar icon while connections start, connect or fail,
+// A small floating panel in the top right corner of the screen (where notifications appear)
+// while connections start, connect or fail,
 // whatever started them (menu, window, search, shortcut or an automatic reconnect). It never
 // takes the focus; its buttons work with a click.
 

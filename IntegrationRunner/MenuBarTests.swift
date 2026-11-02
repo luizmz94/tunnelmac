@@ -656,7 +656,7 @@ enum MenuBarTests {
             let ids = menuBar.progress.model.cards.map(\.id)
             try require(Set(ids) == Set([connections[0].id, connections[1].id, connections[2].id]), "Origens sem cartão: \(ids.count)")
             try require(menuBar.progress.model.cards.first { $0.id == connections[0].id }?.name == "A", "Cartão sem o nome da conexão")
-            try require(presenter.isShown && presenter.anchors.last?.button != nil, "Painel não apareceu sob o ícone")
+            try require(presenter.isShown && presenter.anchors.last?.button == nil, "Painel não apareceu no canto superior direito da tela")
             menuBar.cancelProgress(connections[1].id)
             try require(cancels == [connections[1].id], "Cancelar não chamou disconnectAction com o id certo")
             // Hidden while the menu is open, back when it closes.

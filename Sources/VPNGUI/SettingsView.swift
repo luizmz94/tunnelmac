@@ -338,7 +338,7 @@ struct GeneralSettings: View {
             }
             SettingsDivider()
             SettingsRow(symbol: "rectangle.stack.badge.play", color: .teal, title: String(localized: "Mostrar o progresso das conexões"),
-                        subtitle: String(localized: "Um painel discreto sob o ícone enquanto a VPN conecta.")) {
+                        subtitle: String(localized: "Um painel discreto no canto da tela enquanto a VPN conecta.")) {
                 Toggle("Mostrar o progresso das conexões", isOn: $preferences.showConnectionProgress)
                     .settingsSwitch(String(localized: "Mostrar o progresso das conexões"))
             }

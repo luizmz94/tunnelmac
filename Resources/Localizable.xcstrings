@@ -35238,36 +35238,36 @@
         }
       }
     },
-    "Um painel discreto sob o ícone enquanto a VPN conecta.": {
+    "Um painel discreto no canto da tela enquanto a VPN conecta.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ein dezentes Feld unter dem Symbol, während das VPN verbindet."
+            "value": "Ein dezentes Feld in der Bildschirmecke, während das VPN verbindet."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "A discreet panel under the icon while the VPN connects."
+            "value": "A discreet panel in the corner of the screen while the VPN connects."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Un panel discreto bajo el icono mientras la VPN se conecta."
+            "value": "Un panel discreto en la esquina de la pantalla mientras la VPN se conecta."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Un panneau discret sous l’icône pendant que le VPN se connecte."
+            "value": "Un panneau discret dans le coin de l’écran pendant que le VPN se connecte."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "VPN कनेक्ट होते समय आइकन के नीचे एक छोटा पैनल।"
+            "value": "VPN कनेक्ट होते समय स्क्रीन के कोने में एक छोटा पैनल।"
           }
         }
       }

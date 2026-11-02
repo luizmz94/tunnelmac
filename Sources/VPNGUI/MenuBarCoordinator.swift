@@ -272,8 +272,8 @@ final class MenuBarCoordinator: ObservableObject {
         updateProgressPanel()
     }
 
-    /// Hidden while the menu is open (it shows the same states, in the same place); back
-    /// when it closes if something is still in progress.
+    /// Hidden while the menu is open (it shows the same states); back when it closes if
+    /// something is still in progress.
     func updateProgressPanel() {
         guard let progressPresenter else { return }
         if ConnectionProgressModel.shown(cards: progress.model.cards.count, enabled: preferences.showConnectionProgress, menuOpen: menuOpen) {
@@ -287,10 +287,9 @@ final class MenuBarCoordinator: ObservableObject {
     /// cancels a reconnect and the SAML queue).
     func cancelProgress(_ id: UUID) { disconnectAction(id) }
 
-    /// Under the icon; without a visible icon, the top right corner of the main screen.
+    /// The top right corner of the screen with the menu bar, where other apps' notifications appear.
     private var progressAnchor: MenuAnchor {
-        if let anchor = statusItem?.host.anchor, anchor.button != nil { return anchor }
-        let frame = NSScreen.main?.visibleFrame ?? statusItem?.host.anchor.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let frame = NSScreen.screens.first?.visibleFrame ?? statusItem?.host.anchor.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         return MenuAnchor(button: nil, visibleFrame: frame)
     }
 
