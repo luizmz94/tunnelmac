@@ -202,11 +202,18 @@ final class ConnectionProgressPanelController: ProgressPanelPresenter {
         panel.setFrame(final.offsetBy(dx: 0, dy: 8), display: false)
         panel.alphaValue = 0
         panel.orderFrontRegardless()
-        NSAnimationContext.runAnimationGroup { context in
+        NSAnimationContext.runAnimationGroup({ context in
             context.duration = 0.2
             panel.animator().setFrame(final, display: true)
             panel.animator().alphaValue = 1
-        }
+        }, completionHandler: { [weak self] in
+            // Lands exactly in place even if the animation was cut short.
+            MainActor.assumeIsolated {
+                guard let self, self.isShown else { return }
+                self.panel.alphaValue = 1
+                self.fit(animated: false)
+            }
+        })
     }
 
     func hide() {

@@ -683,8 +683,9 @@ enum MenuBarTests {
             _ = TestSupport.spin(0.1) { false }
             let visible = NSRect(x: -30000, y: -30000, width: 1440, height: 870)
             controller.show(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
-            _ = TestSupport.spin(0.5) { false }
             let panel = controller.panel
+            // After the 0.2 s entrance (fade and 8 pt slide).
+            _ = TestSupport.spin(2) { visible.contains(panel.frame) && panel.alphaValue == 1 }
             try require(panel.isVisible && !panel.canBecomeKey && !panel.canBecomeMain && !panel.isKeyWindow, "O painel pode receber o teclado")
             try require(panel.level == .statusBar && panel.collectionBehavior.contains(.canJoinAllSpaces)
                         && panel.collectionBehavior.contains(.ignoresCycle) && panel.styleMask.contains(.nonactivatingPanel), "Configuração do painel")
