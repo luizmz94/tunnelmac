@@ -273,6 +273,163 @@ enum MenuBarTests {
             window.orderOut(nil)
             session.state = .disconnected
         }
+
+        test("Barra de menus: ícone anima só com conexão pendente, parado com Reduzir movimento, badge e símbolo") {
+            let idle = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, summary: .idle, reduceMotion: false, step: 5)
+            try require(!idle.spinning && idle.angle == 0 && idle.symbol == nil && !idle.connected && idle.badge == 0, "Ícone parado: \(idle)")
+            try require(idle.image?.isTemplate == true, "Ícone sem túnel não é template")
+            let pending = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, summary: .transitioning, reduceMotion: false, step: 6)
+            try require(pending.spinning && pending.angle == 90 && pending.symbol == MenuBarSummary.transitioning.symbol, "Ícone em andamento: \(pending)")
+            let still = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, summary: .transitioning, reduceMotion: true, step: 6)
+            try require(!still.spinning && still.angle == 0, "Ícone girou com Reduzir movimento")
+            let connected = MenuBarIconState.of(connectedCount: 2, pendingCount: 1, summary: .connected, reduceMotion: false, step: 30)
+            try require(connected.connected && connected.badge == 2 && connected.symbol == MenuBarSummary.connected.symbol
+                        && connected.angle == 90, "Ícone conectado: \(connected)")
+            try require(connected.image?.isTemplate == false && (connected.image?.size.width ?? 0) > 18, "Ícone colorido com o símbolo do resumo")
+            let attention = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, summary: .attention, reduceMotion: false, step: 0)
+            try require(attention.symbol == MenuBarSummary.attention.symbol && !attention.spinning, "Falha sem o símbolo de atenção")
+        }
+
+        test("Barra de menus: a preferência insere e remove o item (host falso), sem eco, e o app fica no Dock") {
+            let (model, connections) = try makeModel(root, names: ["A"])
+            let preferences = AppPreferences.disposable()
+            let menuBar = MenuBarCoordinator(model: model, preferences: preferences)
+            var policies: [NSApplication.ActivationPolicy] = []
+            menuBar.setActivationPolicy = { policies.append($0) }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            try require(host.isInserted && host.inserts == 1 && host.label.hasPrefix("TunnelMac"), "Item não inserido com a preferência ligada")
+            for _ in 0..<3 { preferences.showMenuBarIcon = true }
+            try require(host.inserts == 1 && host.removes == 0, "Escrever o mesmo valor reinseriu o item")
+            preferences.showMenuBarIcon = false
+            try require(!host.isInserted && host.removes == 1 && policies.last == .regular, "Desligar não removeu o item ou tirou o app do Dock")
+            preferences.showMenuBarIcon = false
+            try require(host.removes == 1, "Remover duas vezes")
+            preferences.showMenuBarIcon = true
+            try require(host.isInserted && host.inserts == 2, "Religar não inseriu o item")
+            // The icon follows the sessions.
+            model.manager.session(connections[0].id).state = .connected
+            _ = TestSupport.spin(0.2) { menuBar.statusItem?.lastState?.connected == true }
+            try require(menuBar.statusItem?.lastState?.badge == 1 && host.label.contains("1 conectada"), "Ícone não acompanhou a conexão: \(host.label)")
+            model.manager.session(connections[0].id).state = .disconnected
+            _ = TestSupport.spin(0.2) { menuBar.statusItem?.lastState?.connected == false }
+            try require(menuBar.statusItem?.lastState?.connected == false, "Ícone não voltou ao estado parado")
+        }
+
+        test("Barra de menus: clique alterna o menu, destaca o botão, e abrir janelas ou um modal fecha ou impede") {
+            let (model, _) = try makeModel(root, names: ["A"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.activateApp = {}
+            menuBar.setActivationPolicy = { _ in }
+            var opened = 0, settings = 0
+            menuBar.openWindowFallback = { opened += 1 }
+            menuBar.openSettingsFallback = { settings += 1 }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            host.action?()
+            try require(presenter.isOpen && menuBar.menuOpen && host.highlighted && presenter.anchors == [host.anchor], "Clique não abriu o menu sob o ícone")
+            host.action?()
+            try require(!presenter.isOpen && !menuBar.menuOpen && !host.highlighted, "Segundo clique não fechou o menu")
+            menuBar.toggleMenu()
+            menuBar.showMainWindow()
+            try require(!presenter.isOpen && opened == 1, "Abrir TunnelMac não fechou o menu (ou não abriu a janela nunca aberta)")
+            menuBar.toggleMenu()
+            menuBar.showSettings()
+            try require(!presenter.isOpen && settings == 1, "Configurações… não fechou o menu (ou não abriu a janela)")
+            // Closed by the panel itself (click outside, ⌘Tab, Space).
+            menuBar.toggleMenu()
+            presenter.close()
+            try require(!menuBar.menuOpen && !host.highlighted, "Fechar pelo painel não atualizou o estado")
+            menuBar.hasModalWindow = { true }
+            menuBar.toggleMenu()
+            try require(!presenter.isOpen && presenter.anchors.count == 4, "O menu abriu sobre um alerta do app")
+            // Openers captured by the app's commands win over a hosted view's.
+            let fresh = MenuBarCoordinator(model: model)
+            var first = 0, second = 0
+            fresh.adoptWindowOpeners(main: { first += 1 }, settings: { first += 1 })
+            fresh.adoptWindowOpeners(main: { second += 1 }, settings: { second += 1 })
+            fresh.openWindowFallback?(); fresh.openSettingsFallback?()
+            try require(first == 2 && second == 0, "O abridor do painel substituiu o dos comandos do app")
+        }
+
+        test("Barra de menus: posição do painel cabe no visibleFrame (monitor secundário, notch, ícone oculto)") {
+            let size = NSSize(width: 360, height: 520)
+            let main = NSRect(x: 0, y: 0, width: 1512, height: 944) // under a 38 pt menu bar
+            @MainActor func check(_ anchor: MenuAnchor, size: NSSize = size, _ name: String) throws -> NSRect {
+                let frame = MenuPanelPlacement.frame(size: size, anchor: anchor)
+                let inside = anchor.visibleFrame.insetBy(dx: MenuPanelPlacement.margin - 0.5, dy: -0.5)
+                try require(inside.contains(frame), "\(name): \(frame) fora de \(anchor.visibleFrame)")
+                return frame
+            }
+            let button = NSRect(x: 1200, y: 950, width: 30, height: 28)
+            var frame = try check(MenuAnchor(button: button, visibleFrame: main), "Ícone no meio")
+            try require(frame.maxX == button.maxX && frame.maxY == button.minY - 6 && frame.width == 360, "Não alinhou ao ícone: \(frame)")
+            frame = try check(MenuAnchor(button: NSRect(x: 1490, y: 950, width: 22, height: 28), visibleFrame: main), "Ícone na borda direita")
+            try require(frame.maxX == main.maxX - 8, "Não respeitou a margem direita: \(frame)")
+            // Secondary screen to the left, below the main one, with negative coordinates.
+            let left = NSRect(x: -1920, y: -200, width: 1920, height: 1055)
+            frame = try check(MenuAnchor(button: NSRect(x: -1900, y: 856, width: 30, height: 24), visibleFrame: left), "Monitor secundário")
+            try require(frame.minX == left.minX + 8, "Não respeitou a margem esquerda: \(frame)")
+            // Hidden icon (preference, Menu Bar settings or the notch): top right corner.
+            frame = try check(MenuAnchor(button: nil, visibleFrame: main), "Sem ícone")
+            try require(frame.maxX == main.maxX - 8 && frame.maxY == main.maxY - 6, "Sem ícone fora do canto: \(frame)")
+            // Taller than the screen: capped at the visible height minus 40.
+            frame = try check(MenuAnchor(button: button, visibleFrame: main), size: NSSize(width: 360, height: 3000), "Conteúdo alto")
+            try require(frame.height == main.height - 40, "Altura não limitada: \(frame)")
+        }
+
+        test("Barra de menus: painel real fora da tela abre sem virar janela principal e fecha ao perder o foco") {
+            let (model, _) = try makeModel(root, names: ["A", "B"])
+            let menuBar = MenuBarCoordinator(model: model)
+            let controller = MenuBarPanelController(menuBar: menuBar)
+            var closes = 0
+            controller.onClose = { closes += 1 }
+            let visible = NSRect(x: -30000, y: -30000, width: 1440, height: 870)
+            controller.open(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
+            _ = TestSupport.spin(0.3) { false }
+            let panel = controller.panel
+            try require(panel.isVisible && controller.isOpen && visible.contains(panel.frame) && panel.frame.width == 360,
+                        "Painel não abriu dentro da tela fictícia: \(panel.frame)")
+            try require(panel.canBecomeKey && !panel.canBecomeMain && panel.level == .popUpMenu
+                        && panel.styleMask.contains(.nonactivatingPanel) && !panel.hidesOnDeactivate && panel.backgroundColor == .clear,
+                        "Configuração do painel")
+            try require(panel.frame.height > 100, "Altura do conteúdo não aplicada: \(panel.frame.height)")
+            controller.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+            try require(!panel.isVisible && closes == 1, "Perder o foco não fechou o painel")
+            controller.close()
+            try require(closes == 1, "Fechar duas vezes notificou duas vezes")
+        }
     }
 
+}
+
+/// Status item stand-in: the local checks never touch the real menu bar.
+@MainActor
+final class FakeStatusItemHost: StatusItemHost {
+    private(set) var isInserted = false
+    private(set) var inserts = 0, removes = 0
+    private(set) var label = ""
+    private(set) var image: NSImage?
+    private(set) var highlighted = false
+    private(set) var action: (() -> Void)?
+    var anchor = MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24),
+                            visibleFrame: NSRect(x: -30000, y: -30000, width: 1440, height: 870))
+    func insert(action: @escaping () -> Void) { isInserted = true; inserts += 1; self.action = action }
+    func remove() { isInserted = false; removes += 1; action = nil }
+    func update(image: NSImage?, label: String) { self.image = image; self.label = label }
+    func setHighlighted(_ highlighted: Bool) { self.highlighted = highlighted }
+}
+
+/// Menu panel stand-in: records where it was asked to open.
+@MainActor
+final class FakeMenuPresenter: MenuPanelPresenter {
+    private(set) var isOpen = false
+    private(set) var anchors: [MenuAnchor] = []
+    var onClose: (() -> Void)?
+    func open(anchor: MenuAnchor) { isOpen = true; anchors.append(anchor) }
+    func close() {
+        guard isOpen else { return }
+        isOpen = false
+        onClose?()
+    }
 }
