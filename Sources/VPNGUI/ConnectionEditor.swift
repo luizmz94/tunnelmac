@@ -65,6 +65,12 @@ struct ConnectionEditor: View {
     @State private var gatewayText = ""
     /// "Só redes internas" as typed; read into the connection when saving.
     @State private var networksText = ""
+    /// Check Point: last "Consultar gateway" (certificate and the helper's snx-rs -m info).
+    @State private var checkPointCertificate: CheckPointGateway.Certificate?
+    @State private var checkPointInfo: CheckPointGatewayInfo?
+    @State private var checkPointQueryError: String?
+    @State private var checkPointQuerying = false
+    @State private var checkPointQueryGeneration = 0
     @State private var error: String?
     @State private var loaded = false
     @State private var applyDigestFix = false
@@ -125,6 +131,9 @@ struct ConnectionEditor: View {
                 ProtocolCard(kind: .globalProtect, title: "GlobalProtect",
                              subtitle: String(localized: "Gateway Palo Alto, com login SAML no navegador ou senha."),
                              status: clientStatus(.globalProtect)) { choose(.globalProtect) }
+                ProtocolCard(kind: .checkPoint, title: "Check Point",
+                             subtitle: String(localized: "Gateway Check Point (Remote Access), com usuário e senha."),
+                             status: clientStatus(.checkPoint)) { choose(.checkPoint) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)
             Spacer(minLength: 0)
@@ -133,7 +142,7 @@ struct ConnectionEditor: View {
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
-        .sheetFrame(width: 560, height: 600)
+        .sheetFrame(width: 560, height: 700)
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {
@@ -146,7 +155,8 @@ struct ConnectionEditor: View {
         connection.kind = kind
         error = nil
         if kind == .globalProtect && isNew { connection.authentication = .saml }
-        if kind == .fortinet || kind == .globalProtect { step = .form; loaded = true; focus = .name } else { step = .chooseFiles }
+        if kind == .checkPoint { connection.authentication = .password; if connection.checkPoint == nil { connection.checkPoint = CheckPointSettings() } }
+        if [.fortinet, .globalProtect, .checkPoint].contains(kind) { step = .form; loaded = true; focus = .name } else { step = .chooseFiles }
     }
 
     // MARK: Step 2 — profile files
@@ -309,6 +319,7 @@ struct ConnectionEditor: View {
                 case .openvpn: openVPNSections
                 case .wireguard: wireGuardSections
                 case .globalProtect: globalProtectSections
+                case .checkPoint: checkPointSections
                 }
             }
             .formStyle(.grouped)
@@ -389,6 +400,230 @@ struct ConnectionEditor: View {
                 .accessibilityLabel(revealPassword ? "Ocultar senha" : "Mostrar senha")
             }
         }
+    }
+
+    // MARK: Check Point
+
+    private var loginType: Binding<String> {
+        Binding(get: { connection.checkPoint?.loginType ?? "" }, set: { value in
+            var settings = connection.checkPoint ?? CheckPointSettings()
+            settings.loginType = value
+            connection.checkPoint = settings
+        })
+    }
+
+    /// Login types of the last query; selectable once the certificate is settled (system
+    /// validation, or the authority the user trusted).
+    private var checkPointOptions: [CheckPointLoginOption]? {
+        guard let options = checkPointInfo?.loginOptions, !options.isEmpty else { return nil }
+        switch checkPointCertificate {
+        case .system: return options
+        case .authority(let found): return found.sha256 == connection.checkPoint?.authority?.sha256 ? options : nil
+        default: return nil
+        }
+    }
+
+    @ViewBuilder private var checkPointSections: some View {
+        Section {
+            TextField("Nome", text: $connection.name, prompt: Text("Escritório"))
+                .focused($focus, equals: .name)
+            TextField("Servidor", text: $gatewayText, prompt: Text("vpn.exemplo.com"))
+                .focused($focus, equals: .server)
+                .help("O endereço que o certificado do gateway cobre: vpn.exemplo.com ou 203.0.113.10:4443")
+                .onChange(of: gatewayText) { _ in resetCheckPointQuery() }
+            HStack {
+                if checkPointQuerying { ProgressView().controlSize(.small) }
+                Spacer()
+                Button(checkPointQuerying ? "Consultando…" : "Consultar gateway") { queryCheckPoint() }
+                    .disabled(checkPointQuerying || gatewayText.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        } header: {
+            Text("Gateway")
+        } footer: {
+            if let checkPointQueryError {
+                Text(checkPointQueryError).font(.footnote).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        Section {
+            TextField("Usuário", text: $connection.username, prompt: Text("usuário"))
+                .focused($focus, equals: .username)
+            passwordRow
+            if let options = checkPointOptions {
+                Picker("Tipo de login", selection: loginType) {
+                    if !options.contains(where: { $0.id == loginType.wrappedValue }) { Text("Escolha…").tag(loginType.wrappedValue) }
+                    ForEach(options) { option in
+                        let reason = CheckPointGateway.unsupportedReason(option)
+                        Text(reason.map { "\(option.displayName) (\(option.id)) — \($0)" } ?? "\(option.displayName) (\(option.id))")
+                            .tag(option.id)
+                            .disabled(reason != nil)
+                    }
+                }
+                .onChange(of: loginType.wrappedValue) { value in
+                    // Unsupported types are shown, never kept.
+                    if let option = options.first(where: { $0.id == value }), !CheckPointRules.isSupported(option) {
+                        loginType.wrappedValue = options.first(where: CheckPointRules.isSupported)?.id ?? ""
+                    }
+                }
+            } else {
+                TextField("Tipo de login", text: loginType, prompt: Text("vpn"))
+            }
+        } header: {
+            Text("Autenticação")
+        } footer: {
+            Text(checkPointOptions == nil
+                 ? "O identificador do tipo de login (vpn, vpn_Username_Password…). Consultar o gateway lista os disponíveis."
+                 : "Só tipos de login com usuário e senha; MFA, navegador e certificado ainda não são suportados.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        Section {
+            checkPointCertificateRows
+        } header: {
+            Text("Certificado do gateway")
+        } footer: {
+            if case .authority = checkPointCertificate {
+                Text("Compare o SHA-256 ou as palavras com o administrador da VPN antes de confiar.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            } else if checkPointCertificate == nil && connection.checkPoint?.authority == nil {
+                Text("Consulte o gateway para conferir o certificado.").font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        Section {
+            Toggle("Todo o tráfego pela VPN", isOn: $connection.allTraffic)
+        } header: {
+            Text("Rotas")
+        } footer: {
+            Text(connection.allTraffic
+                 ? "Toda a internet passa pela VPN, onde a empresa pode inspecionar o tráfego."
+                 : "Só as redes que o gateway envia passam pela VPN; o resto da internet sai pela sua rede.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder private var checkPointCertificateRows: some View {
+        switch checkPointCertificate {
+        case .system:
+            Label("Validação padrão do sistema", systemImage: "checkmark.seal")
+        case .authority(let found):
+            authorityFacts(found, words: checkPointInfo?.fingerprintWords)
+            HStack {
+                Spacer()
+                if found.sha256 == connection.checkPoint?.authority?.sha256 {
+                    Label("Autoridade confiada", systemImage: "checkmark.seal.fill").foregroundStyle(.green)
+                } else {
+                    Button("Confiar nesta autoridade") { trust(found) }
+                }
+            }
+        case .mismatch(let names, _):
+            Text(names.isEmpty ? String(localized: "O certificado deste gateway não vale para este endereço.")
+                 : String(localized: "O certificado deste gateway vale para: \(names.joined(separator: ", ")).")).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Spacer()
+                ForEach(names.prefix(3), id: \.self) { name in
+                    Button("Usar \(name)") { useGatewayName(name) }
+                }
+            }
+        case .untrusted(let reason):
+            Text(reason).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        case nil:
+            if let saved = connection.checkPoint?.authority {
+                authorityFacts(saved, words: saved.fingerprintWords)
+                HStack {
+                    Spacer()
+                    Button("Usar a validação do sistema") { connection.checkPoint?.authority = nil }
+                }
+            } else {
+                Label("Validação padrão do sistema", systemImage: "checkmark.seal").foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder private func authorityFacts(_ authority: CheckPointAuthority, words: String?) -> some View {
+        LabeledContent("Autoridade") { Text(authority.subject).textSelection(.enabled).multilineTextAlignment(.trailing) }
+        if let notAfter = authority.notAfter {
+            LabeledContent("Válida até") { Text(notAfter.formatted(date: .abbreviated, time: .omitted)) }
+        }
+        LabeledContent("SHA-256") {
+            Text(NetworkCertificates.display(authority.sha256.uppercased()))
+                .font(.system(.caption, design: .monospaced)).textSelection(.enabled).multilineTextAlignment(.trailing)
+        }
+        if let words {
+            LabeledContent("Fingerprint do gateway") { Text(words).font(.system(.caption, design: .monospaced)).textSelection(.enabled) }
+        }
+    }
+
+    private func resetCheckPointQuery() {
+        checkPointQueryGeneration += 1
+        checkPointCertificate = nil
+        checkPointInfo = nil
+        checkPointQueryError = nil
+        checkPointQuerying = false
+    }
+
+    /// TLS check in the app, then `snx-rs -m info` in the helper: with the gateway's own
+    /// authority when it has one (the query sends no credential), so its fingerprint words can
+    /// be compared before trusting it.
+    private func queryCheckPoint() {
+        let gateway: (host: String, port: Int, realm: String)
+        do {
+            gateway = try GatewayAddress.parse(gatewayText)
+            guard gateway.realm.isEmpty else { throw AppFailure(String(localized: "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:4443.")) }
+            _ = try CheckPointRules.server(host: gateway.host, port: gateway.port)
+        } catch let violation as RuleViolation { checkPointQueryError = violation.message; return }
+        catch { checkPointQueryError = error.localizedDescription; return }
+        resetCheckPointQuery()
+        checkPointQuerying = true
+        let generation = checkPointQueryGeneration
+        Task {
+            let certificate = await CheckPointGateway.inspect(host: gateway.host, port: gateway.port)
+            guard generation == checkPointQueryGeneration else { return }
+            checkPointCertificate = certificate
+            let authority: Data?
+            switch certificate {
+            case .system: authority = nil
+            case .authority(let found): authority = found.der
+            case .mismatch, .untrusted: checkPointQuerying = false; return
+            }
+            do {
+                let info = try await model.service.queryCheckPointGateway(CheckPointGatewayQuery(host: gateway.host, port: gateway.port, authorityDER: authority))
+                guard generation == checkPointQueryGeneration else { return }
+                checkPointInfo = info
+                checkPointQueryError = info.failure
+                if info.failure == nil && info.loginOptions.isEmpty {
+                    checkPointQueryError = String(localized: "O gateway não listou tipos de login; informe o identificador à mão.")
+                }
+                if case .authority(let found) = certificate, found.sha256 == connection.checkPoint?.authority?.sha256 {
+                    connection.checkPoint?.authority?.fingerprintWords = info.fingerprintWords
+                }
+                if case .system = certificate { connection.checkPoint?.authority = nil }
+                selectDefaultLoginType()
+            } catch {
+                guard generation == checkPointQueryGeneration else { return }
+                checkPointQueryError = error.localizedDescription
+            }
+            checkPointQuerying = false
+        }
+    }
+
+    private func trust(_ authority: CheckPointAuthority) {
+        var trusted = authority
+        trusted.fingerprintWords = checkPointInfo?.fingerprintWords
+        var settings = connection.checkPoint ?? CheckPointSettings()
+        settings.authority = trusted
+        connection.checkPoint = settings
+        selectDefaultLoginType()
+    }
+
+    /// The first supported login type, unless the current one is still offered.
+    private func selectDefaultLoginType() {
+        guard let options = checkPointOptions else { return }
+        if options.contains(where: { $0.id == loginType.wrappedValue && CheckPointRules.isSupported($0) }) { return }
+        loginType.wrappedValue = options.first(where: CheckPointRules.isSupported)?.id ?? loginType.wrappedValue
+    }
+
+    private func useGatewayName(_ name: String) {
+        let port = (try? GatewayAddress.parse(gatewayText).port) ?? GatewayAddress.defaultPort
+        gatewayText = GatewayAddress.display(host: name, port: port, realm: "")
+        queryCheckPoint()
     }
 
     // MARK: GlobalProtect
@@ -693,7 +928,7 @@ struct ConnectionEditor: View {
                 }
             } else {
                 let gateway = try GatewayAddress.parse(gatewayText)
-                if connection.isGlobalProtect && !gateway.realm.isEmpty {
+                if (connection.isGlobalProtect || connection.isCheckPoint) && !gateway.realm.isEmpty {
                     throw AppFailure(String(localized: "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:4443."))
                 }
                 if connection.isGlobalProtect && connection.authentication == .saml { connection.username = "" }

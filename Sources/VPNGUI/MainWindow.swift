@@ -595,6 +595,7 @@ struct ConnectionDetail: View {
             case .globalProtect:
                 fortinetFacts
                 NetworkCertificatesCard(connected: session.state == .connected)
+            case .checkPoint: checkPointFacts
             }
         }
     }
@@ -669,6 +670,20 @@ struct ConnectionDetail: View {
             if let client = connection.clientCertificate {
                 fact(String(localized: "Certificado do cliente"), client.name)
             }
+        }
+        .font(.callout)
+        .cardSurface()
+    }
+
+    private var checkPointFacts: some View {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 14, verticalSpacing: 7) {
+            fact(String(localized: "Servidor"), connection.endpoint)
+            fact(String(localized: "Usuário"), connection.username.isEmpty ? "—" : connection.username)
+            fact(String(localized: "Tipo de login"), connection.checkPoint?.loginType ?? "—")
+            fact(String(localized: "Rotas"), connection.allTraffic ? String(localized: "Todo o tráfego") : String(localized: "Rotas do gateway"))
+            fact(String(localized: "Certificado"), connection.checkPoint?.authority.map {
+                String(localized: "Autoridade fixada · …\(String($0.sha256.suffix(12)))")
+            } ?? String(localized: "Validação padrão do sistema"))
         }
         .font(.callout)
         .cardSurface()
@@ -796,6 +811,7 @@ struct ClientCredit: View {
         case .openvpn: return ("OpenVPN", URL(string: "https://github.com/OpenVPN/openvpn")!)
         case .wireguard: return ("wireguard-go", URL(string: "https://git.zx2c4.com/wireguard-go")!)
         case .openconnect: return ("OpenConnect", URL(string: "https://www.infradead.org/openconnect/")!)
+        case .snxrs: return ("snx-rs", URL(string: "https://github.com/ancwrd1/snx-rs")!)
         }
     }
 
