@@ -24,6 +24,7 @@ enum BinaryLocator {
             case .openfortivpn: return homebrewPrefix + "/bin/openfortivpn"
             case .openvpn: return homebrewPrefix + "/sbin/openvpn"
             case .wireguard: return homebrewPrefix + "/bin/wireguard-go"
+            case .openconnect: return homebrewPrefix + "/bin/openconnect"
             }
         }()
     }

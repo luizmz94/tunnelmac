@@ -1,0 +1,300 @@
+import Foundation
+import AppKit
+import CryptoKit
+import Security
+import VPNHelperShared
+
+/// Browser login of a GlobalProtect gateway. The app asks the gateway's prelogin.esp for the
+/// SAML request, opens it in the default browser (where the user's identity provider session
+/// lives) and waits for the gateway's `globalprotectcallback:` URL, which macOS hands to the
+/// app that claims the scheme. The result (user + cookie) stays in memory only and goes to
+/// the helper, which gives it to openconnect on stdin.
+///
+/// The official GlobalProtect app claims the same scheme: while a login waits, TunnelMac
+/// becomes its handler and gives it back to the previous app afterwards. The callback carries
+/// no state tied to the request, so only one login waits at a time and a callback that
+/// arrives while none waits is ignored.
+@MainActor
+final class GlobalProtectLogin {
+    static let shared = GlobalProtectLogin()
+    static let timeout: TimeInterval = 300
+
+    private struct Pending {
+        let id: UUID
+        let attempt: UUID
+        let log: (String) -> Void
+        let continuation: CheckedContinuation<GlobalProtectCookie, Error>
+    }
+    /// The login attempt that holds the URL scheme, from just before the change until the
+    /// previous handler is back. Another attempt waits for it, so a late restore of a
+    /// cancelled login can never take the scheme from the next one.
+    struct Claim {
+        let attempt: UUID
+        var previous: URL?
+        var changed = false
+    }
+    /// LaunchServices access for the callback scheme (replaced by local checks).
+    struct SchemeHandler {
+        var current: () -> URL?
+        var set: (URL) async -> Error?
+        static let system = SchemeHandler(
+            current: { URL(string: GlobalProtectRules.callbackScheme + ":").flatMap { NSWorkspace.shared.urlForApplication(toOpen: $0) } },
+            set: { application in
+                await withCheckedContinuation { continuation in
+                    NSWorkspace.shared.setDefaultApplication(at: application, toOpenURLsWithScheme: GlobalProtectRules.callbackScheme) {
+                        continuation.resume(returning: $0)
+                    }
+                }
+            })
+    }
+    var schemeHandler = SchemeHandler.system
+    private var pending: Pending?
+    private var timeoutTask: DispatchWorkItem?
+    var claim: Claim?
+    private var formFile: URL?
+    /// Gateway of the waiting login: its "Authentication Complete" tab is closed afterwards.
+    private var gatewayHost: String?
+    /// Logins cancelled while their prelogin was still running.
+    private var cancelled: Set<UUID> = []
+    /// Replaced by local checks: opens a URL in the default browser.
+    var openBrowser: (URL) -> Bool = { NSWorkspace.shared.open($0) }
+
+    func isWaiting(for id: UUID) -> Bool { pending?.id == id }
+
+    /// A `globalprotectcallback:` URL from the browser (Apple Event) or pasted by the user.
+    func receive(_ text: String) {
+        guard pending != nil else { return } // Nothing waits: never kept.
+        do { finish(.success(try GlobalProtectRules.parseCallback(text.trimmingCharacters(in: .whitespacesAndNewlines)))) }
+        catch let violation as RuleViolation { finish(.failure(AppFailure(violation.message))) }
+        catch { finish(.failure(error)) }
+    }
+
+    func cancel(_ id: UUID) {
+        guard pending?.id == id else { cancelled.insert(id); return }
+        finish(.failure(CancellationError()))
+    }
+
+    func login(_ connection: Connection, log: @escaping (String) -> Void) async throws -> GlobalProtectCookie {
+        guard pending == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        cancelled.remove(connection.id)
+        let prelogin = try await Self.prelogin(host: connection.server, port: connection.port, pin: connection.trustedCertificate)
+        guard let method = prelogin.method else {
+            throw AppFailure(String(localized: "Este gateway não usa SAML. Edite a conexão e escolha Senha."))
+        }
+        if !prelogin.defaultBrowser {
+            log(String(localized: "O gateway não anunciou login pelo navegador padrão; o retorno pode não chegar ao TunnelMac."))
+        }
+        guard pending == nil else { throw AppFailure(String(localized: "Outro login GlobalProtect está aguardando o navegador.")) }
+        let attempt = UUID()
+        await reserveHandler(attempt, log: log)
+        // The browser opens only once macOS confirms TunnelMac receives the return; otherwise
+        // the official GlobalProtect app could take it and this login would wait in vain.
+        guard await claimHandler(attempt) else {
+            _ = await releaseHandler(attempt)
+            throw AppFailure(String(localized: "O macOS não passou ao TunnelMac o retorno do login (globalprotectcallback:); outro app, como o GlobalProtect oficial, continua com ele. Tente de novo; se persistir, feche esse app."))
+        }
+        if cancelled.remove(connection.id) != nil {
+            _ = await releaseHandler(attempt)
+            throw CancellationError()
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            pending = Pending(id: connection.id, attempt: attempt, log: log, continuation: continuation)
+            gatewayHost = connection.server
+            let task = DispatchWorkItem { [weak self] in
+                self?.finish(.failure(AppFailure(String(localized: "O login no navegador não retornou em 5 minutos."))))
+            }
+            timeoutTask = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.timeout, execute: task)
+            let opened: Bool
+            switch method {
+            case .redirect:
+                opened = URL(string: prelogin.request.trimmingCharacters(in: .whitespacesAndNewlines)).map(openBrowser) ?? false
+            case .post:
+                opened = openForm(prelogin.request)
+            }
+            if opened {
+                log(String(localized: "Navegador aberto. Conclua o login e permita que o navegador abra o TunnelMac."))
+            } else {
+                finish(.failure(AppFailure(String(localized: "Não foi possível abrir o navegador padrão."))))
+            }
+        }
+    }
+
+    private func finish(_ result: Result<GlobalProtectCookie, Error>) {
+        guard let pending else { return }
+        self.pending = nil
+        timeoutTask?.cancel(); timeoutTask = nil
+        if let formFile { try? FileManager.default.removeItem(at: formFile); self.formFile = nil }
+        Task {
+            if !(await releaseHandler(pending.attempt)) {
+                pending.log(String(localized: "O macOS não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará novamente no próximo login."))
+            }
+        }
+        if case .success = result, let gatewayHost, gatewayHost.range(of: #"^[A-Za-z0-9.-]+$"#, options: .regularExpression) != nil {
+            Self.closeReturnTabs(prefix: "https://\(gatewayHost.lowercased())/SAML20/")
+        }
+        gatewayHost = nil
+        pending.continuation.resume(with: result)
+    }
+
+    /// Browsers whose AppleScript dictionary lists tabs with a URL.
+    static let scriptableBrowsers: Set<String> = ["com.apple.Safari", "com.google.Chrome", "com.brave.Browser",
+                                                  "com.microsoft.edgemac", "com.vivaldi.Vivaldi"]
+
+    /// Closes the page a SAML login leaves behind in the default browser (GlobalProtect:
+    /// https://<gateway>/SAML20/…; Fortinet: http://127.0.0.1:8020/…), if that browser is running
+    /// and scriptable. macOS asks once whether TunnelMac may control it; a refusal only leaves
+    /// the tab open. Only tabs starting with `prefix` are closed; the prefix travels as an
+    /// argument, never inside the script.
+    static func closeReturnTabs(prefix: String) {
+        guard let browser = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.invalid")!),
+              let identifier = Bundle(url: browser)?.bundleIdentifier, scriptableBrowsers.contains(identifier),
+              !NSRunningApplication.runningApplications(withBundleIdentifier: identifier).isEmpty else { return }
+        let script = """
+        on run argv
+            set prefix to item 1 of argv
+            tell application id "\(identifier)"
+                repeat with w in windows
+                    try
+                        close (every tab of w whose URL starts with prefix)
+                    end try
+                end repeat
+            end tell
+        end run
+        """
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+        process.arguments = ["-e", script, prefix]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try? process.run()
+    }
+
+    /// SAML POST: the gateway's own form, submitted by the browser from a private file.
+    private func openForm(_ html: String) -> Bool {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("TunnelMac-GlobalProtect-\(UUID().uuidString).html")
+        guard FileManager.default.createFile(atPath: file.path, contents: Data(html.utf8), attributes: [.posixPermissions: 0o600]) else { return false }
+        formFile = file
+        guard let browser = NSWorkspace.shared.urlForApplication(toOpen: URL(string: "https://example.invalid")!) else { return false }
+        NSWorkspace.shared.open([file], withApplicationAt: browser, configuration: NSWorkspace.OpenConfiguration())
+        return true
+    }
+
+    // MARK: URL scheme
+
+    /// Makes this app the scheme's handler and waits until LaunchServices reports it.
+    /// Returns false when macOS refused the change or still names another app.
+    func claimHandler(_ attempt: UUID, mine: URL = Bundle.main.bundleURL.standardizedFileURL,
+                      identifier: String? = Bundle.main.bundleIdentifier) async -> Bool {
+        guard let identifier else { return false }
+        func current() -> URL? { schemeHandler.current()?.standardizedFileURL }
+        // LaunchServices keeps the handler by bundle identifier and may report another copy of
+        // this app (e.g. /Applications next to a build); the running copy receives the event.
+        func ours(_ url: URL?) -> Bool { url.flatMap { Bundle(url: $0)?.bundleIdentifier } == identifier }
+        let before = current()
+        guard claim?.attempt == attempt else { return false }
+        guard !ours(before) else { return true }
+        // A claim taken over from a stuck attempt keeps the app the scheme goes back to.
+        if claim?.changed != true { claim?.previous = before }
+        claim?.changed = true
+        guard await schemeHandler.set(mine) == nil else { return false }
+        // The change can take a moment to show up in LaunchServices.
+        for _ in 0..<10 {
+            if ours(current()) { return true }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        return false
+    }
+
+    /// Reserves the scheme for a new attempt. An earlier attempt may still be giving it back
+    /// (cancelled or finished): wait for it, then retry its restoration. If macOS still does
+    /// not report the previous handler, the new attempt takes the claim over together with the
+    /// app to give the scheme back to, so a stuck restoration never blocks the user's logins.
+    func reserveHandler(_ attempt: UUID, log: (String) -> Void, wait: Int = 50) async {
+        for _ in 0..<wait where claim != nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+        if let held = claim, !(await releaseHandler(held.attempt)), let stuck = claim {
+            log(String(localized: "O macOS ainda não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará de novo ao fim deste login."))
+            claim = Claim(attempt: attempt, previous: stuck.previous, changed: stuck.changed)
+            return
+        }
+        claim = Claim(attempt: attempt)
+    }
+
+    /// The same handler for LaunchServices: same bundle identifier (it keeps handlers by
+    /// identifier and may report another copy of that app), else the same path.
+    static func sameHandler(_ a: URL?, _ b: URL) -> Bool {
+        guard let a = a?.standardizedFileURL else { return false }
+        if let left = Bundle(url: a)?.bundleIdentifier, let right = Bundle(url: b)?.bundleIdentifier { return left == right }
+        return a == b.standardizedFileURL
+    }
+
+    /// Releases the claim only after LaunchServices reports the previous handler. A failed
+    /// restoration keeps the claim; the next login retries it or takes it over.
+    @discardableResult func releaseHandler(_ attempt: UUID) async -> Bool {
+        guard let held = claim, held.attempt == attempt else { return true }
+        if held.changed, let previous = held.previous, FileManager.default.fileExists(atPath: previous.path) {
+            for _ in 0..<3 {
+                if Self.sameHandler(schemeHandler.current(), previous) { break }
+                _ = await schemeHandler.set(previous)
+                for _ in 0..<10 {
+                    if Self.sameHandler(schemeHandler.current(), previous) { break }
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            }
+            guard Self.sameHandler(schemeHandler.current(), previous) else { return false }
+        }
+        if claim?.attempt == attempt { claim = nil }
+        return true
+    }
+
+    // MARK: Prelogin
+
+    /// POST /ssl-vpn/prelogin.esp, as the GlobalProtect client does. TLS is validated by macOS;
+    /// the pinned SHA-256, when set, is accepted only if that validation fails (as openconnect does).
+    static func prelogin(host: String, port: Int, pin: String) async throws -> GlobalProtectPrelogin {
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = host.trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+        if port != 443 { components.port = port }
+        components.path = "/ssl-vpn/prelogin.esp"
+        guard let url = components.url else { throw AppFailure(String(localized: "Servidor inválido.")) }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 30)
+        request.httpMethod = "POST"
+        request.setValue("PAN GlobalProtect", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.httpBody = Data("tmp=tmp&clientVer=4100&clientos=Mac&default-browser=1&cas-support=yes".utf8)
+        let session = URLSession(configuration: .ephemeral, delegate: PinnedTrust(pin: pin), delegateQueue: nil)
+        defer { session.finishTasksAndInvalidate() }
+        let data: Data
+        let response: URLResponse
+        do { (data, response) = try await session.data(for: request) }
+        catch let error as URLError where [.serverCertificateUntrusted, .serverCertificateHasBadDate, .serverCertificateHasUnknownRoot,
+                                            .serverCertificateNotYetValid, .secureConnectionFailed, .cancelled].contains(error.code) {
+            throw AppFailure(String(localized: "O certificado do gateway não foi validado pelo macOS. Confira o servidor ou informe o SHA-256 confiável."))
+        } catch {
+            throw AppFailure(String(localized: "Não foi possível consultar o gateway GlobalProtect: \(error.localizedDescription)"))
+        }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw AppFailure(String(localized: "O gateway respondeu ao prelogin com HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)."))
+        }
+        do { return try GlobalProtectPrelogin.parse(data) }
+        catch let violation as RuleViolation { throw AppFailure(violation.message) }
+    }
+
+    final class PinnedTrust: NSObject, URLSessionDelegate {
+        let pin: String
+        init(pin: String) { self.pin = pin.lowercased() }
+        func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge,
+                        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+                  let trust = challenge.protectionSpace.serverTrust else { completionHandler(.performDefaultHandling, nil); return }
+            if SecTrustEvaluateWithError(trust, nil) { completionHandler(.useCredential, URLCredential(trust: trust)); return }
+            guard !pin.isEmpty, let leaf = (SecTrustCopyCertificateChain(trust) as? [SecCertificate])?.first else {
+                completionHandler(.cancelAuthenticationChallenge, nil); return
+            }
+            let digest = SHA256.hash(data: SecCertificateCopyData(leaf) as Data).map { String(format: "%02x", $0) }.joined()
+            if digest == pin { completionHandler(.useCredential, URLCredential(trust: trust)) }
+            else { completionHandler(.cancelAuthenticationChallenge, nil) }
+        }
+    }
+}

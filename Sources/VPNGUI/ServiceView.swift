@@ -169,6 +169,7 @@ struct ServicePanel: View {
         case .openfortivpn: return "openfortivpn (Fortinet)"
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard (wireguard-go)"
+        case .openconnect: return "GlobalProtect (OpenConnect)"
         }
     }
 

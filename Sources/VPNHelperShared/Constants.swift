@@ -9,12 +9,12 @@ public enum HelperConstants {
     public static let machServiceName = "com.luiz.vpngui.helper"
     public static let plistName = "com.luiz.vpngui.helper.plist"
     /// Single source of the product version; scripts/build.sh writes it into Info.plist.
-    public static let version = "1.0.0"
-    public static let releaseVersion = "1.0.0"
-    public static let build = "33"
+    public static let version = "1.1.0"
+    public static let releaseVersion = "1.1.0"
+    public static let build = "34"
     public static var fullVersion: String { "\(version) (\(build))" }
     /// Bumped whenever a request, response or event changes shape or meaning.
-    public static let protocolVersion = 8
+    public static let protocolVersion = 9
     /// Gateways commonly return to a fixed localhost:8020. Never random, never configurable by the client.
     public static let samlPort = 8020
     /// OpenVPN profiles carry inline certificates and keys (normalized profile ≤ 96 KB).

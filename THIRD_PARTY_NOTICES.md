@@ -26,6 +26,14 @@ wireguard-tools programs are not used: the helper implements the macOS tunnel se
 itself, following wg-quick's documented behavior. "WireGuard" and the WireGuard logo
 are registered trademarks of Jason A. Donenfeld; this project is independent of it.
 
+**OpenConnect** is an external dependency, maintained by David Woodhouse and its
+contributors: https://www.infradead.org/openconnect/ (LGPL-2.1). It is not included in
+release archives; when the user approves it, the helper copies the local Homebrew
+executable, its libraries (GnuTLS and others, each under its own license) and their
+license files into the protected runtime. Its vpnc-script is not used: the helper ships
+its own script for addresses, routes and DNS, written for this project. GlobalProtect is
+a trademark of Palo Alto Networks; this project is independent of it.
+
 **Sparkle** 2.9.6 (https://sparkle-project.org) is included in the app bundle
 (`Contents/Frameworks/Sparkle.framework`) for in-app updates, under the MIT License.
 Its complete LICENSE file, with the notices of the code it bundles (bsdiff 4.3 by Colin

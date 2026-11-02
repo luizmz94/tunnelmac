@@ -4,7 +4,7 @@ Everything the [README](../README.md) leaves out: how each protocol is handled, 
 app stores and where, updates, migration and removal.
 
 - [Installation details](#installation-details)
-- [Usage](#usage) · [OpenVPN](#openvpn) · [WireGuard](#wireguard) · [Certificates](#fortinet-client-certificates-and-gateway-certificates)
+- [Usage](#usage) · [OpenVPN](#openvpn) · [WireGuard](#wireguard) · [GlobalProtect](#globalprotect) · [Certificates](#fortinet-client-certificates-and-gateway-certificates)
 - [Settings](#settings)
 - [Update check](#update-check)
 - [Updates, migration and removal](#updates-migration-and-removal)
@@ -113,6 +113,42 @@ when wireguard-go exits, or at the next helper start after a crash. Host-name en
 are resolved by the helper (IPv4 preferred). WireGuard has no connection to wait for:
 the session is marked connected once the tunnel is configured, and the first handshake
 is logged.
+
+### GlobalProtect
+
+Install OpenConnect (`brew install openconnect`), then approve **GlobalProtect
+(OpenConnect)** in Configurações → Serviço privilegiado. Use **+** (⌘N) →
+**GlobalProtect** with the gateway (`vpn.example.com` or `vpn.example.com:4443`). Only
+direct gateway logins are supported (the portal's gateway list is not read).
+
+With **SAML**, Conectar asks the gateway's `prelogin.esp`, opens the identity provider in
+the default browser and waits up to five minutes for the gateway's
+`globalprotectcallback:` return. Allow the browser to open TunnelMac at the end. While a
+login waits, TunnelMac is the handler of that URL scheme and gives it back to the
+previous app (such as the official GlobalProtect client) afterwards. If the browser
+shows the link instead, **Colar retorno…** in the connection details takes it. The user
+and cookie stay in memory and reach openconnect on stdin only; each connection logs in
+again. **Senha** uses the user name and password saved in Keychain. HIP reports are not
+sent; the log says so when the gateway asks for one.
+
+**Rotas:** by default only the internal networks (`10.0.0.0/8, 172.16.0.0/12`, editable)
+go through the tunnel and only the gateway's domains use its DNS; the rest of the
+internet stays on your network, whatever the gateway asks. **Todo o tráfego pela VPN**
+follows the gateway instead (often all traffic, where the company may inspect HTTPS).
+The helper configures the tunnel with its own script, not Homebrew's vpnc-script:
+address, routes, a host route to the gateway through the current router and the DNS as a
+TunnelMac resolver. All of it is undone on disconnect, or by the helper if openconnect
+was killed.
+
+**Certificados da rede** (in the details while connected) connects to a few sites through
+the tunnel and lists the authorities a network uses to inspect HTTPS. Each one can be
+installed on its own after comparing its SHA-256: a root goes to the login keychain,
+trusted for SSL only (macOS asks for your password; delete it in Keychain Access to
+undo), an intermediate is only added.
+
+After a SAML login (GlobalProtect or Fortinet) the app closes the page left in the
+default browser (Safari, Chrome, Brave, Edge or Vivaldi); macOS asks once whether
+TunnelMac may control it.
 
 ### Fortinet client certificates and gateway certificates
 

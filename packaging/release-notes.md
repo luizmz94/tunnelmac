@@ -1,11 +1,23 @@
-TunnelMac 1.0.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
+TunnelMac 1.1.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
-TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles and WireGuard
-configurations from one native Mac app.
+TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles, WireGuard
+configurations and GlobalProtect gateways (OpenConnect) from one native Mac app.
 
 Install: `brew install --cask luizmz94/tunnelmac/tunnelmac`, or download the disk image
 for your Mac below (arm64 for Apple Silicon, x86_64 for Intel), open it and drag
 TunnelMac to Applications. Then open the app and follow the setup guide.
+
+Changes in 1.1.0:
+- GlobalProtect (Palo Alto) connections through OpenConnect: `brew install openconnect`,
+  then approve it in Settings › Privileged service. SAML logs in through your default
+  browser (allow it to open TunnelMac at the end); password login is available too.
+- By default only the company's internal networks go through a GlobalProtect VPN; the rest
+  of the internet stays on your network. Turn on All traffic through the VPN to follow
+  the gateway instead.
+- Network certificates: checks whether the network inspects HTTPS with its own authority
+  and offers to install it, one certificate at a time, with its fingerprint to compare.
+- After a SAML login (GlobalProtect or Fortinet) the leftover browser tab is closed.
+- Update the privileged service together with the app (helper protocol 9).
 
 Changes in 1.0.0:
 - First stable release, with a notarized disk image (.dmg) for each architecture.

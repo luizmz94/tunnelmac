@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.1.0 — 2026-10-30
+
+- GlobalProtect connections through OpenConnect (`brew install openconnect`, approved
+  in Serviço privilegiado like the other clients). SAML: the app asks the gateway's
+  prelogin, opens the identity provider in the default browser and receives the
+  `globalprotectcallback:` return (TunnelMac is the scheme's handler only while a login
+  waits, then gives it back to the previous app); the link can also be pasted. The user
+  and cookie stay in memory and reach openconnect on stdin only. Password login is also
+  available. Only direct gateway logins (`/ssl-vpn`) are supported; HIP reports are not
+  sent.
+- The helper writes its own vpnc-script (root-owned) instead of Homebrew's: utun
+  address, split routes or 0/1 + 128/1 for a full tunnel, a host route to the gateway
+  and the excludes through the physical router (removed by the helper too if openconnect
+  is killed), and the VPN's DNS as a TunnelMac resolver (every name in a full tunnel). A
+  gateway that sends 0.0.0.0/0 among its routes means a full tunnel. openconnect runs with
+  the system CA bundle and an empty GnuTLS priority file.
+- Routes of a GlobalProtect connection: only internal networks by default (10.0.0.0/8 and
+  172.16.0.0/12, editable), with the gateway's domains on its DNS and the rest of the
+  internet on the user's own network; **Todo o tráfego pela VPN** follows the gateway.
+- After a SAML login the app closes the page left in the default browser (GlobalProtect's
+  "Authentication Complete", Fortinet's `127.0.0.1:8020` page) in Safari, Chrome, Brave,
+  Edge or Vivaldi; macOS asks once whether TunnelMac may control the browser.
+- The client approval alert sums up the files in user-writable locations in one line.
+- **Certificados da rede** (GlobalProtect details): connects to a few sites through the
+  tunnel, shows the authorities a network uses to inspect HTTPS and offers each one to
+  install, one at a time, with its SHA-256 to compare: a root goes to the login Keychain
+  trusted for SSL only (macOS asks for the password), an intermediate is only added.
+- Helper protocol 9: update the service together with the app.
+
 ## 1.0.0 — 2026-10-29
 
 - First stable release.

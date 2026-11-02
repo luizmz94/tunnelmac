@@ -38,12 +38,15 @@ struct HelperState: Codable {
     var previousOpenVPNRuntime: String?
     var activeWireGuardRuntime: String?
     var previousWireGuardRuntime: String?
+    var activeOpenConnectRuntime: String?
+    var previousOpenConnectRuntime: String?
 
     func active(_ kind: RuntimeKind) -> String? {
         switch kind {
         case .openfortivpn: return activeRuntime
         case .openvpn: return activeOpenVPNRuntime
         case .wireguard: return activeWireGuardRuntime
+        case .openconnect: return activeOpenConnectRuntime
         }
     }
     mutating func activate(_ id: String, kind: RuntimeKind) {
@@ -57,11 +60,14 @@ struct HelperState: Codable {
         case .wireguard:
             if activeWireGuardRuntime != id { previousWireGuardRuntime = activeWireGuardRuntime }
             activeWireGuardRuntime = id
+        case .openconnect:
+            if activeOpenConnectRuntime != id { previousOpenConnectRuntime = activeOpenConnectRuntime }
+            activeOpenConnectRuntime = id
         }
     }
     var kept: [String] {
         [activeRuntime, previousRuntime, activeOpenVPNRuntime, previousOpenVPNRuntime,
-         activeWireGuardRuntime, previousWireGuardRuntime].compactMap { $0 }
+         activeWireGuardRuntime, previousWireGuardRuntime, activeOpenConnectRuntime, previousOpenConnectRuntime].compactMap { $0 }
     }
 }
 
@@ -142,6 +148,8 @@ public final class RuntimeStore {
     /// Previous DNS of the primary service while the "DNS da internet" is applied.
     public var internetDNSRecord: String { root + "/internet-dns.json" }
     public var dnsBaselineRecord: String { root + "/dns-baseline.json" }
+    /// The helper's own vpnc-script for openconnect sessions.
+    public var vpncScripts: String { root + "/vpnc" }
 
     // MARK: State
 
@@ -325,6 +333,11 @@ public final class RuntimeStore {
             let config = Data("# TunnelMac: configuração OpenSSL intencionalmente vazia (sem módulos, engines ou includes).\n".utf8)
             try SecureFile.create(staging + "/etc/openssl.cnf", data: config, mode: 0o444)
             files.append(ManagedFile(path: "etc/openssl.cnf", sha256: Digest.sha256(config), mode: 0o444))
+            if kind == .openconnect {
+                let priorities = Data("# TunnelMac: configuração GnuTLS do sistema intencionalmente vazia.\n".utf8)
+                try SecureFile.create(staging + "/etc/gnutls.config", data: priorities, mode: 0o444)
+                files.append(ManagedFile(path: "etc/gnutls.config", sha256: Digest.sha256(priorities), mode: 0o444))
+            }
             let notes = copyLicenses(inventory.licenseSources, into: staging + "/licenses")
             // Probe the staged copy exactly as it will run, without root when possible.
             let environment = RuntimeEnvironment.list(RuntimeEnvironment.variables(root: staging))
@@ -337,6 +350,8 @@ public final class RuntimeStore {
             case .openfortivpn: recognized = RuntimeCapabilities.looksLikeOpenFortiVPN(help?.text ?? "")
             case .openvpn: recognized = RuntimeCapabilities.looksLikeOpenVPN(help?.text ?? "")
             case .wireguard: recognized = versionOutput.status == 0 && RuntimeCapabilities.looksLikeWireGuardGo(versionOutput.text)
+            case .openconnect: recognized = RuntimeCapabilities.looksLikeOpenConnect(help?.text ?? "")
+                && versionOutput.text.contains("gp")
             }
             guard recognized else {
                 let expected: String
@@ -344,6 +359,7 @@ public final class RuntimeStore {
                 case .openfortivpn: expected = ServiceLanguage.text("as opções esperadas do openfortivpn")
                 case .openvpn: expected = ServiceLanguage.text("as opções esperadas do OpenVPN 2.7 ou superior (--dns-updown)")
                 case .wireguard: expected = ServiceLanguage.text("a versão do wireguard-go para macOS")
+                case .openconnect: expected = ServiceLanguage.text("as opções esperadas do OpenConnect com GlobalProtect (--protocol=gp)")
                 }
                 throw failure(.runtimeRejected, ServiceLanguage.text("A cópia gerenciada não apresentou \(expected) (código \((help ?? versionOutput).status))."))
             }
@@ -355,6 +371,10 @@ public final class RuntimeStore {
             // "wireguard-go v0.0.20250522"
             if kind == .wireguard, firstLine.hasPrefix("wireguard-go v") {
                 firstLine = String(firstLine.dropFirst("wireguard-go v".count))
+            }
+            // "OpenConnect version v9.21"
+            if kind == .openconnect, firstLine.hasPrefix("OpenConnect version v") {
+                firstLine = String(firstLine.dropFirst("OpenConnect version v".count))
             }
             let version = firstLine.range(of: #"^[0-9][0-9A-Za-z.+_-]{0,31}$"#, options: .regularExpression) != nil ? firstLine : "desconhecida"
             let manifest = RuntimeManifest(id: id, approvedAt: Date(), approvedByUID: uid, version: version,
@@ -414,7 +434,7 @@ public final class RuntimeStore {
     /// Removes only the helper's own managed files (runtime copies, supervisor copy,
     /// state and work directory). Nothing outside `root` is touched.
     public func removeAll() {
-        for path in [runtimes, supervisors, work, wireGuardRecords, clientCertificates, internetDNSRecord, dnsBaselineRecord, statePath, registryPath] { SecureFile.removeTree(path) }
+        for path in [runtimes, supervisors, work, vpncScripts, wireGuardRecords, clientCertificates, internetDNSRecord, dnsBaselineRecord, statePath, registryPath] { SecureFile.removeTree(path) }
         rmdir(root)
     }
 
@@ -453,6 +473,28 @@ public final class RuntimeStore {
 
     private func clientCertificatePaths(_ token: String) -> (certificate: String, key: String) {
         (clientCertificates + "/\(token).crt", clientCertificates + "/\(token).key")
+    }
+
+    // MARK: vpnc-script
+
+    /// Writes the helper's embedded vpnc-script (root-owned, 0555) when missing or different
+    /// and returns its path. Its bytes come from the signed helper, never from a file a user
+    /// could change.
+    public func preparedVPNCScript() throws -> String {
+        try prepareDirectories()
+        try SecureFile.makeDirectory(vpncScripts, mode: 0o755)
+        let data = Data(GlobalProtectNetwork.script.utf8)
+        let target = vpncScripts + "/" + GlobalProtectNetwork.scriptName
+        if let (existing, info) = try? SecureFile.read(target, limit: 1024 * 1024), existing == data, info.st_mode & 0o7777 == 0o555 {
+            try ownership.verifyChain(target)
+            return target
+        }
+        let temporary = target + ".new"
+        SecureFile.removeTree(temporary)
+        try SecureFile.create(temporary, data: data, mode: 0o555)
+        guard rename(temporary, target) == 0 else { throw failure(.internalError, ServiceLanguage.text("Não foi possível preparar o script de rede.")) }
+        try ownership.verifyChain(target)
+        return target
     }
 
     // MARK: Supervisor

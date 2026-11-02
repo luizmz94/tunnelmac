@@ -37,6 +37,7 @@ protocol SessionTransport: AnyObject {
     func start(_ request: ConnectionRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func startOpenVPN(_ request: OpenVPNRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func startWireGuard(_ request: WireGuardRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
+    func startGlobalProtect(_ request: GlobalProtectRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func stop(_ token: String, completion: @escaping (HelperFailure?) -> Void)
 }
 
@@ -283,6 +284,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         case .openfortivpn: request = .inspectRuntime(path: candidate)
         case .openvpn: request = .inspectOpenVPNRuntime(path: candidate)
         case .wireguard: request = .inspectWireGuardRuntime(path: candidate)
+        case .openconnect: request = .inspectOpenConnectRuntime(path: candidate)
         }
         client.request(request, timeout: 60) { [weak self] result in
             guard let self else { return }
@@ -293,7 +295,7 @@ final class ServiceController: ObservableObject, SessionTransport {
                 if thenApprove {
                     let alert = NSAlert()
                     alert.messageText = String(localized: "Aprovar código para execução como administrador?")
-                    alert.informativeText = String(localized: "Origem: \(inspection.candidatePath)") + "\n\n" + inspection.warnings.joined(separator: "\n") + String(localized: "\n\nA cópia protegida não comprova a procedência do programa. Aprove somente uma instalação em que você confia.")
+                    alert.informativeText = String(localized: "Origem: \(inspection.candidatePath)") + "\n\n" + Self.approvalSummary(inspection) + String(localized: "\n\nA cópia protegida não comprova a procedência do programa. Aprove somente uma instalação em que você confia.")
                     alert.addButton(withTitle: String(localized: "Aprovar"))
                     alert.addButton(withTitle: String(localized: "Cancelar"))
                     if alert.runModal() == .alertFirstButtonReturn { self.approve() }
@@ -303,6 +305,18 @@ final class ServiceController: ObservableObject, SessionTransport {
             case .success: self.message = String(localized: "Resposta inesperada do serviço."); self.approvingKind = nil
             }
         }
+    }
+
+    /// One line for every file in a user-writable location (normal for Homebrew), plus the
+    /// helper's other notes: one warning per file made the alert taller than the screen.
+    static func approvalSummary(_ inspection: RuntimeInspection) -> String {
+        let mutable = inspection.items.filter(\.mutableLocation).count
+        let notes = inspection.warnings.filter { warning in !inspection.items.contains { warning.hasPrefix($0.sourcePath) } }
+        var lines: [String] = []
+        if mutable > 0 {
+            lines.append(String(localized: "\(mutable) arquivo(s) (executável e bibliotecas) estão num local que seu usuário altera sem senha de administrador, como é normal no Homebrew. A aprovação congela exatamente estes bytes numa cópia protegida."))
+        }
+        return (lines + notes).joined(separator: "\n")
     }
 
     /// The administrator prompt is shown by macOS in this session; nothing is automated.
@@ -321,6 +335,8 @@ final class ServiceController: ObservableObject, SessionTransport {
             request = .approveOpenVPNRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
         case .wireguard:
             request = .approveWireGuardRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
+        case .openconnect:
+            request = .approveOpenConnectRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
         }
         client.request(request, timeout: 600) { [weak self] result in
             withExtendedLifetime(authorization) {}
@@ -474,6 +490,19 @@ final class ServiceController: ObservableObject, SessionTransport {
             completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .wireguard) ?? String(localized: "Serviço indisponível.")))); return
         }
         client.request(.startWireGuard(request), timeout: 30) { result in
+            switch result {
+            case .success(.started(let token, let plan)): completion(.success((token, plan)))
+            case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
+            case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
+            }
+        }
+    }
+
+    func startGlobalProtect(_ request: GlobalProtectRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) {
+        guard unavailableReason(for: .openconnect) == nil, let client else {
+            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .openconnect) ?? String(localized: "Serviço indisponível.")))); return
+        }
+        client.request(.startGlobalProtect(request), timeout: 30) { result in
             switch result {
             case .success(.started(let token, let plan)): completion(.success((token, plan)))
             case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))

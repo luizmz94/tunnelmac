@@ -4,15 +4,18 @@
 // Usage: VPNSupervisor [--cookie-fd] <client> [client arguments...]   (openfortivpn)
 //        VPNSupervisor --openvpn <client>                              (openvpn, no other argument)
 //        VPNSupervisor --wireguard <client>                            (wireguard-go, no other argument)
+//        VPNSupervisor --openconnect <client> <server>                 (openconnect, GlobalProtect)
 //   fd 0      control channel: "STOP\n" or EOF requests a normal stop
 //   fd 1, 2   output channel (the same socket as fd 0)
 //   fd 3      protected configuration: an already-unlinked regular file, mode 0600
-//   fd 4      with --cookie-fd: SAML session cookie, read once and validated
+//   fd 4      with --cookie-fd: SAML session cookie, read once and validated;
+//             with --openconnect: the password or GlobalProtect cookie, one line on stdin
 // The helper builds the client arguments itself; secrets never travel in argv/env.
 // openfortivpn reads fd 3 with "-c /dev/fd/3"; openvpn with "--config /dev/fd/3", where the
 // helper has already inlined key material and credentials. wireguard-go runs in the
 // foreground on a new utun ("-f utun") and never sees fd 3: the helper sends its keys over
-// the root-only UAPI socket and configures addresses, routes and DNS itself.
+// the root-only UAPI socket and configures addresses, routes and DNS itself. openconnect
+// reads "--config=/dev/fd/3 --passwd-on-stdin <server>"; its vpnc-script is the helper's own.
 #define __STDC_WANT_LIB_EXT1__ 1 // memset_s
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -34,6 +37,8 @@
 #define COOKIE_PREFIX "SVPNCOOKIE="
 #define CONFIG_FD 3
 #define COOKIE_FD 4
+// One stdin line for openconnect --passwd-on-stdin.
+#define SECRET_LIMIT 4096
 
 static volatile sig_atomic_t interrupted;
 static void request_stop(int number) { (void)number; interrupted = 1; }
@@ -105,8 +110,53 @@ static int load_cookie(int *descriptor) {
     return 0;
 }
 
+// Reads the openconnect password or cookie from fd 4 into a fresh pipe that becomes the
+// client's stdin, followed by one newline. No control characters: the value is one line.
+static int load_secret(int *descriptor) {
+    *descriptor = -1;
+    struct stat info;
+    if (fstat(COOKIE_FD, &info)) return fail("credencial protegida ausente");
+    if (!S_ISFIFO(info.st_mode)) { close(COOKIE_FD); errno = EACCES; return fail("credencial temporária inválida"); }
+    char value[SECRET_LIMIT + 2];
+    size_t length = 0;
+    for (;;) {
+        ssize_t count = read(COOKIE_FD, value + length, SECRET_LIMIT + 1 - length);
+        if (count < 0 && errno == EINTR) continue;
+        if (count < 0) { close(COOKIE_FD); memset_s(value, sizeof(value), 0, sizeof(value)); return fail("não foi possível ler a credencial"); }
+        if (count == 0) break;
+        length += (size_t)count;
+        if (length == SECRET_LIMIT + 1) break;
+    }
+    close(COOKIE_FD);
+    int valid = length > 0 && length <= SECRET_LIMIT;
+    for (size_t i = 0; valid && i < length; ++i)
+        if ((unsigned char)value[i] < 0x20 || (unsigned char)value[i] == 0x7f) valid = 0;
+    if (!valid) {
+        memset_s(value, sizeof(value), 0, sizeof(value));
+        errno = EINVAL; return fail("credencial em formato inesperado");
+    }
+    value[length++] = '\n';
+    int channel[2];
+    if (pipe(channel)) { memset_s(value, sizeof(value), 0, sizeof(value)); return fail("não foi possível criar o canal da credencial"); }
+    size_t written = 0;
+    while (written < length) {
+        ssize_t count = write(channel[1], value + written, length - written);
+        if (count < 0 && errno == EINTR) continue;
+        if (count <= 0) break;
+        written += (size_t)count;
+    }
+    memset_s(value, sizeof(value), 0, sizeof(value));
+    close(channel[1]);
+    if (written != length) { close(channel[0]); errno = EIO; return fail("não foi possível entregar a credencial"); }
+    int high = fcntl(channel[0], F_DUPFD_CLOEXEC, 10);
+    close(channel[0]);
+    if (high < 0) return fail("não foi possível preparar o canal da credencial");
+    *descriptor = high;
+    return 0;
+}
+
 int main(int argc, char **argv) {
-    int use_cookie = 0, openvpn = 0, wireguard = 0;
+    int use_cookie = 0, openvpn = 0, wireguard = 0, openconnect = 0;
     if (argc >= 2 && strcmp(argv[1], "--cookie-fd") == 0) {
         use_cookie = 1;
         argv += 1; argc -= 1;
@@ -120,6 +170,11 @@ int main(int argc, char **argv) {
         argv += 1; argc -= 1;
         // The interface is always a new utun; the configuration arrives over UAPI.
         if (argc != 2) { errno = EINVAL; return fail("argumentos inválidos para wireguard-go"); }
+    } else if (argc >= 2 && strcmp(argv[1], "--openconnect") == 0) {
+        openconnect = 1;
+        argv += 1; argc -= 1;
+        // Only the server; every option is in the protected configuration.
+        if (argc != 3 || argv[2][0] == '-' || argv[2][0] == '\0') { errno = EINVAL; return fail("argumentos inválidos para openconnect"); }
     }
     if (argc < 2 || argv[1][0] != '/') { errno = EINVAL; return fail("argumentos inválidos"); }
     for (int i = 2; i < argc; ++i) {
@@ -135,22 +190,29 @@ int main(int argc, char **argv) {
     signal(SIGTERM, request_stop);
     signal(SIGHUP, request_stop);
 
-    if (check_config()) { if (use_cookie) close(COOKIE_FD); return 125; }
+    if (check_config()) { if (use_cookie || openconnect) close(COOKIE_FD); return 125; }
     int cookie = -1;
     if (use_cookie && load_cookie(&cookie)) return 125;
-    if (!use_cookie) close(COOKIE_FD); // Never inherit an unexpected descriptor 4.
+    if (openconnect && load_secret(&cookie)) return 125;
+    if (!use_cookie && !openconnect) close(COOKIE_FD); // Never inherit an unexpected descriptor 4.
 
     // Every input stays in argv or in the descriptor, never in command text.
     char **arguments = calloc((size_t)argc + 4, sizeof(char *));
     if (!arguments) { if (cookie >= 0) close(cookie); return fail("memória insuficiente"); }
     int position = 0;
     arguments[position++] = argv[1];
-    for (int i = 2; i < argc; ++i) arguments[position++] = argv[i];
-    if (cookie >= 0) arguments[position++] = "--cookie-on-stdin";
+    if (openconnect) {
+        arguments[position++] = "--config=/dev/fd/3";
+        arguments[position++] = "--passwd-on-stdin";
+        arguments[position++] = argv[2];
+    } else {
+        for (int i = 2; i < argc; ++i) arguments[position++] = argv[i];
+    }
+    if (cookie >= 0 && !openconnect) arguments[position++] = "--cookie-on-stdin";
     if (wireguard) {
         arguments[position++] = "-f";
         arguments[position++] = "utun";
-    } else {
+    } else if (!openconnect) {
         arguments[position++] = openvpn ? "--config" : "-c";
         arguments[position++] = "/dev/fd/3";
     }
@@ -184,7 +246,7 @@ int main(int argc, char **argv) {
                 _exit(125);
             }
         }
-        // stdin is the dedicated cookie pipe when reusing a SAML session, otherwise /dev/null.
+        // stdin is the dedicated cookie/credential pipe when there is one, otherwise /dev/null.
         // The supervisor's own stdin stays the STOP control channel and is never inherited.
         int input = cookie >= 0 ? cookie : open("/dev/null", O_RDONLY);
         if (input < 0 || dup2(input, STDIN_FILENO) < 0) _exit(125);

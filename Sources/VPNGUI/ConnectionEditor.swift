@@ -63,6 +63,8 @@ struct ConnectionEditor: View {
     @State private var revealPassword = false
     /// Fortinet gateway as typed: host, host:port or host:port/realm.
     @State private var gatewayText = ""
+    /// "Só redes internas" as typed; read into the connection when saving.
+    @State private var networksText = ""
     @State private var error: String?
     @State private var loaded = false
     @State private var applyDigestFix = false
@@ -120,6 +122,9 @@ struct ConnectionEditor: View {
                 ProtocolCard(kind: .wireguard, title: "WireGuard",
                              subtitle: String(localized: "Arquivo .conf do servidor ou do app WireGuard."),
                              status: clientStatus(.wireguard)) { choose(.wireguard) }
+                ProtocolCard(kind: .globalProtect, title: "GlobalProtect",
+                             subtitle: String(localized: "Gateway Palo Alto, com login SAML no navegador ou senha."),
+                             status: clientStatus(.globalProtect)) { choose(.globalProtect) }
             }
             .padding(.horizontal, 22).padding(.vertical, 16)
             Spacer(minLength: 0)
@@ -128,7 +133,7 @@ struct ConnectionEditor: View {
                 Button("Cancelar") { dismiss() }.keyboardShortcut(.cancelAction).disabled(model.writing)
             }
         }
-        .sheetFrame(width: 560, height: 520)
+        .sheetFrame(width: 560, height: 600)
     }
 
     private func clientStatus(_ kind: VPNProtocol) -> String {
@@ -140,7 +145,8 @@ struct ConnectionEditor: View {
     private func choose(_ kind: VPNProtocol) {
         connection.kind = kind
         error = nil
-        if kind == .fortinet { step = .form; loaded = true; focus = .name } else { step = .chooseFiles }
+        if kind == .globalProtect && isNew { connection.authentication = .saml }
+        if kind == .fortinet || kind == .globalProtect { step = .form; loaded = true; focus = .name } else { step = .chooseFiles }
     }
 
     // MARK: Step 2 — profile files
@@ -302,6 +308,7 @@ struct ConnectionEditor: View {
                 case .fortinet: fortinetSections
                 case .openvpn: openVPNSections
                 case .wireguard: wireGuardSections
+                case .globalProtect: globalProtectSections
                 }
             }
             .formStyle(.grouped)
@@ -324,6 +331,7 @@ struct ConnectionEditor: View {
         .animation(Motion.state(reduceMotion), value: error)
         .onAppear {
             gatewayText = GatewayAddress.display(host: connection.server, port: connection.port, realm: connection.realm)
+            networksText = connection.routedNetworks.joined(separator: ", ")
             if model.manager.session(connection.id).authenticationRejected {
                 password = ""
                 error = String(localized: "A última autenticação foi recusada. Confira o usuário e digite a senha novamente para evitar um bloqueio.")
@@ -380,6 +388,58 @@ struct ConnectionEditor: View {
                 .help(revealPassword ? "Ocultar senha" : "Mostrar senha")
                 .accessibilityLabel(revealPassword ? "Ocultar senha" : "Mostrar senha")
             }
+        }
+    }
+
+    // MARK: GlobalProtect
+
+    @ViewBuilder private var globalProtectSections: some View {
+        Section("Gateway") {
+            TextField("Nome", text: $connection.name, prompt: Text("Escritório"))
+                .focused($focus, equals: .name)
+            TextField("Servidor", text: $gatewayText, prompt: Text("vpn.exemplo.com"))
+                .focused($focus, equals: .server)
+                .help("O gateway GlobalProtect: vpn.exemplo.com ou vpn.exemplo.com:4443")
+        }
+        Section {
+            Picker("Método", selection: $connection.authentication) {
+                ForEach(Authentication.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            if connection.authentication == .password {
+                TextField("Usuário", text: $connection.username, prompt: Text("usuário"))
+                    .focused($focus, equals: .username)
+                passwordRow
+            }
+        } header: {
+            Text("Autenticação")
+        } footer: {
+            if connection.authentication == .saml {
+                Text("O login abre no navegador padrão. Ao terminar, permita que o navegador abra o TunnelMac.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        Section {
+            Toggle("Todo o tráfego pela VPN", isOn: $connection.allTraffic)
+            if !connection.allTraffic {
+                TextField("Redes internas", text: $networksText, prompt: Text("10.0.0.0/8, 172.16.0.0/12"))
+            }
+        } header: {
+            Text("Rotas")
+        } footer: {
+            Text(connection.allTraffic
+                 ? "Segue o gateway, que costuma mandar toda a internet pela VPN, onde a empresa pode inspecionar HTTPS."
+                 : "Só estas redes e os domínios da empresa passam pela VPN; o resto da internet sai pela sua rede.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+        Section {
+            TextField("SHA-256 confiável", text: $connection.trustedCertificate, prompt: Text("Opcional"))
+                .focused($focus, equals: .certificate)
+        } header: {
+            Text("Certificado")
+        } footer: {
+            Text("Usado só quando o certificado do gateway não é validado pelo macOS.")
+                .font(.footnote).foregroundStyle(.secondary)
         }
     }
 
@@ -633,6 +693,13 @@ struct ConnectionEditor: View {
                 }
             } else {
                 let gateway = try GatewayAddress.parse(gatewayText)
+                if connection.isGlobalProtect && !gateway.realm.isEmpty {
+                    throw AppFailure(String(localized: "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:4443."))
+                }
+                if connection.isGlobalProtect && connection.authentication == .saml { connection.username = "" }
+                if connection.isGlobalProtect && !connection.allTraffic {
+                    connection.internalNetworks = networksText.components(separatedBy: CharacterSet(charactersIn: ", \n")).filter { !$0.isEmpty }
+                }
                 connection.server = gateway.host
                 connection.port = gateway.port
                 connection.realm = gateway.realm

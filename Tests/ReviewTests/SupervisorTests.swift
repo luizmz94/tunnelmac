@@ -47,3 +47,49 @@ extension ReviewTests {
         XCTAssertEqual((status >> 8) & 0xff, 137)
     }
 }
+
+extension ReviewTests {
+    /// --openconnect: the client gets the protected config, --passwd-on-stdin and the server,
+    /// and reads the credential (plus one newline) on stdin; nothing else reaches argv.
+    func testSupervisorOpenConnectModePassesCredentialOnStdinOnly() throws {
+        let root = try temporary()
+        let script = root.appendingPathComponent("openconnect")
+        try Data("#!/bin/sh\necho \"ARGS:$*\"\nIFS= read -r line\necho \"STDIN:$line\"\nread -r more && echo EXTRA || echo EOF\n".utf8).write(to: script)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+        let supervisor = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/VPNSupervisor").path
+        func run(_ arguments: [String], secret: String) throws -> String {
+            let config = try ProtectedDescriptor.anonymousFile(Data("protocol=gp\n".utf8), directory: root.path)
+            defer { close(config) }
+            let channel = try ProtectedDescriptor.pipe(Data(secret.utf8))
+            defer { close(channel) }
+            var argv = ([supervisor] + arguments).map { strdup($0) } + [nil]
+            var env = [strdup("PATH=/usr/bin:/bin"), nil]
+            defer { argv.forEach { free($0) }; env.forEach { free($0) } }
+            var pid: pid_t = 0
+            let control = argv.withUnsafeMutableBufferPointer { a in env.withUnsafeMutableBufferPointer { e in
+                vpn_spawn_supervisor(supervisor, a.baseAddress, e.baseAddress, config, channel, &pid)
+            } }
+            guard control >= 0 else { return "" }
+            defer { close(control) }
+            var output = "", bytes = [UInt8](repeating: 0, count: 4096)
+            let deadline = Date().addingTimeInterval(5)
+            while !output.contains("__VPNGUI_EXIT__"), Date() < deadline {
+                var descriptor = pollfd(fd: control, events: Int16(POLLIN), revents: 0)
+                if poll(&descriptor, 1, 100) > 0 {
+                    let count = read(control, &bytes, bytes.count)
+                    if count <= 0 { break }
+                    output += String(decoding: bytes.prefix(count), as: UTF8.self)
+                }
+            }
+            var status: Int32 = 0
+            waitpid(pid, &status, 0)
+            return output
+        }
+        let output = try run(["--openconnect", script.path, "vpn.example.invalid"], secret: "COOKIE+/=")
+        XCTAssertTrue(output.contains("ARGS:--config=/dev/fd/3 --passwd-on-stdin vpn.example.invalid"), output)
+        XCTAssertTrue(output.contains("STDIN:COOKIE+/="), output)
+        XCTAssertTrue(output.contains("EOF"), output)
+        XCTAssertTrue(try run(["--openconnect", script.path, "--script=/tmp/x"], secret: "x").contains("argumentos inválidos"))
+        XCTAssertTrue(try run(["--openconnect", script.path, "vpn.example.invalid"], secret: "a\nb").contains("credencial em formato inesperado"))
+    }
+}

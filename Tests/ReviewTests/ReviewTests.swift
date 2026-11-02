@@ -331,6 +331,7 @@ extension ReviewTests {
             .openfortivpn: .notInstalled,
             .openvpn: .notApproved(installed: "2.7.8", latest: "2.7.10"),
             .wireguard: .notApproved(installed: "0.0.20250522", latest: nil),
+            .openconnect: .notApproved(installed: "9.21", latest: nil),
         ]
         let all = ServiceOnboarding.commands(RuntimeKind.allCases) { states[$0]! }
         XCTAssertEqual(all, ["brew install openfortivpn", "brew upgrade openvpn"])

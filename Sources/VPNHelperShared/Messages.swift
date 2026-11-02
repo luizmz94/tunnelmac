@@ -116,15 +116,62 @@ public struct WireGuardRequest: Codable, Equatable, Sendable {
     }
 }
 
+/// GlobalProtect session through openconnect. SAML: the cookie the app received from the
+/// browser login; password: the user's password. Either goes to openconnect on stdin only.
+public struct GlobalProtectRequest: Codable, Equatable, Sendable {
+    public var connectionID: UUID
+    public var host: String
+    public var port: Int
+    public var username: String
+    public var authentication: Authentication
+    public var trustedCertificate: String
+    public var password: String?
+    public var cookie: GlobalProtectCookie?
+    /// "Só redes internas": only these networks go through the tunnel, and only the gateway's
+    /// domains use its DNS. nil = the gateway's routing policy (often all traffic).
+    public var internalNetworks: [String]?
+    public init(connectionID: UUID, host: String, port: Int, username: String, authentication: Authentication,
+                trustedCertificate: String, password: String?, cookie: GlobalProtectCookie?, internalNetworks: [String]? = nil) {
+        self.internalNetworks = internalNetworks
+        self.connectionID = connectionID; self.host = host; self.port = port; self.username = username
+        self.authentication = authentication; self.trustedCertificate = trustedCertificate
+        self.password = password; self.cookie = cookie
+    }
+
+    /// Validation run by the helper: returns the user name openconnect logs in with and the
+    /// secret it reads on stdin.
+    public func validated() throws -> (username: String, secret: String, cookieKind: GlobalProtectCookie.Kind?) {
+        _ = try OpenConnectConfigRenderer.server(host: host, port: port)
+        _ = try ConnectionRules.normalizedCertificate(trustedCertificate)
+        if let internalNetworks { _ = try GlobalProtectRules.internalNetworks(internalNetworks) }
+        switch authentication {
+        case .password:
+            guard cookie == nil, let password, GlobalProtectRules.isValidPassword(password), !username.isEmpty else {
+                throw RuleViolation(ServiceLanguage.text("Perfil por senha exige usuário e senha."))
+            }
+            try ConnectionRules.checkConfigValue(username, label: ServiceLanguage.text("Usuário"))
+            return (username, password, nil)
+        case .saml:
+            guard password == nil else { throw RuleViolation(ServiceLanguage.text("Perfil SAML não envia senha.")) }
+            guard let cookie, GlobalProtectRules.isValidCookie(cookie.value), !cookie.username.isEmpty else {
+                throw RuleViolation(ServiceLanguage.text("Sessão SAML em formato inesperado."))
+            }
+            try ConnectionRules.checkConfigValue(cookie.username, label: ServiceLanguage.text("Usuário"))
+            return (cookie.username, cookie.value, cookie.kind)
+        }
+    }
+}
+
 /// The VPN clients the helper can freeze and run. Each has its own approved copy.
 public enum RuntimeKind: String, Codable, CaseIterable, Sendable {
-    case openfortivpn, openvpn, wireguard
+    case openfortivpn, openvpn, wireguard, openconnect
     public var executableName: String { self == .wireguard ? "wireguard-go" : rawValue }
     public var title: String {
         switch self {
         case .openfortivpn: return "openfortivpn"
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard"
+        case .openconnect: return "OpenConnect"
         }
     }
 }
@@ -148,6 +195,10 @@ public enum HelperRequest: Codable, Equatable, Sendable {
     case inspectWireGuardRuntime(path: String)
     case approveWireGuardRuntime(path: String, digest: String, authorization: Data)
     case startWireGuard(WireGuardRequest)
+    /// Same flow for openconnect (GlobalProtect); the vpnc-script belongs to the helper.
+    case inspectOpenConnectRuntime(path: String)
+    case approveOpenConnectRuntime(path: String, digest: String, authorization: Data)
+    case startGlobalProtect(GlobalProtectRequest)
     case stop(token: String)
     case stopAll
     /// Refuse unless every client and stale supervisor is idle; prevent new starts.
@@ -190,10 +241,15 @@ public struct HelperStatus: Codable, Equatable, Sendable {
     /// Approved wireguard-go copy.
     public var wireGuardRuntime: RuntimeSummary?
     public var wireGuardRuntimeProblem: String?
+    /// Approved openconnect copy (GlobalProtect).
+    public var openConnectRuntime: RuntimeSummary?
+    public var openConnectRuntimeProblem: String?
     public init(protocolVersion: Int, helperVersion: String, runtime: RuntimeSummary?, runtimeProblem: String?,
                 userAuthorized: Bool, activeSessions: Int, stoppingConnections: [UUID],
                 openVPNRuntime: RuntimeSummary? = nil, openVPNRuntimeProblem: String? = nil,
-                wireGuardRuntime: RuntimeSummary? = nil, wireGuardRuntimeProblem: String? = nil) {
+                wireGuardRuntime: RuntimeSummary? = nil, wireGuardRuntimeProblem: String? = nil,
+                openConnectRuntime: RuntimeSummary? = nil, openConnectRuntimeProblem: String? = nil) {
+        self.openConnectRuntime = openConnectRuntime; self.openConnectRuntimeProblem = openConnectRuntimeProblem
         self.protocolVersion = protocolVersion; self.helperVersion = helperVersion; self.runtime = runtime
         self.runtimeProblem = runtimeProblem; self.userAuthorized = userAuthorized
         self.activeSessions = activeSessions; self.stoppingConnections = stoppingConnections
@@ -205,6 +261,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
         case .openfortivpn: return runtime
         case .openvpn: return openVPNRuntime
         case .wireguard: return wireGuardRuntime
+        case .openconnect: return openConnectRuntime
         }
     }
     public func runtimeProblem(_ kind: RuntimeKind) -> String? {
@@ -212,6 +269,7 @@ public struct HelperStatus: Codable, Equatable, Sendable {
         case .openfortivpn: return runtimeProblem
         case .openvpn: return openVPNRuntimeProblem
         case .wireguard: return wireGuardRuntimeProblem
+        case .openconnect: return openConnectRuntimeProblem
         }
     }
     /// At least one VPN client is approved.
