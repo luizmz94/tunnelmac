@@ -1129,8 +1129,8 @@ struct ProtocolChooser: View {
     }
 }
 
-/// One VPN type in the Nova conexão grid: mark, short name, one-line subtitle and a badge
-/// with the client state (the quick view and VoiceOver say it in words).
+/// One VPN type in the Nova conexão grid: mark, short name, one-line subtitle and, when
+/// something is missing in the service, a warning badge (the quick view and VoiceOver say it in words).
 struct ProtocolTileButton: View {
     static let minimumWidth: CGFloat = 96
     static let spacing: CGFloat = 12
@@ -1183,13 +1183,11 @@ struct ProtocolTileButton: View {
 
     @ViewBuilder private var badge: some View {
         switch state.kind {
-        case .ready:
-            Image(systemName: "checkmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .green)
-                .font(.system(size: 14, weight: .semibold)).background(Circle().fill(.background).padding(1))
         case .problem:
             Image(systemName: "exclamationmark.triangle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .orange)
                 .font(.system(size: 13, weight: .semibold))
-        case .checking:
+        case .ready, .checking:
+            // Only what needs attention is marked; the quick view says the rest.
             EmptyView()
         }
     }
