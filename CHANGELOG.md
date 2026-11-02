@@ -6,9 +6,16 @@
   scrolling, with a warning badge on the ones whose client is missing in the service.
   Nothing is preselected; a compact panel below describes the type under the pointer: what it is, its client and state, how it signs in and what the form asks for,
   with Abrir Serviço privilegiado… when the client is missing. Tab enters the grid, arrow
-  keys move between tiles, Enter or Space chooses and Esc cancels; VoiceOver reads each tile's name, client state
-  and what it asks for. Liquid Glass tiles on macOS 26 and later. The sheet is shorter.
+  keys move between tiles, Enter or Space chooses and Esc cancels; VoiceOver reads each
+  tile's name, client state and what it asks for. Liquid Glass tiles on macOS 26 and later.
+  The sheet is shorter.
 - Check Point editor: the login type explanation moved to the field's tooltip.
+- The menu bar icon and its menu are now the app's own status item and panel instead of
+  SwiftUI's MenuBarExtra, which cannot be opened or focused from code; this is what the
+  search and the global shortcut build on. The menu looks and works as before and opens
+  without bringing TunnelMac to the front, so the app you were using keeps the keyboard
+  when it closes. It closes on a click outside, ⌘Tab, a Space change, Esc, or when it opens
+  a window. The icon may move back to its default place once if you had dragged it.
 
 ## 1.2.0 — 2026-11-02
 
