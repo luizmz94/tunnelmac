@@ -471,10 +471,11 @@ enum MenuBarTests {
             // ⌘Enter opens the window on the highlighted row.
             menuBar.showMenu()
             menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down)
-            try require(menuBar.highlightedID == connections[2].id, "Setas no menu (ordem alfabética): \(String(describing: menuBar.highlightedID))")
-            try require(spoken.last?.hasPrefix("Gama, ") == true, "Mudança de destaque não anunciou nome e estado")
+            // Alphabetical: Alfa, Beta, Delta, Gama.
+            try require(menuBar.highlightedID == connections[3].id, "Setas no menu (ordem alfabética): \(String(describing: menuBar.highlightedID))")
+            try require(spoken.last?.hasPrefix("Delta, ") == true, "Mudança de destaque não anunciou nome e estado")
             menuBar.handleMenuKey(.commandEnter)
-            try require(opened == 2 && menuBar.pendingSelection == connections[2].id && !presenter.isOpen, "⌘Enter não abriu a janela na conexão")
+            try require(opened == 2 && menuBar.pendingSelection == connections[3].id && !presenter.isOpen, "⌘Enter não abriu a janela na conexão")
             // Esc: clears the text first, then closes; closing clears the search.
             menuBar.showMenu()
             menuBar.setSearch("ga")
