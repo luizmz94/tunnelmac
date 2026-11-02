@@ -126,7 +126,7 @@ struct ConnectionEditor: View {
     private var kindChooser: some View {
         ProtocolChooser(catalog: .standard, state: clientState, openService: openService.map { open in { dismiss(); open() } },
                         cancelDisabled: model.writing, choose: choose, cancel: { dismiss() })
-        .sheetFrame(width: 560, height: 500)
+        .sheetFrame(width: 560, height: ProtocolChooser.sheetHeight(count: ProtocolCatalog.standard.entries.count))
         .alert("Serviço privilegiado necessário", isPresented: Binding(get: { serviceBlock != nil }, set: { if !$0 { serviceBlock = nil } }),
                presenting: serviceBlock) { kind in
             if let openService {
@@ -511,15 +511,17 @@ struct ConnectionEditor: View {
                     }
                 }
             } else {
+                // The explanation stays in the tooltip: the field rarely needs it.
                 TextField("Tipo de login", text: loginType, prompt: Text("vpn"))
+                    .help("O identificador do tipo de login (vpn, vpn_Username_Password…). Ao informar o servidor, o app consulta o gateway e lista os disponíveis.")
             }
         } header: {
             Text("Autenticação")
         } footer: {
-            Text(checkPointOptions == nil
-                 ? "O identificador do tipo de login (vpn, vpn_Username_Password…). Ao informar o servidor, o app consulta o gateway e lista os disponíveis."
-                 : "Só tipos de login com usuário e senha; MFA, navegador e certificado ainda não são suportados.")
-                .font(.footnote).foregroundStyle(.secondary)
+            if checkPointOptions != nil {
+                Text("Só tipos de login com usuário e senha; MFA, navegador e certificado ainda não são suportados.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         }
         Section {
             checkPointCertificateRows
@@ -1015,9 +1017,9 @@ struct ConnectionEditor: View {
     }
 }
 
-/// Nova conexão, step 1: the VPN types as a grid of tiles over a quick view of the tile of the
-/// last interaction (hover or focus), else the first. Arrows move the focus, Enter or
-/// Space chooses, Tab leaves the grid for Cancelar.
+/// Nova conexão, step 1: the VPN types as a grid of tiles over a quick view of the tile under
+/// the pointer (nothing until it passes over one). Nothing is preselected: Tab enters the grid,
+/// arrows move the focus, Enter or Space chooses, Tab leaves the grid for Cancelar.
 struct ProtocolChooser: View {
     let catalog: ProtocolCatalog
     let state: (VPNProtocol, Locale) -> ProtocolClientState
@@ -1027,7 +1029,7 @@ struct ProtocolChooser: View {
     let choose: (VPNProtocol) -> Void
     let cancel: () -> Void
     @State private var hovered: String?
-    @State private var selection = ProtocolCatalog.Selection()
+    @State private var selection: ProtocolCatalog.Selection
     @FocusState private var focused: String?
     /// The single tile Tab stops at; the arrows move it.
     @State private var current: String?
@@ -1035,6 +1037,27 @@ struct ProtocolChooser: View {
 
     /// The 560 pt sheet minus the grid's margins: five tiles in a row.
     static let gridWidth: CGFloat = 528
+    /// Room kept for the quick view, so the sheet does not change size when it appears.
+    static let quickViewHeight: CGFloat = 155
+
+    /// Header, the grid's rows, the quick view's room and the footer.
+    static func sheetHeight(count: Int) -> CGFloat {
+        let columns = ProtocolCatalog.columns(width: gridWidth)
+        let rows = CGFloat(max(1, (count + columns - 1) / columns))
+        return 60 + rows * ProtocolTileButton.height + (rows - 1) * ProtocolTileButton.spacing + 16 + quickViewHeight + 54
+    }
+
+    /// `shown` puts a tile in the quick view from the start (renders only).
+    init(catalog: ProtocolCatalog, state: @escaping (VPNProtocol, Locale) -> ProtocolClientState, openService: (() -> Void)? = nil,
+         cancelDisabled: Bool = false, shown: String? = nil, choose: @escaping (VPNProtocol) -> Void, cancel: @escaping () -> Void) {
+        self.catalog = catalog
+        self.state = state
+        self.openService = openService
+        self.cancelDisabled = cancelDisabled
+        self.choose = choose
+        self.cancel = cancel
+        _selection = State(initialValue: ProtocolCatalog.Selection(shown: shown))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1046,12 +1069,15 @@ struct ProtocolChooser: View {
                       spacing: ProtocolTileButton.spacing) {
                 ForEach(catalog.entries) { tile($0) }
             }
-            .padding(.horizontal, 16).padding(.vertical, 10)
+            .padding(.horizontal, 16).padding(.vertical, 8)
             .onMoveCommand(perform: move)
-            if let entry = selection.shown(in: catalog.entries) {
-                ProtocolQuickView(entry: entry, state: state(entry.kind, locale), openService: openService)
-                    .padding(.horizontal, 16).padding(.bottom, 14)
+            Group {
+                if let entry = selection.shown(in: catalog.entries) {
+                    ProtocolQuickView(entry: entry, state: state(entry.kind, locale), openService: openService)
+                }
             }
+            .padding(.horizontal, 16)
+            .frame(height: Self.quickViewHeight, alignment: .top)
             Spacer(minLength: 0)
             SheetFooter {
                 Spacer()
@@ -1060,12 +1086,9 @@ struct ProtocolChooser: View {
             }
         }
         .background { keyButtons }
-        .defaultFocus($focused, catalog.entries.first?.id)
-        .onAppear { DispatchQueue.main.async { focused = current ?? catalog.entries.first?.id } }
-        .onChange(of: focused) { id in
-            if let id { current = id }
-            selection.focused(id)
-        }
+        // Nothing preselected, not even by the window's automatic first responder.
+        .onAppear { DispatchQueue.main.async { focused = nil } }
+        .onChange(of: focused) { id in if let id { current = id } }
     }
 
     private func tile(_ entry: ProtocolCatalog.Entry) -> some View {
@@ -1181,43 +1204,46 @@ struct ProtocolQuickView: View {
     @Environment(\.locale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .top, spacing: 12) {
-                    ProtocolTile(kind: entry.kind, state: .disconnected, size: 32)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.title).font(.headline)
-                        Text(entry.about.string(in: locale)).font(.callout).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(entry.title).font(.headline).accessibilityHidden(true)
+                    Spacer(minLength: 8)
+                    if state.kind == .problem, let openService {
+                        Button(LocalizedStringResource("Abrir Serviço privilegiado…").string(in: locale), action: openService)
+                            .adaptiveButtonStyle()
+                            .controlSize(.small)
                     }
                 }
-                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 5) {
+                Text(entry.about.string(in: locale)).font(.callout).foregroundStyle(.secondary)
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityHidden(true)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 3) {
                     GridRow {
                         label("Cliente")
                         client.frame(maxWidth: .infinity, alignment: .leading)
                     }
                     GridRow {
                         label("Autenticação")
-                        Text(entry.authentication.string(in: locale)).fixedSize(horizontal: false, vertical: true)
+                        Text(entry.authentication.string(in: locale)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     GridRow {
                         label("O cadastro pede")
-                        Text(entry.requires.string(in: locale)).fixedSize(horizontal: false, vertical: true)
+                        Text(entry.requires.string(in: locale)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
                 .font(.callout)
             }
             .accessibilityHidden(true)
-            if state.kind == .problem, let openService {
-                Button(LocalizedStringResource("Abrir Serviço privilegiado…").string(in: locale), action: openService)
-                    .adaptiveButtonStyle()
-                    .controlSize(.small)
-            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .cardSurface(cornerRadius: 14)
+        .padding(.horizontal, 14).padding(.vertical, 10)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.primary.opacity(0.045)))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
     }
 
     private func label(_ text: LocalizedStringResource) -> some View {
@@ -1231,10 +1257,10 @@ struct ProtocolQuickView: View {
         case .checking:
             Label { Text(state.text) } icon: { Image(systemName: "clock").foregroundStyle(.secondary) }
         case .problem:
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.kind.runtime.title).fontWeight(.medium)
-                Label { Text(state.text).lineLimit(3).fixedSize(horizontal: false, vertical: true) } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
-            }
+            Label {
+                (Text(entry.kind.runtime.title).fontWeight(.medium) + Text(verbatim: " · ") + Text(state.text))
+                    .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            } icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange) }
         }
     }
 }

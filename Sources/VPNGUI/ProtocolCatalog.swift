@@ -69,16 +69,13 @@ struct ProtocolCatalog {
         }
     }
 
-    /// The entry the quick view describes: the tile of the last interaction (hover or focus,
-    /// whichever changed last), else the first.
+    /// The entry the quick view describes: nothing until the pointer passes over a tile, then
+    /// the last tile it passed over (leaving it keeps it, so nothing flickers between tiles).
     struct Selection: Equatable {
         private(set) var last: String?
-        /// The pointer entered a tile; leaving it (nil) keeps the last one, so nothing flickers.
+        init(shown: String? = nil) { last = shown }
         mutating func hovered(_ id: String?) { if let id { last = id } }
-        mutating func focused(_ id: String?) { if let id { last = id } }
-        func shown(in entries: [Entry]) -> Entry? {
-            entries.first { $0.id == last } ?? entries.first
-        }
+        func shown(in entries: [Entry]) -> Entry? { entries.first { $0.id == last } }
     }
 
     /// Columns of the adaptive grid for a given width (same rule as `GridItem.adaptive`).

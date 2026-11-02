@@ -65,16 +65,16 @@ enum UIPreviewTests {
             let standard = ProtocolCatalog.standard.entries
             try require(standard.map(\.kind) == VPNProtocol.allCases, "O catálogo não cobre todos os tipos")
             try require(ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 5, "Os 5 tipos não cabem numa linha")
-            // Quick view: the tile of the last interaction (hover or focus), else the first.
+            // Quick view: nothing until the pointer passes over a tile, then the last one it passed over.
             var selection = ProtocolCatalog.Selection()
-            try require(selection.shown(in: standard)?.kind == .fortinet, "Sem interação, não mostra o primeiro")
-            selection.focused("fortinet"); selection.hovered("wireguard"); selection.focused("openvpn")
-            try require(selection.shown(in: standard)?.kind == .openvpn, "Hover → seta: a seta não mudou o quick view")
+            try require(selection.shown(in: standard) == nil, "Algo apareceu sem passar o mouse (pré-seleção)")
+            selection.hovered("wireguard")
+            try require(selection.shown(in: standard)?.kind == .wireguard, "Hover não mostrou o tile")
             selection.hovered("checkPoint")
-            try require(selection.shown(in: standard)?.kind == .checkPoint, "Seta → hover: o hover não mudou o quick view")
-            selection.hovered(nil); selection.focused(nil)
-            try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile trocou o quick view")
-            try require(ProtocolCatalog.Selection().shown(in: []) == nil, "Catálogo vazio mostrou algo")
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Hover em outro tile não trocou")
+            selection.hovered(nil)
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile apagou o quick view (pisca entre tiles)")
+            try require(ProtocolCatalog.Selection(shown: "inexistente").shown(in: standard) == nil, "Tile inexistente mostrado")
             // Arrows stop at the edges of a 5-column grid of 10.
             let move = { (index: Int, direction: MoveCommandDirection) in ProtocolCatalog.move(from: index, direction, count: 10, columns: 5) }
             try require(move(0, .left) == 0 && move(0, .up) == 0 && move(4, .right) == 4 && move(9, .down) == 9, "Setas deram a volta")
@@ -86,30 +86,46 @@ enum UIPreviewTests {
             try require(ProtocolChoice.decide(isNew: false, problem: "sem cliente") == .proceed, "Edição perguntou pelo serviço")
 
             let ready = ProtocolClientState(kind: .ready, text: "snx-rs 6.6.1 aprovado")
-            @MainActor func chooser(_ entries: [ProtocolCatalog.Entry], locale: Locale = Locale(identifier: "pt-BR")) -> NSHostingView<some View> {
-                let host = NSHostingView(rootView: ProtocolChooser(catalog: ProtocolCatalog(entries: entries), state: { _, _ in ready },
-                                                                   choose: { _ in }, cancel: {})
+            let problem = ProtocolClientState(kind: .problem, text: "Nenhum cliente VPN aprovado. Nenhum cliente VPN aprovado. Aprove o cliente VPN que você usa.")
+            @MainActor func chooser(_ entries: [ProtocolCatalog.Entry], locale: Locale = Locale(identifier: "pt-BR"),
+                                    state: ProtocolClientState = ready) -> NSHostingView<some View> {
+                let host = NSHostingView(rootView: ProtocolChooser(catalog: ProtocolCatalog(entries: entries), state: { _, _ in state },
+                                                                   openService: {}, shown: entries.first?.id, choose: { _ in }, cancel: {})
                     .frame(width: 560).environment(\.locale, locale))
                 host.layoutSubtreeIfNeeded()
                 return host
             }
-            // Ten types (a fake catalog): two rows, and everything still fits the 500 pt sheet.
+            // Ten types (a fake catalog): two rows, and everything still fits the sheet (at most 500 pt).
             let ten = (0..<10).map { index in
                 var entry = ProtocolCatalog.entry(VPNProtocol.allCases[index % VPNProtocol.allCases.count])
                 entry.id = "falso-\(index)"
                 return entry
             }
             try require((ten.count + 4) / ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 2, "10 tipos não formam 2 linhas")
+            try require(ProtocolChooser.sheetHeight(count: 10) <= 500 && ProtocolChooser.sheetHeight(count: 5) < 400, "Altura da folha")
             for (entries, locale) in [(ten, "pt-BR"), (standard, "pt-BR"), (standard, "de")] {
                 let height = chooser(entries, locale: Locale(identifier: locale)).fittingSize.height
-                try require(height <= 500, "Seletor com \(entries.count) tipos (\(locale)) mede \(height) pt, mais que 500")
+                try require(height <= ProtocolChooser.sheetHeight(count: entries.count),
+                            "Seletor com \(entries.count) tipos (\(locale)) mede \(height) pt, mais que \(ProtocolChooser.sheetHeight(count: entries.count))")
+            }
+            // The quick view of every type fits its room, in pt-BR and German, also with a service problem.
+            for locale in ["pt-BR", "de"] {
+                for entry in standard {
+                    for state in [ready, problem] {
+                        let host = NSHostingView(rootView: ProtocolQuickView(entry: entry, state: state, openService: {})
+                            .frame(width: ProtocolChooser.gridWidth).environment(\.locale, Locale(identifier: locale)))
+                        let height = host.fittingSize.height
+                        try require(height <= ProtocolChooser.quickViewHeight,
+                                    "Quick view de \(entry.title) (\(locale), \(state.kind)) mede \(height) pt, mais que \(ProtocolChooser.quickViewHeight)")
+                    }
+                }
             }
             // Each tile is one VoiceOver element: name, client state and what the form asks for.
             let spoken = ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), ready, locale: Locale(identifier: "pt-BR"))
             try require(spoken == .init(label: "Check Point", value: "snx-rs 6.6.1 aprovado", hint: "Gateway Check Point, com usuário e senha. Pede o gateway."),
                         "VoiceOver do tile Check Point: \(spoken)")
-            let problem = ProtocolClientState(kind: .problem, text: "Nenhum snx-rs aprovado para o serviço.")
-            try require(ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), problem, locale: Locale(identifier: "pt-BR")).value == problem.text,
+            let shortProblem = ProtocolClientState(kind: .problem, text: "Nenhum snx-rs aprovado para o serviço.")
+            try require(ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), shortProblem, locale: Locale(identifier: "pt-BR")).value == shortProblem.text,
                         "O problema do serviço não chega ao VoiceOver")
             for entry in standard {
                 let german = ProtocolTileButton.spoken(entry, ready, locale: Locale(identifier: "de")).hint
@@ -269,14 +285,14 @@ enum UIPreviewTests {
                 try render(ServicePanel(model: unavailableModel).padding(20), NSSize(width: 620, height: 360), "service-panel")
                 try render(ServiceStatusRow(service: model.service) {}, NSSize(width: 300, height: 56), "service-row")
                 try render(ConnectionEditor(model: model, connection: openVPN, pendingImport: imported, saved: {}), NSSize(width: 560, height: 640), "editor-openvpn-import")
-                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 500), "editor-choose-type")
+                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type")
                 // Nova conexão with every client approved (also in German, the longest texts), none, and while checking.
-                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}), NSSize(width: 560, height: 500), "editor-choose-type-approved")
+                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-approved")
                 try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}).environment(\.locale, Locale(identifier: "de")),
-                           NSSize(width: 560, height: 500), "editor-choose-type-de")
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-de")
                 try render(ConnectionEditor(model: noClientModel, connection: Connection(), openService: {}, saved: {}),
-                           NSSize(width: 560, height: 500), "editor-choose-type-unapproved")
-                try render(ConnectionEditor(model: checkingModel, connection: Connection(), saved: {}), NSSize(width: 560, height: 500), "editor-choose-type-checking")
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-unapproved")
+                try render(ConnectionEditor(model: checkingModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-checking")
                 try render(ConnectionEditor(model: model, connection: wireGuard, pendingWireGuard: wireGuardWarned, saved: {}),
                            NSSize(width: 560, height: 640), "editor-wireguard-import")
                 try render(ConnectionDetail(connection: wireGuard, session: wireGuardSession, model: model, edit: {}, delete: {}),
