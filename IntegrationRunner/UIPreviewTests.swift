@@ -276,8 +276,18 @@ enum UIPreviewTests {
                                NSSize(width: 640, height: 520), "detail-\(name)")
                 }
                 try render(MainView(model: unavailableModel, menuBar: emptyMenuBar), NSSize(width: 900, height: 560), "main-no-connections")
-                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 520), "menubar-list")
+                menuBar.preferences.pinnedConnections = [connections[6].id] // pinned, next to the active ones
+                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 640), "menubar-list")
                 try render(MenuBarView(menuBar: emptyMenuBar), NSSize(width: 360, height: 300), "menubar-empty-service")
+                // Menu search: results with the first highlighted, a row highlighted by the arrows, and nothing found.
+                for (name, query, highlight) in [("menubar-search-results", "lab", nil as UUID?), ("menubar-search-highlight", "", connections[4].id),
+                                                 ("menubar-search-empty", "zzz", nil)] {
+                    let searching = MenuBarCoordinator(model: model)
+                    searching.announce = { _ in }
+                    searching.setSearch(query)
+                    if let highlight { searching.highlightedID = highlight }
+                    try render(MenuBarView(menuBar: searching), NSSize(width: 360, height: name == "menubar-search-empty" ? 300 : 520), name)
+                }
                 try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 600), "editor-new")
                 try render(ConnectionEditor(model: model, connection: connections[2], saved: {}), NSSize(width: 560, height: 600), "editor-saml")
                 try render(CertificateTrustSheet(connection: connections[4], digest: String(repeating: "0f", count: 32), trust: {}),
@@ -337,7 +347,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 70, "Renders esperados: 70, gerados: \(files.count)")
+            try require(files.count == 76, "Renders esperados: 76, gerados: \(files.count)")
         }
         return failures
     }

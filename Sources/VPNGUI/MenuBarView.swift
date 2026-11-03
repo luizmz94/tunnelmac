@@ -19,12 +19,20 @@ struct MenuBarView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var listHeight: CGFloat = 0
+    @FocusState private var searchFocused: Bool
     private var model: AppModel { menuBar.model }
-    private static let maxListHeight: CGFloat = 380
+    /// Tall enough to use the screen; the panel itself never passes the visible frame.
+    private static let maxListHeight: CGFloat = 620
+    /// Two rows: the panel never shrinks below this while searching, so it does not jump.
+    private static let minSearchHeight: CGFloat = 104
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header.padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 10)
+            MenuSearchField(text: Binding(get: { menuBar.searchText }, set: { menuBar.setSearch($0) }),
+                            prompt: String(localized: "Buscar conexões"), focused: $searchFocused)
+                .disabled(!menuBar.searchAvailable)
+                .padding(.horizontal, 10).padding(.bottom, 10)
             Divider().padding(.horizontal, 10)
             content
             banners
@@ -35,7 +43,9 @@ struct MenuBarView: View {
         .frame(width: 360)
         .menuBarGlass(ownGlass)
         .animation(Motion.state(reduceMotion), value: menuBar.summary)
+        .onChange(of: menuBar.searchFocusRequest) { _ in if menuBar.searchAvailable { searchFocused = true } }
         .onAppear {
+            if menuBar.searchAvailable { searchFocused = true }
             // Backup only: the app's commands capture the openers first (see AppCommands).
             let open = openWindow
             menuBar.adoptWindowOpeners(main: { open(id: MenuBarCoordinator.sceneID) },
@@ -63,23 +73,44 @@ struct MenuBarView: View {
         } else if model.data.connections.isEmpty {
             message(title: String(localized: "Nenhuma conexão cadastrada"), symbol: "network", tone: .neutral,
                     detail: String(localized: "Use Abrir TunnelMac para cadastrar uma conexão."))
+        } else if menuBar.searchResults.isEmpty {
+            message(title: String(localized: "Nenhuma conexão encontrada"), symbol: "magnifyingglass", tone: .neutral,
+                    detail: String(localized: "Busque por nome, servidor ou tipo."))
+                .frame(minHeight: Self.minSearchHeight, alignment: .top)
         } else {
             let duplicated = menuBar.duplicatedNames
-            ScrollView(.vertical) {
-                VStack(spacing: 2) {
-                    ForEach(model.sortedConnections) { connection in
-                        MenuBarRow(connection: connection, session: model.manager.session(connection.id),
-                                   showsServer: duplicated.contains(connection.name.lowercased()), menuBar: menuBar)
+            let searching = !menuBar.searchText.isEmpty
+            ScrollViewReader { proxy in
+                ScrollView(.vertical) {
+                    let sections = menuBar.searchSections
+                    VStack(spacing: 2) {
+                        // Pinned and active connections on top, a separator, then the others.
+                        ForEach(sections.top) { row($0, duplicated) }
+                        if !sections.top.isEmpty && !sections.rest.isEmpty {
+                            Divider().padding(.horizontal, 8).padding(.vertical, 4).accessibilityHidden(true)
+                        }
+                        ForEach(sections.rest) { row($0, duplicated) }
                     }
+                    .padding(.horizontal, 6).padding(.vertical, 6)
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: MenuBarListHeight.self, value: proxy.size.height)
+                    })
                 }
-                .padding(.horizontal, 6).padding(.vertical, 6)
-                .background(GeometryReader { proxy in
-                    Color.clear.preference(key: MenuBarListHeight.self, value: proxy.size.height)
-                })
+                .frame(height: min(max(listHeight, searching ? Self.minSearchHeight : 1), Self.maxListHeight))
+                .onPreferenceChange(MenuBarListHeight.self) { listHeight = $0 }
+                .onChange(of: menuBar.highlightedID) { id in
+                    guard let id else { return }
+                    withAnimation(Motion.state(reduceMotion)) { proxy.scrollTo(id) }
+                }
             }
-            .frame(height: min(max(listHeight, 1), Self.maxListHeight))
-            .onPreferenceChange(MenuBarListHeight.self) { listHeight = $0 }
         }
+    }
+
+    private func row(_ connection: Connection, _ duplicated: Set<String>) -> some View {
+        MenuBarRow(connection: connection, session: model.manager.session(connection.id),
+                   showsServer: duplicated.contains(connection.name.lowercased()), menuBar: menuBar,
+                   highlighted: menuBar.highlightedID == connection.id, pinned: menuBar.isPinned(connection.id))
+            .id(connection.id)
     }
 
     private func message(title: String, symbol: String, tone: StatusTone, detail: String) -> some View {
@@ -215,7 +246,12 @@ struct MenuBarRow: View {
     @ObservedObject var session: Session
     let showsServer: Bool
     let menuBar: MenuBarCoordinator
+    /// The keyboard (or pointer) highlight of the search; the only hover look of the rows.
+    var highlighted = false
+    /// Pinned to the top by the user.
+    var pinned = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         let action = MenuBarRowAction.of(session, ready: menuBar.model.ready, serviceReady: menuBar.model.service.canConnect)
@@ -245,8 +281,11 @@ struct MenuBarRow: View {
             }
             .help("\(connection.name) — \(connection.endpoint)")
             .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(highlighted ? .isSelected : [])
+            .accessibilityAction(named: Text(pinned ? "Desafixar" : "Fixar no topo")) { menuBar.togglePin(connection.id) }
             .accessibilityAction(named: Text("Ver logs")) { if showsLogsLink { showLogs() } }
             Spacer(minLength: 6)
+            pinButton
             VStack(alignment: .trailing, spacing: 3) {
                 if action == .review {
                     Button("Revisar…") { menuBar.perform(connection) }
@@ -277,8 +316,34 @@ struct MenuBarRow: View {
             .fixedSize()
         }
         .padding(.horizontal, 8).padding(.vertical, 7)
-        .modifier(HoverHighlight(cornerRadius: 8))
+        .background(highlightShape.fill(Color.accentColor.opacity(highlighted ? (colorScheme == .dark ? 0.28 : 0.18) : 0)))
+        .overlay(highlightShape.strokeBorder(Color.accentColor.opacity(highlighted ? 1 : 0), lineWidth: 1))
+        .contentShape(Rectangle())
+        .onContinuousHover { phase in
+            if case .active = phase { menuBar.pointerHovered(connection.id) }
+        }
+        .contextMenu {
+            Button(pinned ? "Desafixar" : "Fixar no topo") { menuBar.togglePin(connection.id) }
+        }
         .animation(Motion.state(reduceMotion), value: session.state)
+    }
+
+    private var highlightShape: RoundedRectangle { RoundedRectangle(cornerRadius: 8, style: .continuous) }
+
+    /// Filled while pinned; otherwise shown only on the highlighted row.
+    private var pinButton: some View {
+        Button { menuBar.togglePin(connection.id) } label: {
+            Image(systemName: pinned ? "pin.fill" : "pin")
+                .font(.system(size: 11, weight: .semibold))
+                .rotationEffect(.degrees(45))
+                .foregroundStyle(pinned ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                .frame(width: 18, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .opacity(pinned || highlighted ? 1 : 0)
+        .help(pinned ? "Desafixar do topo" : "Fixar no topo do menu")
+        .accessibilityHidden(true) // the row's own action
     }
 
     /// A failure says where its details are; review and certificate cases have their own action.

@@ -228,6 +228,7 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
     private var observers = Set<AnyCancellable>()
     private var spaceObserver: NSObjectProtocol?
     private var fitQueued = false
+    private var keyMonitor: Any?
     var onClose: (() -> Void)?
     var isOpen: Bool { panel.isVisible }
 
@@ -290,12 +291,53 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         fit()
         // makeKey without NSApp.activate: the app in front keeps the front.
         panel.makeKeyAndOrderFront(nil)
+        if keyMonitor == nil {
+            // Only this panel's keys (macOS 13 has no onKeyPress; one path for every version).
+            keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                let window = event.windowNumber, code = event.keyCode, characters = event.charactersIgnoringModifiers
+                let flags = event.modifierFlags
+                let handled = MainActor.assumeIsolated {
+                    self?.handle(window: window, keyCode: code, flags: flags, characters: characters) ?? false
+                }
+                return handled ? nil : event
+            }
+        }
     }
 
     func close() {
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
         guard panel.isVisible else { return }
         panel.orderOut(nil)
         onClose?()
+    }
+
+    /// The search field is the first responder (its field editor).
+    var searchFieldFocused: Bool { (panel.firstResponder as? NSTextView)?.isFieldEditor == true }
+
+    /// ↑ ↓ ↩ ⌘↩ and Esc in the search field, ⌘F anywhere in the panel; the rest (Tab included)
+    /// goes on as usual.
+    func handle(window: Int, keyCode: UInt16, flags: NSEvent.ModifierFlags, characters: String?) -> Bool {
+        guard window == panel.windowNumber, let menuBar else { return false }
+        let flags = flags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        let key: MenuKey?
+        if flags == .command, characters?.lowercased() == "f" {
+            key = .find
+        } else if !searchFieldFocused {
+            key = nil
+        } else {
+            switch (keyCode, flags) {
+            case (126, []): key = .up
+            case (125, []): key = .down
+            case (36, []), (76, []): key = .enter
+            case (36, .command), (76, .command): key = .commandEnter
+            case (53, []): key = .escape
+            default: key = nil
+            }
+        }
+        guard let key else { return false }
+        menuBar.handleMenuKey(key)
+        return true
     }
 
     /// Height of the content (no animation), kept under the visible frame; top edge fixed.
