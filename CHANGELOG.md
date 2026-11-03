@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.2 — 2026-11-03
 
 - Homebrew: `brew upgrade` quits TunnelMac by itself (asking Desconectar e sair? when
   VPNs are connected), waits for the VPN cleanup and reopens the app afterwards. Takes
