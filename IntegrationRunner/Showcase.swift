@@ -558,7 +558,9 @@ struct ShowcaseTour {
     /// The menu and the progress panel are glass: alone in a capture there is nothing behind
     /// them and the glass comes out flat gray. A fixed backdrop window of this demo goes behind
     /// the panel (nothing of the desktop or of other apps) and the capture is cropped to the
-    /// panel and its shadow, below the menu bar.
+    /// panel and its shadow, below the menu bar. Compositing [panel, backdrop] from the window
+    /// list already shows the backdrop through the glass (checked against a screen capture of
+    /// the same area: identical), and it reads only this app's windows, so it is the one used.
     private func captureGlass(_ panel: NSWindow, key: NSWindow?, dark: Bool, _ name: String) async {
         let backdrop = ShowcaseBackdrop.window(around: panel.frame, dark: dark)
         backdrop.order(.below, relativeTo: panel.windowNumber)
@@ -567,10 +569,7 @@ struct ShowcaseTour {
         // Shadow room on the sides and below; only 4 pt above, so the menu bar stays out.
         let area = NSRect(x: panel.frame.minX - 28, y: panel.frame.minY - 44,
                           width: panel.frame.width + 56, height: panel.frame.height + 48)
-        let trial = directory.appendingPathComponent("glass-trial", isDirectory: true)
-        try? FileManager.default.createDirectory(at: trial, withIntermediateDirectories: true)
         Self.write([panel, backdrop], area: area, to: directory.appendingPathComponent("\(name).png"))
-        Self.writeScreen(below: panel, area: area, to: trial.appendingPathComponent("\(name)-screen.png"))
         print("Showcase: \(name).png")
         backdrop.orderOut(nil)
     }
@@ -586,14 +585,6 @@ struct ShowcaseTour {
         let ids = windows.map { UnsafeRawPointer(bitPattern: UInt($0.windowNumber)) }
         let array = ids.withUnsafeBufferPointer { CFArrayCreate(nil, UnsafeMutablePointer(mutating: $0.baseAddress), $0.count, nil) }
         guard let array, let image = CGImage.windowListImage(array, bounds: displayRect(area), options: [.nominalResolution]) else {
-            print("Showcase: falha ao capturar \(url.lastPathComponent)"); return
-        }
-        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
-    }
-
-    /// The screen in `area`: `window` and everything below it (here, only the backdrop).
-    static func writeScreen(below window: NSWindow, area: NSRect, to url: URL) {
-        guard let image = CGImage.screenImage(displayRect(area), below: CGWindowID(window.windowNumber)) else {
             print("Showcase: falha ao capturar \(url.lastPathComponent)"); return
         }
         try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
@@ -619,10 +610,6 @@ extension CGImage {
         CGImage(windowListFromArrayScreenBounds: bounds, windowArray: windows, imageOption: options)
     }
 
-    @available(macOS, deprecated: 14.0)
-    static func screenImage(_ bounds: CGRect, below window: CGWindowID) -> CGImage? {
-        CGWindowListCreateImage(bounds, [.optionOnScreenBelowWindow, .optionIncludingWindow], window, [.nominalResolution])
-    }
 }
 
 /// Fixed background for the glass captures: a soft gradient with a few blurred brand-colored
