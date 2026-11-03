@@ -375,6 +375,59 @@ final class CheckPointTests: XCTestCase {
         observer.clientEnded()
     }
 
+    /// The connection block as snx-rs 6.6.1 prints it (apps/snx-rs/src/main.rs, on
+    /// TunnelEvent::Connected): ConnectionInfo::to_values in crates/snxcore/src/model.rs,
+    /// labels right-aligned by util::format_values, then cli-tunnel-connected. Values made up.
+    static func connectionBlock(_ labels: [String], connected: String, dns: String = "[10.20.0.53]") -> [String] {
+        let values = ["2026-11-02 10:15:42", "", "vpn.example.com", "user", "vpn", "IPsec", "UDP TUN", "10.20.30.40/24",
+                      dns, "[corp.example]", "utun8", "true", "true", "false"]
+        let width = labels.map(\.count).max() ?? 0
+        return zip(labels, values).map { String(repeating: " ", count: width - $0.count) + $0 + ": " + $1 } + [connected]
+    }
+
+    static let englishLabels = ["Connected since", "Connection profile", "Server name", "User name", "Login type", "Tunnel type",
+                                "IPsec transport type", "IP address", "DNS servers", "Search domains", "Interface",
+                                "DNS configured", "Routing configured", "Default route"]
+    static let germanLabels = ["Verbunden seit", "Verbindungsprofil", "Servername", "Benutzername", "Anmeldetyp", "Tunneltyp",
+                               "IPsec-Transporttyp", "IP-Adresse", "DNS-Server", "Suchdomänen", "Schnittstelle",
+                               "DNS konfiguriert", "Routing konfiguriert", "Standardroute"]
+
+    /// snx-rs 6.6.1 sets the utun, the routes and the DNS before it prints the block: by the
+    /// Interface line the DNS key, when the gateway sends DNS, is already there; no earlier line
+    /// of the block marks the tunnel ready.
+    func testTheConnectionBlockOfSnxRsInItsOrder() throws {
+        let work = try temporaryDirectory()
+        for (labels, connected) in [(Self.englishLabels, CheckPointOutput.connected[3]), (Self.germanLabels, CheckPointOutput.connected[2])] {
+            let block = Self.connectionBlock(labels, connected: connected)
+            XCTAssertEqual(block[10].trimmingCharacters(in: .whitespaces), labels[10] + ": utun8")
+            // With DNS: published by snx-rs before the block.
+            let dns = FakeCheckPointDNS(), host = CheckPointHost()
+            host.interfaces = ["utun8"]
+            dns.publish("utun8")
+            let (observer, lines, failures) = session(dns: dns, host: host, work: work)
+            for (index, line) in block.enumerated() {
+                observer.clientOutput(line)
+                XCTAssertEqual(lines().isEmpty, index < 10, line)
+            }
+            XCTAssertEqual(lines(), [CheckPointRules.networkReady + "utun8"])
+            XCTAssertEqual(observer.readySource, .dns)
+            XCTAssertEqual(failures(), 0)
+            observer.clientEnded()
+
+            // Without DNS from the gateway: the Interface line, after the routes.
+            let bare = FakeCheckPointDNS(), bareHost = CheckPointHost()
+            bareHost.interfaces = ["utun8"]
+            let (output, outputLines, _) = session(dns: bare, host: bareHost, work: work)
+            for (index, line) in Self.connectionBlock(labels, connected: connected, dns: "[]").enumerated() {
+                output.clientOutput(line)
+                XCTAssertEqual(outputLines().isEmpty, index < 10, line)
+            }
+            XCTAssertEqual(output.readySource, .output)
+            XCTAssertEqual(outputLines().last, CheckPointRules.networkReady + "utun8")
+            output.clientEnded()
+        }
+    }
+
     func testRecoverCleansOnlyDeadSessions() throws {
         let work = try temporaryDirectory()
         let dead = UUID().uuidString, live = UUID().uuidString

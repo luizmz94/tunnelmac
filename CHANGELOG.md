@@ -45,6 +45,9 @@
 - Check Point: a connection whose tunnel is not ready after 120 s no longer stays in
   Conectando. The service stops snx-rs, removes its DNS entry and gateway route, and the
   log says the tunnel was not ready in time; it is not retried automatically.
+- Check Point: the order in which snx-rs 6.6.1 sets the interface, routes and DNS before
+  it prints the connection block is now documented and covered by tests; the readiness
+  rule is unchanged.
 
 ## 1.2.0 — 2026-11-02
 

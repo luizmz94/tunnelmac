@@ -176,6 +176,10 @@ enum CheckPointNetwork {
 /// 2. without that key (a gateway that sends no DNS): the `Interface: utunN` line of the
 ///    connection block, whose value is stable in every language, or cli-tunnel-connected in
 ///    any of the 17 languages of snx-rs 6.6.1 once the interface is known.
+///    snx-rs 6.6.1 prints both only after routes and DNS are set: every tunnel (ssl.rs `run`,
+///    ipsec/imp/tun.rs `run`, ipsec/imp/native.rs) configures the utun, then the routes, then
+///    the DNS, any error ending the attempt, and only then sends TunnelEvent::Connected;
+///    apps/snx-rs/src/main.rs prints the block and cli-tunnel-connected on that event.
 /// An interface that does not exist when the tunnel reports up is a failure, and so is a
 /// tunnel not ready when the timeout ends: the helper stops snx-rs.
 final class CheckPointSession: SessionObserver {
