@@ -119,17 +119,6 @@ final class AppPreferences: ObservableObject {
                               realLanguage: realLanguage)
     }
 
-    /// Binding for MenuBarExtra(isInserted:). SwiftUI writes the current value back while
-    /// it builds the scenes; publishing that echo re-evaluated the App body, which wrote
-    /// again, recursing until the stack overflowed (0.3.0-rc.4). Only real changes publish.
-    func menuBarIconBinding(enabled: Bool = true) -> Binding<Bool> {
-        Binding(get: { [weak self] in enabled && (self?.showMenuBarIcon ?? true) },
-                set: { [weak self] value in
-                    guard enabled, let self, self.showMenuBarIcon != value else { return }
-                    self.showMenuBarIcon = value
-                })
-    }
-
     /// The app must never become invisible: without the menu bar icon it stays in the Dock.
     var hidesDockOnClose: Bool { showMenuBarIcon && hideDockOnClose }
 

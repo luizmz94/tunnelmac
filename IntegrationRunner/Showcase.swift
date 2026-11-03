@@ -43,12 +43,6 @@ struct ShowcaseApp: App {
                 .background(SettingsWindowBinding(menuBar: demo.menuBar))
         }
         .defaultSize(width: 760, height: 540)
-        MenuBarExtra {
-            MenuBarView(menuBar: demo.menuBar)
-        } label: {
-            MenuBarLabel(menuBar: demo.menuBar)
-        }
-        .menuBarExtraStyle(.window)
     }
 }
 
@@ -180,6 +174,8 @@ final class ShowcaseDemo: ObservableObject {
     func started() {
         guard !didStart else { return }
         didStart = true
+        // The app's own menu bar icon and menu panel (a demo, not the local checks).
+        menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: menuBar))
         // Two tunnels already up for a while, through the same connect path as the button.
         connect("Head Office", fast: true, since: 4_325)
         connect("Home", fast: true, since: 1_268)
@@ -369,12 +365,12 @@ struct ShowcaseTour {
             await pause(1.0)
             capture([window], "checkpoint-\(suffix)")
 
-            let panel = menuBarPanel()
-            await pause(1.0)
-            fit(panel)
-            await pause(0.5)
-            capture([panel], "menubar-\(suffix)")
-            panel.orderOut(nil)
+            demo.menuBar.showMenu()
+            await pause(1.5)
+            if let panel = (demo.menuBar.menuPresenter as? MenuBarPanelController)?.panel {
+                capture([panel], "menubar-\(suffix)")
+            }
+            demo.menuBar.closeMenu()
             await pause(0.5)
 
             window.makeKeyAndOrderFront(nil)
@@ -500,50 +496,6 @@ struct ShowcaseTour {
             return view.subviews.flatMap(splits)
         }
         if let split = window.contentView.flatMap(splits)?.first { split.setPosition(300, ofDividerAt: 0) }
-    }
-
-    /// The MenuBarExtra popover cannot be opened from code; the same view in a panel with
-    /// the menu material stands in for it.
-    private final class KeyPanel: NSPanel {
-        override var canBecomeKey: Bool { true }
-    }
-
-    private func menuBarPanel() -> NSPanel {
-        let host = NSHostingView(rootView: MenuBarView(menuBar: demo.menuBar))
-        let size = NSSize(width: 360, height: 600)
-        let panel = KeyPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
-        panel.isReleasedWhenClosed = false
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = true
-        let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        material.material = .menu
-        material.state = .active
-        material.maskImage = NSImage(size: NSSize(width: 29, height: 29), flipped: false) { rect in
-            NSBezierPath(roundedRect: rect, xRadius: 14, yRadius: 14).fill()
-            return true
-        }
-        material.maskImage?.capInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
-        host.frame = material.bounds
-        host.autoresizingMask = [.width, .height]
-        material.addSubview(host)
-        panel.contentView = material
-        if let screen = NSScreen.main?.visibleFrame {
-            panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - size.width - 40, y: screen.maxY - 8))
-        }
-        panel.makeKeyAndOrderFront(nil)
-        return panel
-    }
-
-    /// Shrinks the panel to the view's measured height, keeping its top edge.
-    private func fit(_ panel: NSPanel) {
-        guard let host = panel.contentView?.subviews.first else { return }
-        let height = host.fittingSize.height
-        var frame = panel.frame
-        frame.origin.y += frame.height - height
-        frame.size.height = height
-        panel.setFrame(frame, display: true)
     }
 
     private func capture(_ windows: [NSWindow], _ name: String) {

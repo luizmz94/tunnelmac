@@ -80,8 +80,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     private var awaitingTermination = false
     static weak var current: AppDelegate? // NSApp.delegate is SwiftUI's own adaptor.
+    /// Model and menu bar made in the App's init, attached here once AppKit runs.
+    static var launched: (model: AppModel, menuBar: MenuBarCoordinator)?
     // The GlobalProtect browser login returns through a globalprotectcallback: URL.
     func applicationDidFinishLaunching(_ notification: Notification) {
+        if let launched = Self.launched {
+            attach(model: launched.model, menuBar: launched.menuBar)
+            // Not in the local checks runner, so it still quits on its own.
+            if !MenuBarCoordinator.isLocalChecks {
+                launched.menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: launched.menuBar))
+            }
+        }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURL(_:reply:)),
                                                      forEventClass: AEEventClass(kInternetEventClass), andEventID: AEEventID(kAEGetURL))
     }
@@ -185,6 +194,7 @@ public struct VPNGUIApp: App {
                 updates?.startTimer()
             }
         }
+        AppDelegate.launched = (model, menuBar)
         _model = StateObject(wrappedValue: model)
         _menuBar = StateObject(wrappedValue: menuBar)
         _preferences = StateObject(wrappedValue: preferences)
@@ -205,14 +215,7 @@ public struct VPNGUIApp: App {
                 .background(SettingsWindowBinding(menuBar: menuBar))
         }
         .defaultSize(width: 760, height: 540)
-        // Not inserted in the local checks runner, so it still quits on its own.
-        MenuBarExtra(isInserted: preferences.menuBarIconBinding(enabled: !MenuBarCoordinator.isLocalChecks)) {
-            MenuBarView(menuBar: menuBar)
-        } label: {
-            MenuBarLabel(menuBar: menuBar)
-                .onAppear { delegate.attach(model: model, menuBar: menuBar) }
-        }
-        .menuBarExtraStyle(.window)
+        // The menu bar icon is an NSStatusItem made in applicationDidFinishLaunching.
     }
 }
 
@@ -221,6 +224,8 @@ struct AppCommands: Commands {
     let menuBar: MenuBarCoordinator
     @Environment(\.openWindow) private var openWindow
     var body: some Commands {
+        // Commands exist while the app runs: the menu panel opens windows through these.
+        let _ = adoptOpeners()
         CommandGroup(after: .appInfo) {
             Button("Verificar atualizações…") {
                 register()
@@ -234,6 +239,11 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut(",", modifiers: .command)
         }
+    }
+    private func adoptOpeners() {
+        let open = openWindow
+        menuBar.adoptWindowOpeners(main: { open(id: MenuBarCoordinator.sceneID) },
+                                   settings: { open(id: MenuBarCoordinator.settingsSceneID) })
     }
     private func register() {
         let open = openWindow
