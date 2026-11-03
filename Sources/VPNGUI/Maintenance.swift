@@ -11,6 +11,10 @@ enum Maintenance {
     static let argument = "--prepare-for-maintenance"
     /// Used by the cask before it moves a legacy OpenFortiDesk.app or VPNGUI.app away. Read-only.
     static let legacyMigrationArgument = "--prepare-for-legacy-migration"
+    /// Used by the cask right after Homebrew's own `quit`: waits until the app and its
+    /// VPN cleanup are gone, so brew never replaces a bundle that is still running.
+    static let waitForQuitArgument = "--wait-for-quit"
+    static var arguments: [String] { [argument, legacyMigrationArgument, waitForQuitArgument] }
 
     static let quitAndRetry = "Quit TunnelMac with Sair (this disconnects its VPNs), then run brew again."
     static let removeLegacyService = """
@@ -24,6 +28,7 @@ enum Maintenance {
         switch CommandLine.arguments[1] {
         case argument: return restrictedEnvironment() ? restrictedCheck() : fullMaintenance()
         case legacyMigrationArgument: return legacyMigrationCheck()
+        case waitForQuitArgument: return waitForQuit()
         default: return usage()
         }
     }
@@ -46,6 +51,18 @@ enum Maintenance {
         let running = runningProductProcesses()
         guard running.isEmpty else { return busy(running) }
         return 0
+    }
+
+    /// Homebrew asked the app to quit just before. With active VPNs the app shows
+    /// "Desconectar e sair?" and cleans up (up to 30 s), which outlasts brew's 10 s
+    /// wait; this waits for the user and the cleanup. Nothing is quit or signalled here.
+    static func waitForQuit() -> Int32 {
+        guard !runningProductProcesses().isEmpty else { return 0 }
+        print("Waiting for TunnelMac to quit (confirm Desconectar e sair in the app)...")
+        fflush(stdout) // brew reads a pipe: show the line before the wait, not after.
+        _ = wait(120) { runningProductProcesses().isEmpty }
+        let running = runningProductProcesses()
+        return running.isEmpty ? 0 : busy(running)
     }
 
     /// The old bundle is moved away, so its registration would point at nothing.

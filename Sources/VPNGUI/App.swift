@@ -171,7 +171,7 @@ public struct VPNGUIApp: App {
     @StateObject private var menuBar: MenuBarCoordinator
     @StateObject private var preferences: AppPreferences
     public init() {
-        if CommandLine.arguments.contains(where: [Maintenance.argument, Maintenance.legacyMigrationArgument].contains) {
+        if CommandLine.arguments.contains(where: Maintenance.arguments.contains) {
             exit(Maintenance.run())
         }
         signal(SIGPIPE, SIG_IGN) // A closed control socket returns EPIPE instead of terminating the app.

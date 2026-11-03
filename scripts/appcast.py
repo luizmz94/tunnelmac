@@ -41,27 +41,63 @@ def inline(text):
     return ''.join(out)
 
 
+# Sparkle shows the notes in a web view under its own title and version line: system
+# font, light and dark mode, compact list. Only CSS, no script.
+NOTES_STYLE = """<style>
+:root { color-scheme: light dark; }
+body { font: 13px/1.45 -apple-system, system-ui, sans-serif; margin: 10px 14px; }
+h3 { font-size: 13px; font-weight: 600; margin: 0 0 6px; }
+p { margin: 0 0 8px; }
+ul { margin: 0 0 8px; padding-left: 18px; }
+li { margin: 0 0 7px; }
+li::marker { color: #8e8e93; }
+code { font: 12px ui-monospace, Menlo, monospace; padding: 1px 4px; border-radius: 4px;
+       background: rgba(127, 127, 127, .16); }
+a { color: LinkText; text-decoration: none; }
+</style>"""
+
+
 def notes_html(markdown):
-    """Release notes as an HTML fragment (embedded in the appcast, shown by Sparkle)."""
-    blocks, items = [], []
-    def flush():
-        if items:
-            blocks.append('<ul>' + ''.join(f'<li>{i}</li>' for i in items) + '</ul>')
-            items.clear()
-    for raw in re.sub(r'(?s)<!--.*?-->', '', markdown).splitlines():
+    """Release notes as an HTML fragment (embedded in the appcast, shown by Sparkle).
+
+    Only the "Changes in <version>:" section: the introduction (what TunnelMac is, how to
+    install it) means nothing to someone already updating. Wrapped lines continue their
+    paragraph or list item instead of starting a new one.
+    """
+    text = re.sub(r'(?s)<!--.*?-->', '', markdown)
+    changes = re.search(r'(?m)^Changes in [^\n]+:\s*$', text)
+    if changes:
+        text = text[changes.end():]
+    blocks = []   # ('ul', [items]) | ('p', [lines]) | ('h3', [line])
+    for raw in text.splitlines():
         line = raw.strip()
         bullet = re.match(r'^[-*+]\s+(.*)', line)
-        if bullet:
-            items.append(inline(bullet[1]))
-            continue
-        flush()
         heading = re.match(r'^#{1,6}\s+(.*)', line)
-        if heading:
-            blocks.append(f'<h3>{inline(heading[1])}</h3>')
-        elif line and not re.fullmatch(r'[-*_]{3,}', line):
-            blocks.append(f'<p>{inline(line)}</p>')
-    flush()
-    return '\n'.join(blocks) or '<p>Veja as novidades na página da versão no GitHub.</p>'
+        if not line or re.fullmatch(r'[-*_]{3,}', line):
+            blocks.append(None)
+        elif bullet:
+            if blocks and blocks[-1] and blocks[-1][0] == 'ul':
+                blocks[-1][1].append([bullet[1]])
+            else:
+                blocks.append(('ul', [[bullet[1]]]))
+        elif heading:
+            blocks.append(('h3', [heading[1]]))
+        elif blocks and blocks[-1] and blocks[-1][0] == 'ul':
+            blocks[-1][1][-1].append(line)   # wrapped list item
+        elif blocks and blocks[-1] and blocks[-1][0] == 'p':
+            blocks[-1][1].append(line)       # wrapped paragraph
+        else:
+            blocks.append(('p', [line]))
+    out = []
+    for block in filter(None, blocks):
+        kind, body = block
+        if kind == 'ul':
+            out.append('<ul>' + ''.join(f'<li>{inline(" ".join(item))}</li>' for item in body) + '</ul>')
+        else:
+            out.append(f'<{kind}>{inline(" ".join(body))}</{kind}>')
+    if not out:
+        out = ['<p>Veja as novidades na página da versão no GitHub.</p>']
+    return NOTES_STYLE + '\n' + '\n'.join(out)
 
 
 def bundle_versions(archive):

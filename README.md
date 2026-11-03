@@ -152,7 +152,8 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
   WireGuard `PostUp`-style commands, are removed or refused, never silently weakened.
 - **Updates in one click.** The app announces a new version and **Atualizar agora**
   downloads it, checks its signature and relaunches (Sparkle). `brew upgrade --cask
-  luizmz94/tunnelmac/tunnelmac` after quitting with **Sair** keeps working.
+  luizmz94/tunnelmac/tunnelmac` also works: brew quits the app (asking first when VPNs are
+  connected) and reopens it.
 - **Before uninstalling,** use **Configurações… → Serviço privilegiado → Remover serviço**.
 
 The [guide](docs/GUIDE.md) covers each protocol, where data is stored, backups, updates,

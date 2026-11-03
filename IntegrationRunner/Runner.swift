@@ -13,7 +13,7 @@ enum Launcher {
 struct IntegrationApp: App {
     init() {
         // The Homebrew sandbox check runs this executable in the app's maintenance mode.
-        if CommandLine.arguments.contains(where: [Maintenance.argument, Maintenance.legacyMigrationArgument].contains) {
+        if CommandLine.arguments.contains(where: Maintenance.arguments.contains) {
             exit(Maintenance.run())
         }
         signal(SIGPIPE, SIG_IGN)

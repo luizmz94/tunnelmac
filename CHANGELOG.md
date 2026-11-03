@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Homebrew: `brew upgrade` quits TunnelMac by itself (asking Desconectar e sair? when
+  VPNs are connected), waits for the VPN cleanup and reopens the app afterwards. Takes
+  effect from the upgrade after the one that installs this version. The install notes
+  are down to two lines.
+- Update window (Sparkle): the release notes show only the changes of the new version, as
+  a styled list in the system font (light and dark), instead of the install introduction
+  with every wrapped line as its own paragraph.
+
 ## 1.3.1 — 2026-11-02
 
 - Updates: the update window opened only after the check a few seconds after launch. A
