@@ -1033,6 +1033,8 @@ struct ProtocolChooser: View {
     @FocusState private var focused: String?
     /// The single tile Tab stops at; the arrows move it.
     @State private var current: String?
+    /// False until the window's automatic first responder is undone: that focus is no interaction.
+    @State private var focusCounts = false
     @Environment(\.locale) private var locale
 
     /// The 560 pt sheet minus the grid's margins: five tiles in a row.
@@ -1087,8 +1089,12 @@ struct ProtocolChooser: View {
         }
         .background { keyButtons }
         // Nothing preselected, not even by the window's automatic first responder.
-        .onAppear { DispatchQueue.main.async { focused = nil } }
-        .onChange(of: focused) { id in if let id { current = id } }
+        .onAppear { DispatchQueue.main.async { focused = nil; focusCounts = true } }
+        .onChange(of: focused) { id in
+            guard let id else { return }
+            current = id
+            if focusCounts { selection.focused(id) }
+        }
     }
 
     private func tile(_ entry: ProtocolCatalog.Entry) -> some View {

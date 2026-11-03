@@ -4,7 +4,8 @@
 
 - **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without
   scrolling, with a warning badge on the ones whose client is missing in the service.
-  Nothing is preselected; a compact panel below describes the type under the pointer: what it is, its client and state, how it signs in and what the form asks for,
+  Nothing is preselected; a compact panel below describes the type last under the pointer or
+  the keyboard focus: what it is, its client and state, how it signs in and what the form asks for,
   with Abrir Serviço privilegiado… when the client is missing. Tab enters the grid, arrow
   keys move between tiles, Enter or Space chooses and Esc cancels; VoiceOver reads each
   tile's name, client state and what it asks for. Liquid Glass tiles on macOS 26 and later.
