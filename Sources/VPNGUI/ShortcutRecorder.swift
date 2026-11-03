@@ -280,9 +280,9 @@ struct ShortcutRecorderControl: View {
             }
             .adaptiveButtonStyle(prominent: recorder.recording)
             .controlSize(.small)
-            .help(recorder.recording ? String(localized: "Esc cancela; ⌫ remove o atalho") : String(localized: "Clique e digite o atalho"))
+            .help(recorder.recording ? Self.prompt + " " + String(localized: "Esc cancela; ⌫ remove o atalho") : String(localized: "Clique e digite o atalho"))
             .accessibilityLabel(String(localized: "Atalho para abrir o menu"))
-            .accessibilityValue(recorder.recording ? title : shortcut.map { KeyNames.spoken($0) } ?? String(localized: "Nenhum"))
+            .accessibilityValue(recorder.recording ? Self.prompt : shortcut.map { KeyNames.spoken($0) } ?? String(localized: "Nenhum"))
             if shortcut != nil, !recorder.recording {
                 Button { recorder.clear() } label: { Image(systemName: "xmark.circle.fill") }
                     .buttonStyle(.plain).foregroundStyle(.secondary)
@@ -292,8 +292,11 @@ struct ShortcutRecorderControl: View {
         }
     }
 
+    private static var prompt: String { String(localized: "Digite o atalho ou toque duas vezes num modificador…") }
+
     private var title: String {
-        if recorder.recording { return String(localized: "Digite o atalho ou toque duas vezes num modificador…") }
+        // Short enough for the capsule; the whole instruction is in the tooltip and for VoiceOver.
+        if recorder.recording { return String(localized: "Digite o atalho…") }
         return shortcut.map { KeyNames.symbols($0) } ?? String(localized: "Gravar atalho")
     }
 }

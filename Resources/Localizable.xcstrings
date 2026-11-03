@@ -13567,6 +13567,40 @@
         }
       }
     },
+    "Digite o atalho…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl eingeben …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type the shortcut…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe el atajo…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapez le raccourci…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट टाइप करें…"
+          }
+        }
+      }
+    },
     "Digite uma senha.": {
       "localizations": {
         "de": {
