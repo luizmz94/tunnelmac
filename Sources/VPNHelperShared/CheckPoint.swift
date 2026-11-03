@@ -27,6 +27,8 @@ public enum CheckPointRules {
     /// snx-rs), or it looked up but is missing a piece (the helper stops snx-rs).
     public static let networkReady = "[+] TunnelMac: túnel Check Point pronto em "
     public static let networkFailure = "[!] TunnelMac: túnel Check Point incompleto:"
+    /// The tunnel was not ready when the connection timeout ended (followed by "<seconds> s.").
+    public static let networkTimeout = "[!] TunnelMac: túnel Check Point não ficou pronto em "
     /// The ICA (Check Point internal CA) a connection trusts, DER encoded.
     public static let maximumAuthorityDER = 16 * 1024
     /// Base64 of the password fits one config line.

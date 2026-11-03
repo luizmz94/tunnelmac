@@ -320,6 +320,61 @@ final class CheckPointTests: XCTestCase {
         observer.clientEnded()
     }
 
+    /// The connection timeout ends without a ready tunnel: one failure, snx-rs stopped, and a
+    /// late DNS key or interface line no longer marks it ready.
+    func testATunnelNotReadyInTimeFailsOnceAndStops() throws {
+        let work = try temporaryDirectory()
+        let dns = FakeCheckPointDNS(), host = CheckPointHost()
+        let (observer, lines, failures) = session(dns: dns, host: host, work: work)
+        observer.timeout = 0.2
+        observer.clientStarted(pid: 1234)
+        observer.clientOutput("INFO Connecting to 203.0.113.58")
+        wait { failures() > 0 }
+        XCTAssertEqual(failures(), 1)
+        XCTAssertEqual(lines(), [CheckPointRules.networkTimeout + "0 s."])
+        host.interfaces = ["utun8"]
+        dns.publish("utun8")
+        observer.clientOutput("           Interface: utun8")
+        observer.clientOutput(CheckPointOutput.connected[3])
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        XCTAssertNil(observer.readySource)
+        XCTAssertEqual(failures(), 1)
+        XCTAssertEqual(lines().count, 1)
+        // fail() stops snx-rs; its end cleans the DNS key and the record.
+        observer.clientEnded()
+        XCTAssertEqual(dns.removed, ["utun8"])
+        XCTAssertTrue((try FileManager.default.contentsOfDirectory(atPath: work)).isEmpty)
+    }
+
+    func testATunnelReadyBeforeTheTimeoutNeverFails() throws {
+        let work = try temporaryDirectory()
+        let dns = FakeCheckPointDNS(), host = CheckPointHost()
+        let (observer, lines, failures) = session(dns: dns, host: host, work: work)
+        observer.timeout = 0.3
+        observer.clientStarted(pid: 1234)
+        host.interfaces = ["utun8"]
+        dns.publish("utun8")
+        wait { observer.readySource != nil }
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        XCTAssertEqual(lines(), [CheckPointRules.networkReady + "utun8"])
+        XCTAssertEqual(failures(), 0)
+        observer.clientEnded()
+    }
+
+    /// A missing interface already failed: the end of the timeout does not fail again.
+    func testAMissingInterfaceIsNotFollowedByATimeout() throws {
+        let work = try temporaryDirectory()
+        let dns = FakeCheckPointDNS(), host = CheckPointHost()
+        let (observer, lines, failures) = session(dns: dns, host: host, work: work)
+        observer.timeout = 0.2
+        observer.clientStarted(pid: 1234)
+        observer.clientOutput("           Interface: utun7")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        XCTAssertEqual(lines(), [CheckPointRules.networkFailure + " utun7"])
+        XCTAssertEqual(failures(), 1)
+        observer.clientEnded()
+    }
+
     func testRecoverCleansOnlyDeadSessions() throws {
         let work = try temporaryDirectory()
         let dead = UUID().uuidString, live = UUID().uuidString
@@ -392,6 +447,11 @@ extension CheckPointTests {
         broken.acceptCheckPoint(CheckPointRules.networkFailure + " utun7")
         XCTAssertTrue(broken.setupFailed && broken.retryBlocked)
         XCTAssertNotEqual(broken.state, .connected)
+        let late = session()
+        late.acceptCheckPoint(CheckPointRules.networkTimeout + "120 s.")
+        XCTAssertTrue(late.setupFailed && late.retryBlocked)
+        XCTAssertEqual(late.logs.last, "[!] TunnelMac: o túnel Check Point não ficou pronto em 120 s; a conexão foi encerrada.")
+        XCTAssertNotEqual(late.state, .connected)
     }
 
     func testConnectionCodableAndValidation() throws {

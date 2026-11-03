@@ -274,7 +274,7 @@ final class Session: ObservableObject, Identifiable {
             retryBlocked = true
         default: break
         }
-        if line.hasPrefix(CheckPointRules.networkFailure) {
+        if line.hasPrefix(CheckPointRules.networkFailure) || line.hasPrefix(CheckPointRules.networkTimeout) {
             setupFailed = true
             retryBlocked = true
         }
@@ -975,6 +975,10 @@ enum CheckPointMarkers {
         if line.hasPrefix(CheckPointRules.networkFailure) {
             let detail = line.dropFirst(CheckPointRules.networkFailure.count).trimmingCharacters(in: CharacterSet(charactersIn: ". "))
             return String(localized: "[!] TunnelMac: a interface \(detail) do túnel Check Point não existe; a conexão foi encerrada.")
+        }
+        if line.hasPrefix(CheckPointRules.networkTimeout) {
+            let seconds = line.dropFirst(CheckPointRules.networkTimeout.count).trimmingCharacters(in: CharacterSet(charactersIn: "s. "))
+            return String(localized: "[!] TunnelMac: o túnel Check Point não ficou pronto em \(seconds) s; a conexão foi encerrada.")
         }
         return line
     }

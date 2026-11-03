@@ -42,6 +42,9 @@
   Monitoring after an explanation and listens to modifier changes only (SECURITY.md).
   Shortcuts macOS uses and common app shortcuts (⌘Q, ⌘C, ⌘Space…) are refused; a saved
   shortcut that macOS refuses at launch stays saved with a warning.
+- Check Point: a connection whose tunnel is not ready after 120 s no longer stays in
+  Conectando. The service stops snx-rs, removes its DNS entry and gateway route, and the
+  log says the tunnel was not ready in time; it is not retried automatically.
 
 ## 1.2.0 — 2026-11-02
 
