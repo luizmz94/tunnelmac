@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.1 — 2026-11-02
+
+- Updates: the update window opened only after the check a few seconds after launch. A
+  release found later, by the 4-hour timer or on Conectar, only showed the menu line and
+  the card, so an app left open in the menu bar never showed it (1.3.0 had to be opened
+  by hand). Now an automatic check that finds a version newer than the one already
+  offered opens the window once; not when postponed (Depois) or skipped, and not on a
+  manual check, which already shows Atualizar agora.
+- Menu bar menu (macOS 26+): the window shadow drew a dark outline from the panel's
+  rectangle around the Liquid Glass, a square border at the corners while the menu is key.
+  The panel has no window shadow now; the glass casts its own inside a clear margin, and a
+  click on that margin closes the menu like a click outside.
+- Sobre: "Native macOS interface for Fortinet, OpenVPN, WireGuard, GlobalProtect and Check
+  Point" (was openfortivpn, OpenVPN and WireGuard), in every language.
+- Disk image window: the arrow ends clear of the Applications icon (Finder's folder art
+  covered its tip) and the footer lists all five protocols; the README's install GIF and
+  screenshots were re-rendered.
+
 ## 1.3.0 — 2026-11-02
 
 - **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without

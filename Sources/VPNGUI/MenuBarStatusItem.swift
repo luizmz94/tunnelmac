@@ -215,6 +215,14 @@ final class MenuBarPanel: NSPanel {
     override func cancelOperation(_ sender: Any?) { onCancel?() }
 }
 
+/// The clear margin around the menu's glass: a click on it (the glass's shadow) closes the
+/// menu, as a click outside it does.
+final class GlassMarginView: NSView {
+    var onClick: (() -> Void)?
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { onClick?() }
+}
+
 /// The menu panel: MenuBarView on the system's Liquid Glass (NSGlassEffectView) on macOS 26+,
 /// on the menu material with rounded corners before, sized to the content and placed by
 /// MenuPanelPlacement.
@@ -231,6 +239,17 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
     private var keyMonitor: Any?
     var onClose: (() -> Void)?
     var isOpen: Bool { panel.isVisible }
+    /// Clear room around the glass for its own shadow (macOS 26+), larger below where it falls.
+    static var glassMargin: NSEdgeInsets {
+        if #available(macOS 26, *) { return NSEdgeInsets(top: 28, left: 32, bottom: 44, right: 32) }
+        return NSEdgeInsets()
+    }
+    /// Where the menu itself is on screen: the panel without its shadow margin.
+    var menuFrame: NSRect {
+        let margin = Self.glassMargin
+        return NSRect(x: panel.frame.minX + margin.left, y: panel.frame.minY + margin.bottom,
+                      width: panel.frame.width - margin.left - margin.right, height: panel.frame.height - margin.top - margin.bottom)
+    }
 
     init(menuBar: MenuBarCoordinator) {
         self.menuBar = menuBar
@@ -258,7 +277,18 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
             glass.style = .regular
             glass.cornerRadius = 16
             glass.contentView = hosting
-            panel.contentView = glass
+            // No window shadow: on glass the window server draws it from the window's rectangle,
+            // a dark outline that native panels do not have. The glass casts its own shadow, and
+            // the clear margin around it (glassMargin) keeps that shadow from being cut square.
+            panel.hasShadow = false
+            let margin = Self.glassMargin
+            let container = GlassMarginView(frame: NSRect(x: 0, y: 0, width: size.width + margin.left + margin.right,
+                                                          height: size.height + margin.top + margin.bottom))
+            glass.frame = NSRect(x: margin.left, y: margin.bottom, width: size.width, height: size.height)
+            glass.autoresizingMask = [.width, .height]
+            container.addSubview(glass)
+            container.onClick = { [weak self] in self?.close() }
+            panel.contentView = container
         } else {
             // The menu material, as the system popover had.
             let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
@@ -345,7 +375,10 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
         guard let anchor else { return }
         hosting.layoutSubtreeIfNeeded()
         let height = hosting.fittingSize.height
-        let frame = MenuPanelPlacement.frame(size: NSSize(width: Self.width, height: height), anchor: anchor)
+        let menu = MenuPanelPlacement.frame(size: NSSize(width: Self.width, height: height), anchor: anchor)
+        let margin = Self.glassMargin
+        let frame = NSRect(x: menu.minX - margin.left, y: menu.minY - margin.bottom,
+                           width: menu.width + margin.left + margin.right, height: menu.height + margin.top + margin.bottom)
         guard frame != panel.frame else { return }
         panel.setFrame(frame, display: panel.isVisible)
         panel.invalidateShadow()

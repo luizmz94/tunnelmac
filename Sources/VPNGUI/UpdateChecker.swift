@@ -288,9 +288,11 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var outcome: Outcome = .none
     /// "Depois": hides the card until the next launch or a newer version is found.
     @Published private(set) var deferred = false
-    /// Called once when the launch check finds an offer that was not postponed.
-    var onLaunchOffer: ((UpdateOffer) -> Void)?
+    /// Opens the update window: on the launch check, and when a later automatic check (timer,
+    /// Conectar) finds a version newer than the one already offered. Never while postponed.
+    var onOffer: ((UpdateOffer) -> Void)?
     private var launchCheck = false
+    private var automaticCheck = false
 
     let preferences: AppPreferences
     let current: ReleaseVersion
@@ -342,7 +344,8 @@ final class UpdateChecker: ObservableObject {
 
     /// Conectar and the hourly timer: only when the interval has passed.
     func checkIfDue() {
-        guard preferences.checkForUpdates, isDue else { return }
+        guard preferences.checkForUpdates, isDue, !checking else { return }
+        automaticCheck = true
         check()
     }
 
@@ -387,8 +390,9 @@ final class UpdateChecker: ObservableObject {
     }
 
     private func finish(_ result: Result<(Int, Data), Error>) {
-        let launch = launchCheck
+        let launch = launchCheck, automatic = automaticCheck
         launchCheck = false
+        automaticCheck = false
         defer { checking = false }
         guard case .success((let status, let data)) = result, status == 200, data.count <= UpdateFeed.maximumResponseSize,
               let releases = try? UpdateFeed.decode(data) else {
@@ -398,9 +402,12 @@ final class UpdateChecker: ObservableObject {
         preferences.lastUpdateSuccess = now()
         let found = UpdateFeed.select(releases, current: current, includePrereleases: preferences.includePrereleases,
                                       skipped: preferences.skippedVersion)
+        let known = offer?.releaseVersion
         set(found)
         outcome = found == nil ? .upToDate : .available
-        if launch, let found, !deferred { onLaunchOffer?(found) }
+        guard let found, !deferred else { return }
+        let newer = found.releaseVersion.map { version in known.map { version > $0 } ?? true } ?? false
+        if launch || (automatic && newer) { onOffer?(found) }
     }
 
     private func set(_ found: UpdateOffer?) {

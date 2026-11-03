@@ -776,7 +776,7 @@ struct AboutSettings: View {
                 Text("TunnelMac").font(.title2.weight(.semibold))
                 Text("Versão \(HelperConstants.releaseVersion) (build \(HelperConstants.build))")
                     .font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
-                Text("Interface nativa de macOS para o openfortivpn, o OpenVPN e o WireGuard.").font(.callout).foregroundStyle(.secondary)
+                Text("Interface nativa de macOS para Fortinet, OpenVPN, WireGuard, GlobalProtect e Check Point.").font(.callout).foregroundStyle(.secondary)
             }
         }
         .accessibilityElement(children: .combine)

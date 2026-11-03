@@ -395,12 +395,12 @@ enum MenuBarTests {
             controller.open(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
             _ = TestSupport.spin(0.3) { false }
             let panel = controller.panel
-            try require(panel.isVisible && controller.isOpen && visible.contains(panel.frame) && panel.frame.width == 360,
-                        "Painel não abriu dentro da tela fictícia: \(panel.frame)")
+            try require(panel.isVisible && controller.isOpen && visible.contains(controller.menuFrame) && controller.menuFrame.width == 360,
+                        "Painel não abriu dentro da tela fictícia: \(controller.menuFrame)")
             try require(panel.canBecomeKey && !panel.canBecomeMain && panel.level == .popUpMenu
                         && panel.styleMask.contains(.nonactivatingPanel) && !panel.hidesOnDeactivate && panel.backgroundColor == .clear,
                         "Configuração do painel")
-            try require(panel.frame.height > 100, "Altura do conteúdo não aplicada: \(panel.frame.height)")
+            try require(controller.menuFrame.height > 100, "Altura do conteúdo não aplicada: \(controller.menuFrame.height)")
             controller.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
             try require(!panel.isVisible && closes == 1, "Perder o foco não fechou o painel")
             controller.close()

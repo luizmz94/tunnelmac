@@ -268,7 +268,7 @@ enum SettingsTests {
             try require(checker.offer?.version == "0.3.0", "Canal estável não ofereceu a estável")
         }
 
-        test("Atualização pelo app: feed da versão oferecida, aviso só na abertura e versões exibidas") {
+        test("Atualização pelo app: feed da versão oferecida, aviso na abertura ou em versão nova e versões exibidas") {
             let arch = AppUpdater.architecture
             try require(["arm64", "x86_64"].contains(arch), "Arquitetura: \(arch)")
             try require(AppUpdater.feedURL(for: "0.5.0-rc.6")?.absoluteString
@@ -283,9 +283,23 @@ enum SettingsTests {
             transport.reply = .success((200, json(fixture)))
             let checker = UpdateChecker(preferences: preferences, transport: transport, current: rc4)
             var offered: [String] = []
-            checker.onLaunchOffer = { offered.append($0.version) }
-            checker.checkNow(); checker.checkIfDue()
-            try require(offered.isEmpty && checker.pending, "Verificação manual ou periódica abriu a janela de atualização")
+            checker.onOffer = { offered.append($0.version) }
+            checker.checkNow()
+            try require(offered.isEmpty && checker.pending, "Verificação manual abriu a janela de atualização")
+            // Periodic check (timer, Conectar): a version already offered does not open it again...
+            let later = Date().addingTimeInterval(5 * 3600)
+            checker.now = { later }
+            checker.checkIfDue()
+            try require(offered.isEmpty, "Verificação periódica reabriu a janela da mesma versão")
+            // ...a newly found one does, once (the app stays open for days in the menu bar).
+            let periodic = UpdateChecker(preferences: AppPreferences.disposable(currentVersion: "0.3.0-rc.4"), transport: transport, current: rc4)
+            var periodicOffered: [String] = []
+            periodic.onOffer = { periodicOffered.append($0.version) }
+            periodic.checkIfDue()
+            try require(periodicOffered == [periodic.offer?.version ?? "-"], "Versão nova na verificação periódica não abriu a janela: \(periodicOffered)")
+            periodic.now = { later }
+            periodic.checkIfDue()
+            try require(periodicOffered.count == 1, "Verificação periódica repetiu o aviso")
             checker.checkOnLaunch()
             try require(offered == [checker.offer?.version ?? "-"], "Abertura não ofereceu a atualização: \(offered)")
             checker.checkNow()
@@ -295,7 +309,7 @@ enum SettingsTests {
             try require(offered.count == 1, "Depois não segurou o aviso")
             transport.reply = .success((200, json([])))
             let fresh = UpdateChecker(preferences: AppPreferences.disposable(currentVersion: "0.3.0-rc.4"), transport: transport, current: rc4)
-            fresh.onLaunchOffer = { offered.append($0.version) }
+            fresh.onOffer = { offered.append($0.version) }
             fresh.checkOnLaunch()
             try require(offered.count == 1 && fresh.outcome == .upToDate, "Aviso sem versão nova")
             // Off by default outside the app; never starts Sparkle in the runner.
