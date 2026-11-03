@@ -82,8 +82,8 @@ secrets. Graphical-session failures there are still failures.
 
 ## Ground rules
 
-- **No VPN protocol code and no bundled clients.** openfortivpn, OpenVPN and wireguard-go
-  stay external dependencies that the user installs and approves.
+- **No VPN protocol code and no bundled clients.** openfortivpn, OpenVPN, wireguard-go,
+  OpenConnect and snx-rs stay external dependencies that the user installs and approves.
 - **Security boundaries need maintainer review.** Changes to helper operations, XPC trust,
   runtime integrity, maintenance or persistence require explicit review. Read
   [SECURITY.md](SECURITY.md) first.

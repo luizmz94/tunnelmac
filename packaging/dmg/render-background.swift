@@ -51,7 +51,8 @@ func draw(in context: CGContext) {
     context.stroke(rect.insetBy(dx: 0.5, dy: 0.5))
 
     // Arrow from the app to Applications: the three brand colors, dashed lead-in, chevron.
-    let y = appCenter.y, from = appCenter.x + 78, to = applicationsCenter.x - 78
+    // Clear of both 112 pt icons, so Finder's folder art never covers the chevron.
+    let y = appCenter.y, from = appCenter.x + 88, to = applicationsCenter.x - 92
     let arrow = CGMutablePath()
     arrow.move(to: CGPoint(x: from, y: y)); arrow.addLine(to: CGPoint(x: to, y: y))
     arrow.move(to: CGPoint(x: to - 13, y: y - 13)); arrow.addLine(to: CGPoint(x: to, y: y)); arrow.addLine(to: CGPoint(x: to - 13, y: y + 13))
@@ -73,7 +74,7 @@ func draw(in context: CGContext) {
             .draw(in: CGRect(x: 0, y: y, width: size.width, height: 24))
     }
     text("Drag TunnelMac to Applications to install", .systemFont(ofSize: 13, weight: .medium), 0.72, y: 76)
-    text("FORTINET  ·  OPENVPN  ·  WIREGUARD", .systemFont(ofSize: 10, weight: .semibold), 0.32, y: 372, kern: 1.6)
+    text("FORTINET  ·  OPENVPN  ·  WIREGUARD  ·  GLOBALPROTECT  ·  CHECK POINT", .systemFont(ofSize: 10, weight: .semibold), 0.32, y: 372, kern: 1.6)
 }
 
 for scale in [1, 2] {
