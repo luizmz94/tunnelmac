@@ -415,6 +415,14 @@ enum SettingsTests {
             try require(AppPreferences(defaults: rc.defaults).skippedVersion == nil, "Remoção não persistiu")
         }
 
+        test("Progresso das conexões: ligado por padrão e persiste na suíte descartável") {
+            let preferences = AppPreferences.disposable()
+            try require(preferences.showConnectionProgress && preferences.defaults !== UserDefaults.standard, "Padrão desligado ou preferências reais")
+            preferences.showConnectionProgress = false
+            try require(preferences.defaults.object(forKey: AppPreferences.Key.showConnectionProgress) as? Bool == false
+                        && !AppPreferences(defaults: preferences.defaults).showConnectionProgress, "Preferência não persistiu")
+        }
+
         test("Dock: política ao esconder cada janela em cada combinação, desligar o ícone e iniciar") {
             let store = try JSONStore(directory: root.appendingPathComponent("dock"))
             let model = AppModel(store: store, passwords: passwords, cookies: cookies, service: HelperTests.readyService())

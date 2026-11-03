@@ -566,6 +566,135 @@ enum MenuBarTests {
             try require(controller.handle(window: controller.panel.windowNumber, keyCode: 53, flags: [], characters: nil) && !controller.isOpen,
                         "Esc sem texto não fechou o painel real")
         }
+
+        test("Progresso: cartões nas transições, 2,5 s após conectar, falha até fechar, desconexão some, 4 + \"+N\"") {
+            var model = ConnectionProgressModel()
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            let ids = (0..<6).map { _ in UUID() }
+            let none = { (reason: "nenhuma", reviewable: false) }
+            func apply(_ id: UUID, _ old: ConnectionState, _ new: ConnectionState, attempt: Int = 0, enabled: Bool = true, at offset: TimeInterval = 0) {
+                model.apply(id: id, name: "C", endpoint: "vpn.invalid:443", from: old, to: new, attempt: attempt, failure: none, enabled: enabled,
+                            now: start.addingTimeInterval(offset))
+            }
+            apply(ids[0], .disconnected, .authorizing)
+            try require(model.cards.map(\.id) == [ids[0]] && model.cards[0].state == .authorizing, "Inativa → ativa não criou o cartão")
+            apply(ids[0], .authorizing, .connecting)
+            apply(ids[0], .connecting, .connected, at: 1)
+            try require(model.cards[0].state == .connected && model.cards[0].dismissAt == start.addingTimeInterval(3.5), "Conectada não marcou 2,5 s")
+            model.expire(now: start.addingTimeInterval(3.4))
+            try require(model.cards.count == 1, "Sumiu antes de 2,5 s")
+            model.expire(now: start.addingTimeInterval(3.5))
+            try require(model.cards.isEmpty, "Não sumiu 2,5 s depois de conectar")
+            // Failure stays until Fechar.
+            apply(ids[1], .failed, .authorizing)
+            model.apply(id: ids[1], name: "C", endpoint: "", from: .authorizing, to: .failed, attempt: 0,
+                        failure: { (reason: "Autenticação recusada", reviewable: true) }, enabled: true, now: start)
+            model.expire(now: start.addingTimeInterval(3600))
+            try require(model.cards.first?.state == .failed && model.cards.first?.reason == "Autenticação recusada"
+                        && model.cards.first?.reviewable == true, "A falha não ficou até fechar")
+            model.dismiss(ids[1])
+            try require(model.cards.isEmpty, "Fechar não removeu a falha")
+            // Disconnected by the user: gone at once.
+            apply(ids[2], .disconnected, .connecting)
+            apply(ids[2], .connecting, .disconnecting)
+            try require(model.cards.isEmpty, "Desconexão pelo usuário manteve o cartão")
+            // A dropped tunnel that reconnects; a failure without a card shows nothing.
+            apply(ids[3], .connected, .failed)
+            try require(model.cards.isEmpty, "Falha sem cartão criou um")
+            apply(ids[3], .failed, .reconnecting, attempt: 2)
+            try require(model.cards.first?.state == .reconnecting && model.cards.first?.attempt == 2, "Reconexão não criou o cartão com a tentativa")
+            try require(ProgressCardView.detail(model.cards[0]) == "Reconectando: tentativa 2 de 3", "Texto da reconexão: \(ProgressCardView.detail(model.cards[0]))")
+            model.removeAll()
+            // Option off: nothing.
+            apply(ids[4], .disconnected, .connecting, enabled: false)
+            try require(model.cards.isEmpty, "Com a opção desligada, criou cartão")
+            // Five at once: newest first, 4 visible and "+1".
+            for id in ids.prefix(5) { apply(id, .disconnected, .authorizing) }
+            try require(model.visible.count == 4 && model.overflow == 1 && model.visible.first?.id == ids[4], "Limite de 4 cartões e +N")
+            try require(ConnectionProgressModel.shown(cards: 1, enabled: true, menuOpen: false)
+                        && !ConnectionProgressModel.shown(cards: 1, enabled: true, menuOpen: true)
+                        && !ConnectionProgressModel.shown(cards: 1, enabled: false, menuOpen: false)
+                        && !ConnectionProgressModel.shown(cards: 0, enabled: true, menuOpen: false), "Regra de exibição do painel")
+        }
+
+        test("Progresso: motivo da falha na ordem da tabela, sem o segredo de teste") {
+            let reason = ConnectionProgressModel.failureReason
+            try require(reason(true, true, ["ERROR: x"]) == "Autenticação recusada", "Recusa não veio primeiro")
+            try require(reason(false, true, ["ERROR: x"]) == "Certificado do gateway não confiado", "Certificado não veio em segundo")
+            try require(reason(false, false, ["ok", "ERROR: gateway unreachable", "Processo encerrado (código 1)."]) == "ERROR: gateway unreachable",
+                        "Última linha de erro")
+            try require(reason(false, false, ["Conectando", "Processo encerrado (código 1)."]) == "A conexão terminou sem detalhes", "Sem detalhes")
+            // The same filtered log the session keeps: the secret never reaches a card.
+            let secret = "s3cr3t-local-check"
+            let session = Session(id: UUID())
+            session.secret = secret
+            session.log("ERROR: login failed for user ana with password \(secret)")
+            session.log("Processo encerrado (código 1).")
+            let text = reason(false, false, session.logs)
+            try require(!text.isEmpty && !text.contains(secret), "Segredo no motivo: \(text)")
+            let card = ConnectionProgressModel.Card(id: session.id, name: "A", endpoint: "vpn.invalid", state: .failed, reason: text)
+            try require(!ProgressCardView.detail(card).contains(secret), "Segredo no texto do cartão")
+        }
+
+        test("Progresso: menu, janela e reconexão criam o cartão; Cancelar; opção desligada; escondido com o menu aberto") {
+            let (model, connections) = try makeModel(root, names: ["A", "B", "C", "D"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            var cancels: [UUID] = []
+            menuBar.connectAction = { model.manager.session($0.id).state = .authorizing }
+            menuBar.disconnectAction = { cancels.append($0) }
+            let presenter = FakeProgressPresenter()
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            menuBar.installProgressPanel(presenter)
+            let sessions = connections.map { model.manager.session($0.id) }
+            _ = TestSupport.spin(0.1) { false }
+            menuBar.perform(connections[0])                     // menu (and Enter in the search)
+            sessions[1].state = .connecting                     // window: model.connect sets the same states
+            sessions[2].state = .connected; sessions[2].state = .failed
+            sessions[2].reconnectAttempts = 1; sessions[2].state = .reconnecting // automatic reconnect
+            _ = TestSupport.spin(0.2) { presenter.isShown }
+            let ids = menuBar.progress.model.cards.map(\.id)
+            try require(Set(ids) == Set([connections[0].id, connections[1].id, connections[2].id]), "Origens sem cartão: \(ids.count)")
+            try require(menuBar.progress.model.cards.first { $0.id == connections[0].id }?.name == "A", "Cartão sem o nome da conexão")
+            try require(presenter.isShown && presenter.anchors.last?.button == nil, "Painel não apareceu no canto superior direito da tela")
+            menuBar.cancelProgress(connections[1].id)
+            try require(cancels == [connections[1].id], "Cancelar não chamou disconnectAction com o id certo")
+            // Hidden while the menu is open, back when it closes.
+            menuBar.showMenu()
+            _ = TestSupport.spin(0.1) { !presenter.isShown }
+            try require(!presenter.isShown, "Painel visível com o menu aberto")
+            menuBar.closeMenu()
+            _ = TestSupport.spin(0.1) { presenter.isShown }
+            try require(presenter.isShown, "Painel não voltou ao fechar o menu")
+            // Option off: everything goes and nothing new appears.
+            menuBar.preferences.showConnectionProgress = false
+            sessions[3].state = .connecting
+            _ = TestSupport.spin(0.2) { !presenter.isShown }
+            try require(menuBar.progress.model.cards.isEmpty && !presenter.isShown, "Com a opção desligada, há cartão ou painel")
+            for session in sessions { session.state = .disconnected }
+        }
+
+        test("Progresso: painel real fora da tela nunca vira key nem main e fica no visibleFrame") {
+            let (model, connections) = try makeModel(root, names: ["A"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let controller = ConnectionProgressPanelController(menuBar: menuBar)
+            model.manager.session(connections[0].id).state = .connecting
+            _ = TestSupport.spin(0.1) { false }
+            let visible = NSRect(x: -30000, y: -30000, width: 1440, height: 870)
+            controller.show(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
+            let panel = controller.panel
+            // After the 0.2 s entrance (fade and 8 pt slide).
+            _ = TestSupport.spin(1) { visible.contains(panel.frame) }
+            try require(panel.isVisible && !panel.canBecomeKey && !panel.canBecomeMain && !panel.isKeyWindow, "O painel pode receber o teclado")
+            try require(panel.level == .statusBar && panel.collectionBehavior.contains(.canJoinAllSpaces)
+                        && panel.collectionBehavior.contains(.ignoresCycle) && panel.styleMask.contains(.nonactivatingPanel), "Configuração do painel")
+            try require(visible.contains(panel.frame) && panel.frame.width == 300 && panel.frame.height > 30, "Fora da tela fictícia: \(panel.frame)")
+            controller.hide()
+            _ = TestSupport.spin(1) { !panel.isVisible }
+            try require(!panel.isVisible, "Painel não sumiu")
+            model.manager.session(connections[0].id).state = .disconnected
+        }
     }
 
 }
@@ -601,4 +730,13 @@ final class FakeMenuPresenter: MenuPanelPresenter {
         isOpen = false
         onClose?()
     }
+}
+
+/// Progress panel stand-in.
+@MainActor
+final class FakeProgressPresenter: ProgressPanelPresenter {
+    private(set) var isShown = false
+    private(set) var anchors: [MenuAnchor] = []
+    func show(anchor: MenuAnchor) { isShown = true; anchors.append(anchor) }
+    func hide() { isShown = false }
 }

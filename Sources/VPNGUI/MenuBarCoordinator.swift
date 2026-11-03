@@ -124,6 +124,9 @@ final class MenuBarCoordinator: ObservableObject {
                              userInfo: [.announcement: text, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
     private var lastPointer: NSPoint?
+    /// Cards of the progress panel and the panel itself (a fake in the local checks).
+    let progress = ConnectionProgressCenter()
+    private(set) var progressPresenter: ProgressPanelPresenter?
     var setActivationPolicy: (NSApplication.ActivationPolicy) -> Void = { _ = NSApp?.setActivationPolicy($0) }
     private var observers = Set<AnyCancellable>()
     private var sessionObservers: [AnyCancellable] = []
@@ -154,6 +157,13 @@ final class MenuBarCoordinator: ObservableObject {
         }.store(in: &observers)
         // A @Published change inside a Session does not publish the manager's dictionary,
         // so each session is observed individually. manager.changed stays untouched.
+        progress.announce = { [weak self] in self?.announce($0) }
+        progress.objectWillChange.sink { [weak self] in
+            DispatchQueue.main.async { self?.updateProgressPanel() }
+        }.store(in: &observers)
+        preferences.$showConnectionProgress.dropFirst().removeDuplicates().sink { [weak self] shown in
+            if !shown { self?.progress.disable() }
+        }.store(in: &observers)
         model.$data.dropFirst().sink { [weak self] _ in
             DispatchQueue.main.async { self?.searchResultsChanged() }
         }.store(in: &observers)
@@ -164,7 +174,16 @@ final class MenuBarCoordinator: ObservableObject {
     }
 
     private func observe(_ sessions: [Session]) {
-        sessionObservers = sessions.map { session in
+        // Every state change of every session, whatever started it (menu, window, search,
+        // shortcut or an automatic reconnect), reaches the progress panel.
+        let progressObservers = sessions.map { session in
+            session.$state.sink { [weak self, weak session] state in
+                guard let self, let session else { return }
+                self.progress.sessionChanged(session, to: state, connection: self.model.data.connections.first { $0.id == session.id },
+                                             enabled: self.preferences.showConnectionProgress)
+            }
+        }
+        sessionObservers = progressObservers + sessions.map { session in
             Publishers.Merge4(session.$state.dropFirst().map { _ in () },
                               session.$connectedAt.dropFirst().map { _ in () },
                               session.$authenticationRejected.dropFirst().map { _ in () },
@@ -228,9 +247,10 @@ final class MenuBarCoordinator: ObservableObject {
         resetSearch()
         lastPointer = NSEvent.mouseLocation
         menuPresenter.open(anchor: statusItem.host.anchor)
+        menuOpen = true
+        updateProgressPanel()
         // The search field takes the keyboard whenever the menu opens, by click or shortcut.
         searchFocusRequest += 1
-        menuOpen = true
         statusItem.host.setHighlighted(true)
     }
 
@@ -239,9 +259,38 @@ final class MenuBarCoordinator: ObservableObject {
     private func menuDidClose() {
         activeWhenOpened = nil
         menuOpen = false
+        updateProgressPanel()
         searchText = ""
         highlightedID = nil
         statusItem?.host.setHighlighted(false)
+    }
+
+    // MARK: Progress panel
+
+    func installProgressPanel(_ presenter: ProgressPanelPresenter) {
+        progressPresenter = presenter
+        updateProgressPanel()
+    }
+
+    /// Hidden while the menu is open (it shows the same states); back when it closes if
+    /// something is still in progress.
+    func updateProgressPanel() {
+        guard let progressPresenter else { return }
+        if ConnectionProgressModel.shown(cards: progress.model.cards.count, enabled: preferences.showConnectionProgress, menuOpen: menuOpen) {
+            progressPresenter.show(anchor: progressAnchor)
+        } else {
+            progressPresenter.hide()
+        }
+    }
+
+    /// Cancelar on a progress card: the same as turning the connection off in the menu (also
+    /// cancels a reconnect and the SAML queue).
+    func cancelProgress(_ id: UUID) { disconnectAction(id) }
+
+    /// The top right corner of the screen with the menu bar, where other apps' notifications appear.
+    private var progressAnchor: MenuAnchor {
+        let frame = NSScreen.screens.first?.visibleFrame ?? statusItem?.host.anchor.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        return MenuAnchor(button: nil, visibleFrame: frame)
     }
 
     // MARK: Search

@@ -288,6 +288,27 @@ enum UIPreviewTests {
                     if let highlight { searching.highlightedID = highlight }
                     try render(MenuBarView(menuBar: searching), NSSize(width: 360, height: name == "menubar-search-empty" ? 300 : 520), name)
                 }
+                // Progress panel: one card per state, and five at once (4 + "+1").
+                @MainActor func progress(_ steps: [(Int, ConnectionState, ConnectionState)], reason: String = "", reviewable: Bool = false) -> MenuBarCoordinator {
+                    let coordinator = MenuBarCoordinator(model: model)
+                    for (index, old, new) in steps {
+                        coordinator.progress.model.apply(id: connections[index].id, name: connections[index].name, endpoint: connections[index].endpoint,
+                                                         from: old, to: new, attempt: 2, failure: { (reason, reviewable) }, enabled: true, now: Date())
+                    }
+                    return coordinator
+                }
+                for (name, coordinator) in [
+                    ("progress-connecting", progress([(0, .disconnected, .connecting)])),
+                    ("progress-saml", progress([(2, .disconnected, .authenticating)])),
+                    ("progress-connected", progress([(0, .disconnected, .connecting), (0, .connecting, .connected)])),
+                    ("progress-failed", progress([(1, .disconnected, .connecting), (1, .connecting, .failed)],
+                                                 reason: "ERROR: Could not connect to gateway (connection refused)")),
+                    ("progress-stack", progress([(0, .disconnected, .authorizing), (1, .disconnected, .waitingForSAML), (2, .disconnected, .authenticating),
+                                                 (4, .failed, .reconnecting), (5, .disconnected, .connecting)])),
+                ] {
+                    let height: CGFloat = name == "progress-stack" ? 360 : 90
+                    try render(ConnectionProgressView(center: coordinator.progress, menuBar: coordinator), NSSize(width: 300, height: height), name)
+                }
                 try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 600), "editor-new")
                 try render(ConnectionEditor(model: model, connection: connections[2], saved: {}), NSSize(width: 560, height: 600), "editor-saml")
                 try render(CertificateTrustSheet(connection: connections[4], digest: String(repeating: "0f", count: 32), trust: {}),
@@ -347,7 +368,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 76, "Renders esperados: 76, gerados: \(files.count)")
+            try require(files.count == 86, "Renders esperados: 86, gerados: \(files.count)")
         }
         return failures
     }

@@ -75,6 +75,17 @@ Active connections and the ones you pin (the pin on the highlighted row, or **Fi
 topo** in its context menu) stay at the top of the menu, above a separator. While the menu
 is open, a connection that connects or disconnects keeps its place until the menu opens again.
 
+While a connection starts, connects or fails, whatever started it (menu, window, search
+or an automatic reconnect), a small panel in the top right corner of the screen shows its
+progress: Iniciando,
+Na fila do SAML, Aguardando SAML, Conectando, Reconectando (attempt N of 3), then
+Conectada for 2.5 s, or the failure with its reason (credentials refused, untrusted
+gateway certificate, or the last error line of the log) until you close it. **Cancelar**
+disconnects (and cancels a reconnect or the SAML queue); **Ver logs** opens the window.
+Up to four cards are shown, then "+N em andamento". The panel never takes the keyboard,
+hides while the menu is open, and is off with **Mostrar o progresso das conexões** in
+Configurações › Geral.
+
 ### OpenVPN
 
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**
@@ -207,7 +218,8 @@ explicit review and approval of the profile's trusted digest; TLS is not disable
 
 - **Geral:** show the menu bar icon; hide from the Dock when the window is closed
   (always kept in the Dock while the menu bar icon is off, so the app never becomes
-  invisible); open at login (`SMAppService.mainApp`, only in signed builds).
+  invisible); show connection progress (on by default); open at login
+  (`SMAppService.mainApp`, only in signed builds).
 - **Atualizações:** update check options and how to update (see below).
 - **Serviço privilegiado:** its state, runtime approval and **Remover serviço** on top;
   why the service exists below (formerly the Gerenciar… sheet).

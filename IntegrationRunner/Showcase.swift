@@ -176,6 +176,7 @@ final class ShowcaseDemo: ObservableObject {
         didStart = true
         // The app's own menu bar icon and menu panel (a demo, not the local checks).
         menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: menuBar))
+        menuBar.installProgressPanel(ConnectionProgressPanelController(menuBar: menuBar))
         // Two tunnels already up for a while, through the same connect path as the button.
         connect("Head Office", fast: true, since: 4_325)
         connect("Home", fast: true, since: 1_268)
@@ -372,6 +373,15 @@ struct ShowcaseTour {
             }
             demo.menuBar.closeMenu()
             await pause(0.5)
+
+            // The progress panel under the icon while a profile connects.
+            demo.connect("Production Cloud")
+            await pause(0.9)
+            if let panel = (demo.menuBar.progressPresenter as? ConnectionProgressPanelController)?.panel, panel.isVisible {
+                capture([panel], "progress-\(suffix)")
+            }
+            demo.model.manager.disconnect(demo.connection("Production Cloud").id)
+            await pause(1.5)
 
             window.makeKeyAndOrderFront(nil)
             press("n", keyCode: 45, in: window)

@@ -21,6 +21,7 @@ final class AppPreferences: ObservableObject {
         static let customDNS = "customInternetDNS"
         static let appearance = "appearance"
         static let pinnedConnections = "pinnedMenuConnections"
+        static let showConnectionProgress = "showConnectionProgress"
         /// Read by Foundation at launch: the app's own language order (as set by System
         /// Settings › Language & Region › Applications).
         static let languages = "AppleLanguages"
@@ -44,6 +45,8 @@ final class AppPreferences: ObservableObject {
     @Published var pinnedConnections: [UUID] {
         didSet { defaults.set(pinnedConnections.map(\.uuidString), forKey: Key.pinnedConnections) }
     }
+    /// Floating panel under the icon while a connection starts, connects or fails.
+    @Published var showConnectionProgress: Bool { didSet { defaults.set(showConnectionProgress, forKey: Key.showConnectionProgress) } }
     /// Light, dark or following the system (the default).
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
@@ -78,6 +81,7 @@ final class AppPreferences: ObservableObject {
         lastUpdateSuccess = defaults.object(forKey: Key.lastUpdateSuccess) as? Date
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
         pinnedConnections = (defaults.stringArray(forKey: Key.pinnedConnections) ?? []).compactMap(UUID.init(uuidString:))
+        showConnectionProgress = defaults.object(forKey: Key.showConnectionProgress) as? Bool ?? true
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         // Only the app's own domain: the global AppleLanguages is the system's choice.
         let domain = languageDefaults.persistentDomain(forName: (realLanguage ? nil : disposableSuite) ?? Bundle.main.bundleIdentifier ?? "")

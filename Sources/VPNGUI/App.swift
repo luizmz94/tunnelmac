@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // Not in the local checks runner, so it still quits on its own.
             if !MenuBarCoordinator.isLocalChecks {
                 launched.menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: launched.menuBar))
+                launched.menuBar.installProgressPanel(ConnectionProgressPanelController(menuBar: launched.menuBar))
             }
         }
         NSAppleEventManager.shared().setEventHandler(self, andSelector: #selector(handleURL(_:reply:)),

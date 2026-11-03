@@ -1116,6 +1116,17 @@
       },
       "shouldTranslate": false
     },
+    "%@: %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@: %2$@"
+          }
+        }
+      },
+      "shouldTranslate": false
+    },
     "%@: acesso à chave negado no Keychain.": {
       "localizations": {
         "de": {
@@ -1180,6 +1191,46 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@: नियंत्रण वर्ण या शुरुआत/अंत में स्पेस समर्थित नहीं हैं।"
+          }
+        }
+      }
+    },
+    "%@: falha. %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: fehlgeschlagen. %2$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: failed. %2$@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: falló. %2$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ : échec. %2$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@: विफल। %2$@"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@: falha. %2$@"
           }
         }
       }
@@ -1876,6 +1927,40 @@
     "%lld.": {
       "shouldTranslate": false
     },
+    "+%lld em andamento": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld laufen noch"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld in progress"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld en curso"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld en cours"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%lld प्रगति में"
+          }
+        }
+      }
+    },
     "1 item": {
       "localizations": {
         "de": {
@@ -2048,6 +2133,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "कनेक्शन और प्रोफ़ाइल हटा दिए जाएँगे।"
+          }
+        }
+      }
+    },
+    "A conexão terminou sem detalhes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Verbindung wurde ohne Details beendet"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The connection ended without details"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La conexión terminó sin detalles"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion s’est terminée sans détails"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कनेक्शन बिना विवरण के समाप्त हो गया"
           }
         }
       }
@@ -3458,6 +3577,40 @@
         }
       }
     },
+    "Abrir o menu do TunnelMac": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac-Menü öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the TunnelMac menu"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir el menú de TunnelMac"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir le menu de TunnelMac"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "TunnelMac मेनू खोलें"
+          }
+        }
+      }
+    },
     "Aceita": {
       "localizations": {
         "de": {
@@ -3828,6 +3981,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "SAML की प्रतीक्षा"
+          }
+        }
+      }
+    },
+    "Aguardando SAML: conclua o login no navegador": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warten auf SAML: Anmeldung im Browser abschließen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for SAML: finish signing in in the browser"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando SAML: completa el inicio de sesión en el navegador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente de SAML : terminez la connexion dans le navigateur"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAML की प्रतीक्षा: ब्राउज़र में लॉगिन पूरा करें"
           }
         }
       }
@@ -7944,6 +8131,40 @@
         }
       }
     },
+    "Cancelar %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ abbrechen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancelar %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ रद्द करें"
+          }
+        }
+      }
+    },
     "Carregador dinâmico inesperado em %@.": {
       "localizations": {
         "de": {
@@ -8314,6 +8535,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "गेटवे प्रमाणपत्र"
+          }
+        }
+      }
+    },
+    "Certificado do gateway não confiado": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway-Zertifikat nicht vertrauenswürdig"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gateway certificate not trusted"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificado del gateway no confiable"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Certificat de la passerelle non approuvé"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "गेटवे प्रमाणपत्र विश्वसनीय नहीं"
           }
         }
       }
@@ -9572,6 +9827,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "जुड़े हुए समय"
+          }
+        }
+      }
+    },
+    "Conectada: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connected: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectada: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectée : %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "जुड़ा: %@"
           }
         }
       }
@@ -12390,6 +12679,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "डिस्कनेक्ट करके बंद करें?"
+          }
+        }
+      }
+    },
+    "Desconectar; cancela também reconexões e fila SAML": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trennen; bricht auch erneute Verbindungen und die SAML-Warteschlange ab"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Disconnect; also cancels reconnects and the SAML queue"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconectar; también cancela reconexiones y la cola SAML"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déconnecter ; annule aussi les reconnexions et la file SAML"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डिस्कनेक्ट करें; पुनः कनेक्शन और SAML कतार भी रद्द करता है"
           }
         }
       }
@@ -15564,6 +15887,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "विफल · %@"
+          }
+        }
+      }
+    },
+    "Falha: %@": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fehlgeschlagen: %@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Falló: %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec : %@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "विफल: %@"
           }
         }
       }
@@ -20645,6 +21002,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "Finder में दिखाएँ"
+          }
+        }
+      }
+    },
+    "Mostrar o progresso das conexões": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbindungsfortschritt anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show connection progress"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar el progreso de las conexiones"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher la progression des connexions"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कनेक्शन की प्रगति दिखाएँ"
           }
         }
       }
@@ -30177,6 +30568,40 @@
         }
       }
     },
+    "Reconectando: tentativa %lld de 3": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Neu verbinden: Versuch %lld von 3"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnecting: attempt %lld of 3"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconectando: intento %lld de 3"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reconnexion : tentative %lld sur 3"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "फिर से जोड़ रहे हैं: प्रयास %lld / 3"
+          }
+        }
+      }
+    },
     "Recuperação de rede ou registro pendente. Reinicie o serviço antes de conectar novamente.": {
       "localizations": {
         "de": {
@@ -34809,6 +35234,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "प्रोफ़ाइल के एक [Peer] में PublicKey नहीं है।"
+          }
+        }
+      }
+    },
+    "Um painel discreto no canto da tela enquanto a VPN conecta.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein dezentes Feld in der Bildschirmecke, während das VPN verbindet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A discreet panel in the corner of the screen while the VPN connects."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un panel discreto en la esquina de la pantalla mientras la VPN se conecta."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un panneau discret dans le coin de l’écran pendant que le VPN se connecte."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "VPN कनेक्ट होते समय स्क्रीन के कोने में एक छोटा पैनल।"
           }
         }
       }
