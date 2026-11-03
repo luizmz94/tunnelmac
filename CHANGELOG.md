@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.3.0 — unreleased
+## 1.3.0 — 2026-11-02
 
 - **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without
   scrolling, with a warning badge on the ones whose client is missing in the service.
@@ -50,7 +50,7 @@
   it prints the connection block is now documented and covered by tests; the readiness
   rule is unchanged.
 
-## 1.2.0 — 2026-11-02
+## 1.2.0 — not published on its own (shipped in 1.3.0)
 
 - Check Point connections (Remote Access / Endpoint Security VPN gateways) through
   snx-rs (`brew install snx-rs`, approved in Serviço privilegiado like the other

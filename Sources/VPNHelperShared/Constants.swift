@@ -9,9 +9,9 @@ public enum HelperConstants {
     public static let machServiceName = "com.luiz.vpngui.helper"
     public static let plistName = "com.luiz.vpngui.helper.plist"
     /// Single source of the product version; scripts/build.sh writes it into Info.plist.
-    public static let version = "1.2.0"
-    public static let releaseVersion = "1.2.0"
-    public static let build = "35"
+    public static let version = "1.3.0"
+    public static let releaseVersion = "1.3.0"
+    public static let build = "36"
     public static var fullVersion: String { "\(version) (\(build))" }
     /// Bumped whenever a request, response or event changes shape or meaning.
     public static let protocolVersion = 10
