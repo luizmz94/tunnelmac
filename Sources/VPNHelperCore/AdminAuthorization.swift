@@ -18,7 +18,7 @@ public final class SystemAdminAuthorizer: AdminAuthorizing {
     public init() {}
     static let rule = "authenticate-admin"
     /// The right's own description, shown only when a request carries no prompt.
-    static let description = "TunnelMac quer aprovar ou remover a cópia protegida de um cliente VPN (openfortivpn, OpenVPN, wireguard-go ou OpenConnect)."
+    static let description = "TunnelMac quer aprovar ou remover a cópia protegida de um cliente VPN (openfortivpn, OpenVPN, wireguard-go, OpenConnect ou snx-rs)."
 
     public static func approvalPrompt(_ kind: RuntimeKind, path: String) -> String {
         switch kind {
@@ -30,6 +30,8 @@ public final class SystemAdminAuthorizer: AdminAuthorizing {
             return ServiceLanguage.text("TunnelMac quer aprovar o wireguard-go (WireGuard) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
         case .openconnect:
             return ServiceLanguage.text("TunnelMac quer aprovar o OpenConnect (GlobalProtect) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
+        case .snxrs:
+            return ServiceLanguage.text("TunnelMac quer aprovar o snx-rs (Check Point) para conectar suas VPNs. O serviço vai usar só uma cópia protegida de \(path).")
         }
     }
     public static var removalPrompt: String { ServiceLanguage.text("TunnelMac quer remover as cópias protegidas dos clientes VPN e os arquivos do serviço.") }

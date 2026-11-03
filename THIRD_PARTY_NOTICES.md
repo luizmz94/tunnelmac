@@ -34,6 +34,16 @@ license files into the protected runtime. Its vpnc-script is not used: the helpe
 its own script for addresses, routes and DNS, written for this project. GlobalProtect is
 a trademark of Palo Alto Networks; this project is independent of it.
 
+**snx-rs** is an external dependency, maintained by Dmitry Pankratov and its contributors:
+https://github.com/ancwrd1/snx-rs (AGPL-3.0). It is not included in release archives; when
+the user approves it, the helper copies the local Homebrew executable, its OpenSSL
+libraries (`openssl@4`, under their own license) and their license files (`COPYING`)
+into the protected runtime, without modification, and runs it as a separate process
+(`snx-rs -m standalone` and `snx-rs -m info`); TunnelMac does not link to it or contain any
+of its code. snxctl and snx-rs-gui, installed by the same formula, are not used. Check Point
+is a trademark of Check Point Software Technologies Ltd.; this project is independent of it
+and ships no Check Point logo.
+
 **Sparkle** 2.9.6 (https://sparkle-project.org) is included in the app bundle
 (`Contents/Frameworks/Sparkle.framework`) for in-app updates, under the MIT License.
 Its complete LICENSE file, with the notices of the code it bundles (bsdiff 4.3 by Colin

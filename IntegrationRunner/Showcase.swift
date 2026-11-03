@@ -43,12 +43,6 @@ struct ShowcaseApp: App {
                 .background(SettingsWindowBinding(menuBar: demo.menuBar))
         }
         .defaultSize(width: 760, height: 540)
-        MenuBarExtra {
-            MenuBarView(menuBar: demo.menuBar)
-        } label: {
-            MenuBarLabel(menuBar: demo.menuBar)
-        }
-        .menuBarExtraStyle(.window)
     }
 }
 
@@ -72,6 +66,7 @@ final class ShowcaseDemo: ObservableObject {
         // The demo bundle has its own identifier: the language survives "Reabrir agora".
         let preferences = AppPreferences.disposable(realLanguage: true)
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
+        model.manager.officialCheckPointClientInstalled = { false }
         menuBar = MenuBarCoordinator(model: model, preferences: preferences)
         // The window and the menu bar re-read the real status when they appear; this demo
         // has no service behind it, so it keeps the fictitious one.
@@ -89,6 +84,8 @@ final class ShowcaseDemo: ObservableObject {
             self?.play(session, ShowcaseDemo.wireGuardOutput)
         }, globalProtectLaunched: { [weak self] session, _ in
             self?.play(session, ShowcaseDemo.globalProtectOutput)
+        }, checkPointLaunched: { [weak self] session, _ in
+            self?.play(session, ShowcaseDemo.checkPointOutput)
         }, globalProtectLogin: { _ in
             // Stands in for the browser login (SAML in the default browser).
             try? await Task.sleep(nanoseconds: 300_000_000)
@@ -110,7 +107,8 @@ final class ShowcaseDemo: ObservableObject {
                             runtimeProblem: nil, userAuthorized: true, activeSessions: 0, stoppingConnections: [],
                             openVPNRuntime: runtime("openvpn", "2.7.8", "/opt/homebrew/Cellar/openvpn/2.7.8_1/sbin/openvpn", help: ""),
                             wireGuardRuntime: runtime("wireguard-go", "0.0.20250522", "/opt/homebrew/Cellar/wireguard-go/0.0.20250522/bin/wireguard-go", help: ""),
-                            openConnectRuntime: runtime("openconnect", "9.21", "/opt/homebrew/Cellar/openconnect/9.21/bin/openconnect", help: ""))
+                            openConnectRuntime: runtime("openconnect", "9.21", "/opt/homebrew/Cellar/openconnect/9.21/bin/openconnect", help: ""),
+                            snxRuntime: runtime("snx-rs", "6.6.1", "/opt/homebrew/Cellar/snx-rs/6.6.1/bin/snx-rs", help: ""))
     }
 
     // MARK: Fictitious connections (reserved .example names and documentation addresses)
@@ -164,16 +162,31 @@ final class ShowcaseDemo: ObservableObject {
         try model.save(globalProtect, password: "")
         connections[globalProtect.name] = globalProtect
 
+        // "Head Office" is already the Fortinet demo; the Check Point one has its own name.
+        let checkPoint = Connection(name: "Initech HQ", server: "vpn.initech.example", username: "alex.morgan", kind: .checkPoint,
+                                    checkPoint: CheckPointSettings(loginType: "vpn"))
+        try model.save(checkPoint, password: "demo-only")
+        connections[checkPoint.name] = checkPoint
+
         for connection in connections.values { observeDisconnect(connection) }
     }
 
     func started() {
         guard !didStart else { return }
         didStart = true
+        // The app's own menu bar icon and menu panel (a demo, not the local checks).
+        menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: menuBar))
+        menuBar.installProgressPanel(ConnectionProgressPanelController(menuBar: menuBar))
+        // Recording a shortcut in the demo's Configurações is the user's own action.
+        menuBar.installHotKeys(GlobalHotKeyCenter(preferences: menuBar.preferences, registrar: CarbonHotKeyRegistrar(),
+                                                  taps: EventTapModifierSource(), system: SymbolicHotKeys()) { [weak self] in
+            self?.menuBar.toggleMenu(focusSearch: true)
+        })
         // Two tunnels already up for a while, through the same connect path as the button.
         connect("Head Office", fast: true, since: 4_325)
         connect("Home", fast: true, since: 1_268)
         connect("Branch Office", fast: true, since: 2_140)
+        connect("Initech HQ", fast: true, since: 812)
         if let directory = ShowcaseApp.captureDirectory {
             Task { await ShowcaseTour(demo: self, directory: directory).run() }
         } else {
@@ -249,6 +262,26 @@ final class ShowcaseDemo: ObservableObject {
         (0.3, "INFO:   Tunnel is up and running.", nil)
     ]
 
+    /// snx-rs standalone (en-US labels) and the helper's ready marker.
+    private static let checkPointOutput: [(TimeInterval, String, ConnectionState?)] = [
+        (0.4, "INFO snxcore::platform::macos: Cleaning up stale DNS entries", nil),
+        (0.5, "INFO snxcore::tunnel::ipsec::connector: IPsec authentication succeeded", nil),
+        (0.4, "         Server name: vpn.initech.example", nil),
+        (0.1, "           User name: alex.morgan", nil),
+        (0.1, "          Login type: vpn", nil),
+        (0.1, "         Tunnel type: IPSec", nil),
+        (0.1, "IPsec transport type: UDP TUN", nil),
+        (0.1, "          IP address: 172.16.10.19/24", nil),
+        (0.1, "         DNS servers: 198.51.100.53, 198.51.100.54", nil),
+        (0.1, "      Search domains: initech.example", nil),
+        (0.1, "           Interface: utun7", nil),
+        (0.1, "      DNS configured: true", nil),
+        (0.1, "  Routing configured: true", nil),
+        (0.1, "       Default route: false", nil),
+        (0.2, "Tunnel connected, press Ctrl-C to exit.", nil),
+        (0.2, CheckPointRules.networkReady + "utun7", nil)
+    ]
+
     private static let globalProtectOutput: [(TimeInterval, String, ConnectionState?)] = [
         (0.4, "POST https://vpn.globex.example/ssl-vpn/prelogin.esp?tmp=tmp&clientVer=4100&clientos=Mac", nil),
         (0.3, "Connected to 203.0.113.60:443", nil),
@@ -295,10 +328,11 @@ final class ShowcaseDemo: ObservableObject {
         case .openvpn: return ["SIGTERM[hard,] received, process exiting"]
         case .wireguard: return ["[#] Routes and DNS restored; interface removed."]
         case .globalProtect: return ["Logout successful.", "[#] Rotas e DNS da VPN removidos."]
+        case .checkPoint: return ["Tunnel disconnected"]
         }
     }
 
-    private func cleanUp() {
+    func cleanUp() {
         for connection in connections.values { try? passwords.delete(connection.id) }
         try? FileManager.default.removeItem(at: root)
     }
@@ -318,35 +352,50 @@ struct ShowcaseTour {
         }
         window.setContentSize(NSSize(width: 1180, height: 640))
         window.center()
-        await pause(0.5)
+        await activate(window)
         widenSidebar(window)
         await pause(0.5)
 
         for (appearance, suffix) in [(NSAppearance.Name.aqua, "light"), (.darkAqua, "dark")] {
             NSApp.appearance = NSAppearance(named: appearance)
+            let dark = appearance == .darkAqua
             select("Head Office")
             await pause(1.2)
-            capture([window], "main-\(suffix)")
+            await capture([window], key: window, "main-\(suffix)")
             select("Home")
             await pause(1.0)
-            capture([window], "wireguard-\(suffix)")
+            await capture([window], key: window, "wireguard-\(suffix)")
             select("Branch Office")
             await pause(1.0)
-            capture([window], "globalprotect-\(suffix)")
-
-            let panel = menuBarPanel()
+            await capture([window], key: window, "globalprotect-\(suffix)")
+            select("Initech HQ")
             await pause(1.0)
-            fit(panel)
-            await pause(0.5)
-            capture([panel], "menubar-\(suffix)")
-            panel.orderOut(nil)
+            await capture([window], key: window, "checkpoint-\(suffix)")
+
+            await activate(window)
+            demo.menuBar.showMenu()
+            await pause(1.5)
+            if let panel = (demo.menuBar.menuPresenter as? MenuBarPanelController)?.panel {
+                await captureGlass(panel, key: panel, dark: dark, "menubar-\(suffix)")
+            }
+            demo.menuBar.closeMenu()
             await pause(0.5)
 
-            window.makeKeyAndOrderFront(nil)
+            // The progress panel (top right corner of the screen) while a profile connects.
+            await activate(window)
+            demo.connect("Production Cloud")
+            await pause(0.9)
+            if let panel = (demo.menuBar.progressPresenter as? ConnectionProgressPanelController)?.panel, panel.isVisible {
+                await captureGlass(panel, key: nil, dark: dark, "progress-\(suffix)")
+            }
+            demo.model.manager.disconnect(demo.connection("Production Cloud").id)
+            await pause(1.5)
+
+            await activate(window)
             press("n", keyCode: 45, in: window)
             await pause(1.2)
             if let sheet = window.attachedSheet {
-                capture([sheet, window], "new-connection-\(suffix)")
+                await capture([sheet, window], key: window, "new-connection-\(suffix)")
                 press("\u{1b}", keyCode: 53, in: sheet, command: false)
                 await pause(0.8)
                 if let sheet = window.attachedSheet { window.endSheet(sheet) }
@@ -355,15 +404,16 @@ struct ShowcaseTour {
 
             await captureOnboarding(over: window, suffix)
             await captureSettings(.backup, "backup-\(suffix)", height: 470)
-            window.makeKeyAndOrderFront(nil)
-            await pause(0.5)
+            await activate(window)
         }
         NSApp.appearance = nil
 
         // Animated connect and disconnect of a Fortinet profile.
         NSApp.appearance = NSAppearance(named: .aqua)
         select("Staging")
-        await pause(1.2)
+        await activate(window)
+        await pause(0.8)
+        _ = await ensureActive(window, "connect.gif")
         let frames = directory.appendingPathComponent("frames-connect", isDirectory: true)
         try? FileManager.default.removeItem(at: frames)
         try? FileManager.default.createDirectory(at: frames, withIntermediateDirectories: true)
@@ -380,7 +430,10 @@ struct ShowcaseTour {
         demo.model.manager.disconnect(demo.connection("Staging").id)
         await pause(2.5)
         recorder.invalidate()
+        _ = await ensureActive(window, "connect.gif")
 
+        // showcase.sh copies the images only when the tour got here.
+        try? Data().write(to: directory.appendingPathComponent(".complete"))
         print("Showcase: imagens em \(directory.path)")
         fflush(stdout)
         demo.model.manager.disconnectAll()
@@ -404,18 +457,20 @@ struct ShowcaseTour {
             versions.setForChecks(local: [.openfortivpn: .init(path: "/opt/homebrew/bin/openfortivpn", exists: true, version: "1.24.1", sourceChanged: false),
                                           .openvpn: .init(path: "/opt/homebrew/sbin/openvpn", exists: true, version: "2.7.8", sourceChanged: false),
                                           .wireguard: .init(path: "/opt/homebrew/bin/wireguard-go", exists: false, version: nil, sourceChanged: false),
-                                          .openconnect: .init(path: "/opt/homebrew/bin/openconnect", exists: true, version: "9.21", sourceChanged: false)],
-                                  latest: [.openfortivpn: "1.24.1", .openvpn: "2.7.10", .wireguard: "0.0.20250522", .openconnect: "9.21"])
+                                          .openconnect: .init(path: "/opt/homebrew/bin/openconnect", exists: true, version: "9.21", sourceChanged: false),
+                                          .snxrs: .init(path: "/opt/homebrew/bin/snx-rs", exists: true, version: "6.6.1", sourceChanged: false)],
+                                  latest: [.openfortivpn: "1.24.1", .openvpn: "2.7.10", .wireguard: "0.0.20250522", .openconnect: "9.21", .snxrs: "6.6.1"])
         }
         fake()
         let guide = ServiceOnboardingSheet(model: model, versions: versions, forcedStep: .clients,
-                                           chosen: [.openfortivpn, .openvpn, .wireguard, .openconnect]) { _ in }
+                                           chosen: [.openfortivpn, .openvpn, .wireguard, .openconnect, .snxrs]) { _ in }
         let controller = NSHostingController(rootView: guide)
+        await activate(window)
         window.contentViewController?.presentAsSheet(controller)
         await pause(0.8)
         fake() // The guide reads this Mac's installations on appear.
         await pause(1.0)
-        if let sheet = window.attachedSheet { capture([sheet, window], "onboarding-\(suffix)") }
+        if let sheet = window.attachedSheet { await capture([sheet, window], key: window, "onboarding-\(suffix)") }
         window.contentViewController?.dismiss(controller)
         await pause(0.8)
     }
@@ -436,9 +491,9 @@ struct ShowcaseTour {
         settings.contentViewController = NSHostingController(rootView: SettingsView(menuBar: demo.menuBar))
         settings.setContentSize(NSSize(width: 780, height: height))
         settings.center()
-        settings.makeKeyAndOrderFront(nil)
-        await pause(1.5)
-        capture([settings], name)
+        await activate(settings)
+        await pause(1.1)
+        await capture([settings], key: settings, name)
         settings.orderOut(nil)
         await pause(0.5)
     }
@@ -466,60 +521,80 @@ struct ShowcaseTour {
         if let split = window.contentView.flatMap(splits)?.first { split.setPosition(300, ofDividerAt: 0) }
     }
 
-    /// The MenuBarExtra popover cannot be opened from code; the same view in a panel with
-    /// the menu material stands in for it.
-    private final class KeyPanel: NSPanel {
-        override var canBecomeKey: Bool { true }
+    /// This app in front and `window` key: a background app draws inactive windows (gray
+    /// traffic lights and switches), which must never become README images.
+    private func activate(_ window: NSWindow?) async {
+        if #available(macOS 14, *) { NSApp.activate() } else { NSApp.activate(ignoringOtherApps: true) }
+        window?.makeKeyAndOrderFront(nil)
+        await pause(0.4)
     }
 
-    private func menuBarPanel() -> NSPanel {
-        let host = NSHostingView(rootView: MenuBarView(menuBar: demo.menuBar))
-        let size = NSSize(width: 360, height: 600)
-        let panel = KeyPanel(contentRect: NSRect(origin: .zero, size: size), styleMask: [.borderless, .nonactivatingPanel],
-                            backing: .buffered, defer: false)
-        panel.isReleasedWhenClosed = false
-        panel.backgroundColor = .clear
-        panel.isOpaque = false
-        panel.hasShadow = true
-        let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))
-        material.material = .menu
-        material.state = .active
-        material.maskImage = NSImage(size: NSSize(width: 29, height: 29), flipped: false) { rect in
-            NSBezierPath(roundedRect: rect, xRadius: 14, yRadius: 14).fill()
-            return true
+    /// The app is active and `key` (or its sheet, or the window owning it) has the keyboard.
+    /// One more try; otherwise the tour stops without a .complete mark, so showcase.sh copies
+    /// nothing and the previous images stay.
+    @discardableResult
+    private func ensureActive(_ key: NSWindow?, _ name: String) async -> Bool {
+        func active() -> Bool {
+            guard NSApp.isActive else { return false }
+            guard let key else { return true }
+            return key.isKeyWindow || key.attachedSheet?.isKeyWindow == true || key.sheetParent?.isKeyWindow == true
         }
-        material.maskImage?.capInsets = NSEdgeInsets(top: 14, left: 14, bottom: 14, right: 14)
-        host.frame = material.bounds
-        host.autoresizingMask = [.width, .height]
-        material.addSubview(host)
-        panel.contentView = material
-        if let screen = NSScreen.main?.visibleFrame {
-            panel.setFrameTopLeftPoint(NSPoint(x: screen.maxX - size.width - 40, y: screen.maxY - 8))
-        }
-        panel.makeKeyAndOrderFront(nil)
-        return panel
+        if active() { return true }
+        await activate(key)
+        if active() { return true }
+        print("Showcase: o app perdeu o foco em \(name); rode de novo sem usar o Mac")
+        fflush(stdout)
+        demo.model.manager.disconnectAll()
+        demo.cleanUp()
+        exit(3)
     }
 
-    /// Shrinks the panel to the view's measured height, keeping its top edge.
-    private func fit(_ panel: NSPanel) {
-        guard let host = panel.contentView?.subviews.first else { return }
-        let height = host.fittingSize.height
-        var frame = panel.frame
-        frame.origin.y += frame.height - height
-        frame.size.height = height
-        panel.setFrame(frame, display: true)
-    }
-
-    private func capture(_ windows: [NSWindow], _ name: String) {
+    private func capture(_ windows: [NSWindow], key: NSWindow?, _ name: String) async {
+        await ensureActive(key, name)
         Self.write(windows, shadow: true, to: directory.appendingPathComponent("\(name).png"))
         print("Showcase: \(name).png")
+    }
+
+    /// The menu and the progress panel are glass: alone in a capture there is nothing behind
+    /// them and the glass comes out flat gray. A fixed backdrop window of this demo goes behind
+    /// the panel (nothing of the desktop or of other apps) and the capture is cropped to the
+    /// panel and its shadow, below the menu bar. Compositing [panel, backdrop] from the window
+    /// list already shows the backdrop through the glass (checked against a screen capture of
+    /// the same area: identical), and it reads only this app's windows, so it is the one used.
+    private func captureGlass(_ panel: NSWindow, key: NSWindow?, dark: Bool, _ name: String) async {
+        let backdrop = ShowcaseBackdrop.window(around: panel.frame, dark: dark)
+        backdrop.order(.below, relativeTo: panel.windowNumber)
+        await pause(0.8)
+        await ensureActive(key, name)
+        // Shadow room on the sides and below; only 4 pt above, so the menu bar stays out.
+        let area = NSRect(x: panel.frame.minX - 28, y: panel.frame.minY - 44,
+                          width: panel.frame.width + 56, height: panel.frame.height + 48)
+        Self.write([panel, backdrop], area: area, to: directory.appendingPathComponent("\(name).png"))
+        print("Showcase: \(name).png")
+        backdrop.orderOut(nil)
+    }
+
+    /// Global display coordinates (origin top left) of a Cocoa screen rectangle.
+    private static func displayRect(_ rect: NSRect) -> CGRect {
+        let height = NSScreen.screens.first?.frame.height ?? 0
+        return CGRect(x: rect.minX, y: height - rect.maxY, width: rect.width, height: rect.height)
+    }
+
+    /// The given windows composited by the window server, cropped to `area`.
+    static func write(_ windows: [NSWindow], area: NSRect, to url: URL) {
+        let ids = windows.map { UnsafeRawPointer(bitPattern: UInt($0.windowNumber)) }
+        let array = ids.withUnsafeBufferPointer { CFArrayCreate(nil, UnsafeMutablePointer(mutating: $0.baseAddress), $0.count, nil) }
+        guard let array, let image = CGImage.windowListImage(array, bounds: displayRect(area), options: [.nominalResolution]) else {
+            print("Showcase: falha ao capturar \(url.lastPathComponent)"); return
+        }
+        try? NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])?.write(to: url)
     }
 
     /// Composites only the given windows of this app (no other app, no desktop).
     static func write(_ windows: [NSWindow], shadow: Bool, to url: URL) {
         let ids = windows.map { UnsafeRawPointer(bitPattern: UInt($0.windowNumber)) }
         let array = ids.withUnsafeBufferPointer { CFArrayCreate(nil, UnsafeMutablePointer(mutating: $0.baseAddress), $0.count, nil) }
-        var options: CGWindowImageOption = [.bestResolution]
+        var options: CGWindowImageOption = [.nominalResolution]
         if !shadow { options.insert(.boundsIgnoreFraming) }
         guard let array, let image = CGImage.windowListImage(array, options: options) else {
             print("Showcase: falha ao capturar \(url.lastPathComponent)"); return
@@ -531,7 +606,50 @@ struct ShowcaseTour {
 
 extension CGImage {
     @available(macOS, deprecated: 14.0)
-    static func windowListImage(_ windows: CFArray, options: CGWindowImageOption) -> CGImage? {
-        CGImage(windowListFromArrayScreenBounds: .null, windowArray: windows, imageOption: options)
+    static func windowListImage(_ windows: CFArray, bounds: CGRect = .null, options: CGWindowImageOption) -> CGImage? {
+        CGImage(windowListFromArrayScreenBounds: bounds, windowArray: windows, imageOption: options)
+    }
+
+}
+
+/// Fixed background for the glass captures: a soft gradient with a few blurred brand-colored
+/// shapes, so the glass has something to show. Same in every run; light and dark versions.
+enum ShowcaseBackdrop {
+    @MainActor static func window(around frame: NSRect, dark: Bool) -> NSWindow {
+        let window = NSWindow(contentRect: frame.insetBy(dx: -90, dy: -90), styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.level = .floating
+        window.hasShadow = false
+        window.isOpaque = true
+        window.ignoresMouseEvents = true
+        window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        window.contentView = NSHostingView(rootView: View(dark: dark))
+        return window
+    }
+
+    struct View: SwiftUI.View {
+        let dark: Bool
+        var body: some SwiftUI.View {
+            GeometryReader { proxy in
+                let size = proxy.size
+                ZStack {
+                    LinearGradient(colors: dark ? [Color(red: 0.10, green: 0.11, blue: 0.17), Color(red: 0.16, green: 0.12, blue: 0.22)]
+                                                : [Color(red: 0.86, green: 0.90, blue: 0.97), Color(red: 0.95, green: 0.89, blue: 0.93)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    // TunnelMac's arc colors: blue, orange and red.
+                    blob(Color(red: 0.18, green: 0.58, blue: 0.84), at: CGPoint(x: size.width * 0.25, y: size.height * 0.22), size.width * 0.55)
+                    blob(Color(red: 0.93, green: 0.54, blue: 0.20), at: CGPoint(x: size.width * 0.80, y: size.height * 0.55), size.width * 0.50)
+                    blob(Color(red: 0.82, green: 0.26, blue: 0.25), at: CGPoint(x: size.width * 0.30, y: size.height * 0.85), size.width * 0.45)
+                }
+            }
+            .ignoresSafeArea()
+        }
+
+        private func blob(_ color: Color, at point: CGPoint, _ diameter: CGFloat) -> some SwiftUI.View {
+            Circle().fill(color.opacity(dark ? 0.55 : 0.45))
+                .frame(width: diameter, height: diameter)
+                .blur(radius: diameter * 0.18)
+                .position(point)
+        }
     }
 }

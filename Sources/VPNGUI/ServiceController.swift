@@ -38,6 +38,7 @@ protocol SessionTransport: AnyObject {
     func startOpenVPN(_ request: OpenVPNRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func startWireGuard(_ request: WireGuardRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func startGlobalProtect(_ request: GlobalProtectRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
+    func startCheckPoint(_ request: CheckPointRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void)
     func stop(_ token: String, completion: @escaping (HelperFailure?) -> Void)
 }
 
@@ -285,6 +286,7 @@ final class ServiceController: ObservableObject, SessionTransport {
         case .openvpn: request = .inspectOpenVPNRuntime(path: candidate)
         case .wireguard: request = .inspectWireGuardRuntime(path: candidate)
         case .openconnect: request = .inspectOpenConnectRuntime(path: candidate)
+        case .snxrs: request = .inspectSnxRsRuntime(path: candidate)
         }
         client.request(request, timeout: 60) { [weak self] result in
             guard let self else { return }
@@ -337,6 +339,8 @@ final class ServiceController: ObservableObject, SessionTransport {
             request = .approveWireGuardRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
         case .openconnect:
             request = .approveOpenConnectRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
+        case .snxrs:
+            request = .approveSnxRsRuntime(path: inspection.candidatePath, digest: inspection.digest, authorization: authorization.externalForm)
         }
         client.request(request, timeout: 600) { [weak self] result in
             withExtendedLifetime(authorization) {}
@@ -507,6 +511,35 @@ final class ServiceController: ObservableObject, SessionTransport {
             case .success(.started(let token, let plan)): completion(.success((token, plan)))
             case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
             case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
+            }
+        }
+    }
+
+    func startCheckPoint(_ request: CheckPointRequest, completion: @escaping (Result<(String, LaunchPlan), HelperFailure>) -> Void) {
+        guard unavailableReason(for: .snxrs) == nil, let client else {
+            completion(.failure(HelperFailure(.unavailable, unavailableReason(for: .snxrs) ?? String(localized: "Serviço indisponível.")))); return
+        }
+        client.request(.startCheckPoint(request), timeout: 30) { result in
+            switch result {
+            case .success(.started(let token, let plan)): completion(.success((token, plan)))
+            case .success(.failure(let failure)), .failure(let failure): completion(.failure(failure))
+            case .success: completion(.failure(HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço."))))
+            }
+        }
+    }
+
+    /// `snx-rs -m info` through the helper (unprivileged): login types and fingerprint words.
+    func queryCheckPointGateway(_ query: CheckPointGatewayQuery) async throws -> CheckPointGatewayInfo {
+        guard unavailableReason(for: .snxrs) == nil, let client else {
+            throw HelperFailure(.unavailable, unavailableReason(for: .snxrs) ?? String(localized: "Serviço indisponível."))
+        }
+        return try await withCheckedThrowingContinuation { continuation in
+            client.request(.queryCheckPointGateway(query), timeout: 30) { result in
+                switch result {
+                case .success(.checkPointGateway(let info)): continuation.resume(returning: info)
+                case .success(.failure(let failure)), .failure(let failure): continuation.resume(throwing: failure)
+                case .success: continuation.resume(throwing: HelperFailure(.invalidRequest, String(localized: "Resposta inesperada do serviço.")))
+                }
             }
         }
     }

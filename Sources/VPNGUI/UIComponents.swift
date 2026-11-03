@@ -191,6 +191,67 @@ extension View {
     }
 }
 
+extension View {
+    /// Surface of a choosable tile: interactive Liquid Glass on macOS 26+,
+    /// a soft grouped fill with a hairline before.
+    @ViewBuilder func tileSurface(cornerRadius: CGFloat = 18) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        if #available(macOS 26, *) {
+            glassEffect(.regular.interactive(), in: shape)
+        } else {
+            background(shape.fill(Color.primary.opacity(0.045)))
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        }
+    }
+
+    /// The system focus ring follows `shape` (macOS 14+; a rectangle before).
+    @ViewBuilder func focusRingShape<S: Shape>(_ shape: S) -> some View {
+        if #available(macOS 14, *) { contentShape(.focusEffect, shape) } else { self }
+    }
+}
+
+/// Search field of the menu: a glass capsule on macOS 26+, a rounded text field before, both
+/// with the magnifier and a clear button while there is text.
+struct MenuSearchField: View {
+    @Binding var text: String
+    let prompt: String
+    var focused: FocusState<Bool>.Binding
+    @Environment(\.isEnabled) private var isEnabled
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
+            TextField(prompt, text: $text)
+                .textFieldStyle(.plain)
+                .focused(focused)
+                .accessibilityLabel(prompt)
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Limpar a busca")
+                    .accessibilityLabel("Limpar a busca")
+            }
+        }
+        .padding(.horizontal, 10).padding(.vertical, 6)
+        .modifier(SearchFieldSurface())
+        .opacity(isEnabled ? 1 : 0.55)
+    }
+}
+
+private struct SearchFieldSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            let shape = RoundedRectangle(cornerRadius: 6, style: .continuous)
+            content
+                .background(shape.fill(Color(nsColor: .textBackgroundColor)))
+                .overlay(shape.strokeBorder(Color(nsColor: .separatorColor), lineWidth: 0.5))
+        }
+    }
+}
+
 // MARK: - Messages
 
 /// Inline message: warnings, errors and pending decisions, with optional actions.

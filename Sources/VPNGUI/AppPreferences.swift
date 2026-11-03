@@ -20,6 +20,9 @@ final class AppPreferences: ObservableObject {
         static let internetDNS = "internetDNSSelection"
         static let customDNS = "customInternetDNS"
         static let appearance = "appearance"
+        static let pinnedConnections = "pinnedMenuConnections"
+        static let showConnectionProgress = "showConnectionProgress"
+        static let menuShortcut = "menuGlobalShortcut"
         /// Read by Foundation at launch: the app's own language order (as set by System
         /// Settings › Language & Region › Applications).
         static let languages = "AppleLanguages"
@@ -39,6 +42,16 @@ final class AppPreferences: ObservableObject {
     @Published var lastUpdateSuccess: Date? { didSet { store(lastUpdateSuccess, Key.lastUpdateSuccess) } }
     /// Id of the chosen "DNS da internet" (preset, custom or `InternetDNSOption.offID`).
     @Published var internetDNSSelection: String { didSet { defaults.set(internetDNSSelection, forKey: Key.internetDNS) } }
+    /// Connections pinned to the top of the menu (ids; unknown ones are ignored).
+    @Published var pinnedConnections: [UUID] {
+        didSet { defaults.set(pinnedConnections.map(\.uuidString), forKey: Key.pinnedConnections) }
+    }
+    /// Floating panel under the icon while a connection starts, connects or fails.
+    @Published var showConnectionProgress: Bool { didSet { defaults.set(showConnectionProgress, forKey: Key.showConnectionProgress) } }
+    /// Global shortcut that opens the menu; none by default. Not a secret.
+    @Published var menuShortcut: GlobalShortcut? {
+        didSet { store(menuShortcut.flatMap { try? JSONEncoder().encode($0) }, Key.menuShortcut) }
+    }
     /// Light, dark or following the system (the default).
     @Published var appearance: AppAppearance { didSet { defaults.set(appearance.rawValue, forKey: Key.appearance) } }
     /// Takes effect when the app opens again; `launchLanguage` is the one in use now.
@@ -72,6 +85,10 @@ final class AppPreferences: ObservableObject {
         lastUpdateAttempt = defaults.object(forKey: Key.lastUpdateAttempt) as? Date
         lastUpdateSuccess = defaults.object(forKey: Key.lastUpdateSuccess) as? Date
         internetDNSSelection = defaults.string(forKey: Key.internetDNS) ?? InternetDNSOption.defaultID
+        pinnedConnections = (defaults.stringArray(forKey: Key.pinnedConnections) ?? []).compactMap(UUID.init(uuidString:))
+        showConnectionProgress = defaults.object(forKey: Key.showConnectionProgress) as? Bool ?? true
+        // Unknown or corrupted JSON is no shortcut, never a failed launch.
+        menuShortcut = defaults.data(forKey: Key.menuShortcut).flatMap { try? JSONDecoder().decode(GlobalShortcut.self, from: $0) }
         appearance = defaults.string(forKey: Key.appearance).flatMap(AppAppearance.init(rawValue:)) ?? .automatic
         // Only the app's own domain: the global AppleLanguages is the system's choice.
         let domain = languageDefaults.persistentDomain(forName: (realLanguage ? nil : disposableSuite) ?? Bundle.main.bundleIdentifier ?? "")
@@ -117,17 +134,6 @@ final class AppPreferences: ObservableObject {
         let defaults = UserDefaults(suiteName: name)!
         return AppPreferences(defaults: defaults, disposableSuite: name, currentVersion: currentVersion,
                               realLanguage: realLanguage)
-    }
-
-    /// Binding for MenuBarExtra(isInserted:). SwiftUI writes the current value back while
-    /// it builds the scenes; publishing that echo re-evaluated the App body, which wrote
-    /// again, recursing until the stack overflowed (0.3.0-rc.4). Only real changes publish.
-    func menuBarIconBinding(enabled: Bool = true) -> Binding<Bool> {
-        Binding(get: { [weak self] in enabled && (self?.showMenuBarIcon ?? true) },
-                set: { [weak self] value in
-                    guard enabled, let self, self.showMenuBarIcon != value else { return }
-                    self.showMenuBarIcon = value
-                })
     }
 
     /// The app must never become invisible: without the menu bar icon it stays in the Dock.

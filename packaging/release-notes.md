@@ -1,11 +1,32 @@
-TunnelMac 1.1.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
+TunnelMac 1.3.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
 TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles, WireGuard
-configurations and GlobalProtect gateways (OpenConnect) from one native Mac app.
+configurations, GlobalProtect gateways (OpenConnect) and Check Point gateways (snx-rs)
+from one native Mac app.
 
 Install: `brew install --cask luizmz94/tunnelmac/tunnelmac`, or download the disk image
 for your Mac below (arm64 for Apple Silicon, x86_64 for Intel), open it and drag
 TunnelMac to Applications. Then open the app and follow the setup guide.
+
+Changes in 1.3.0:
+- Check Point (Remote Access) connections through snx-rs: `brew install snx-rs`, then
+  approve it in Settings › Privileged service. No official client and no site name:
+  gateway, user and password.
+- Query gateway in the editor shows the gateway's own authority with its fingerprint to
+  compare before trusting it, warns when the address is not the one the certificate
+  covers, and lists the login types. User-and-password login types for now.
+- One Check Point connection at a time; if snx-rs is killed, its DNS and gateway route
+  are cleaned up and the connection reconnects. A tunnel not ready after 120 s fails
+  instead of staying in Connecting.
+- New connection shows the VPN types as a grid of tiles, with a panel that explains the
+  type under the pointer or the keyboard focus, and what its client still needs.
+- Search in the menu bar menu: focused when the menu opens; arrows move, Enter connects
+  or disconnects, Esc clears and then closes. Pin connections to keep them on top.
+- A floating progress panel shows a connection starting, connecting or failing, with
+  Cancel and View logs. It never takes the keyboard; turn it off in Settings › General.
+- Optional global shortcut to open the menu from any app: a combination, an F key or a
+  double tap of a modifier (the double tap asks for Input Monitoring).
+- Update the privileged service together with the app (helper protocol 10).
 
 Changes in 1.1.0:
 - GlobalProtect (Palo Alto) connections through OpenConnect: `brew install openconnect`,

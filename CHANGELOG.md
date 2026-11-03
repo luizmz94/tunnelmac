@@ -1,5 +1,79 @@
 # Changelog
 
+## 1.3.0 — 2026-11-02
+
+- **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without
+  scrolling, with a warning badge on the ones whose client is missing in the service.
+  Nothing is preselected; a compact panel below describes the type last under the pointer or
+  the keyboard focus: what it is, its client and state, how it signs in and what the form asks for,
+  with Abrir Serviço privilegiado… when the client is missing. Tab enters the grid, arrow
+  keys move between tiles, Enter or Space chooses and Esc cancels; VoiceOver reads each
+  tile's name, client state and what it asks for. Liquid Glass tiles on macOS 26 and later.
+  The sheet is shorter.
+- Check Point editor: the login type explanation moved to the field's tooltip.
+- The menu bar icon and its menu are now the app's own status item and panel instead of
+  SwiftUI's MenuBarExtra, which cannot be opened or focused from code; this is what the
+  search and the global shortcut build on. The menu opens to the right of the icon, like
+  other menu bar apps, a little more translucent on macOS 26, and without bringing
+  TunnelMac to the front, so the app you were using keeps the keyboard when it closes. The
+  icon shows only the TunnelMac mark (with the connected count), no state symbol beside it. It closes on a click outside, ⌘Tab, a Space change, Esc, or when it opens
+  a window. The icon may move back to its default place once if you had dragged it.
+- **Search in the menu**: a field at the top, focused when the menu opens, filters by name,
+  server and type or client, ignoring case and accents. ↓/↑ move a single highlight (also
+  moved by the mouse), Enter connects or disconnects it and keeps the menu open, ⌘Enter
+  opens it in the window, Esc clears the text and then closes the menu, ⌘F returns to
+  the field. VoiceOver hears the number of results and the highlighted connection.
+- Menu: active connections and the ones you pin (pin button on the row, or its context
+  menu) stay on top, above a separator (a connection that connects while the menu is open
+  moves there the next time it opens, so no row moves under the pointer); the list is
+  taller and uses more of the screen.
+- **Progress panel**: while a connection starts, connects or fails, from any origin (menu,
+  window, search or an automatic reconnect), a floating panel in the top right corner of
+  the screen, like other apps' notifications, shows its state, with Cancelar; it
+  disappears 2.5 s after connecting, and a failure stays with its reason (credentials
+  refused, untrusted certificate or the last error line of the filtered log) and Ver logs
+  until closed. One card per connection, up to four plus "+N". It never takes the
+  keyboard, hides while the menu is open and is announced by VoiceOver. On by default;
+  Configurações › Geral › Mostrar o progresso das conexões.
+- **Global shortcut** to open the menu with the search ready, from any app and without
+  bringing TunnelMac to the front (also with the icon hidden). None by default; recorded in
+  Configurações › Geral › Atalho as a combination with ⌘ or ⌃, an F key alone (F1–F12 with a
+  note about fn) or a double tap of ⌘, ⌥, ⌃ or ⇧. Combinations and F keys use Carbon's
+  RegisterEventHotKey and need no permission; the double tap is opt-in, asks for Input
+  Monitoring after an explanation and listens to modifier changes only (SECURITY.md).
+  Shortcuts macOS uses and common app shortcuts (⌘Q, ⌘C, ⌘Space…) are refused; a saved
+  shortcut that macOS refuses at launch stays saved with a warning.
+- Check Point: a connection whose tunnel is not ready after 120 s no longer stays in
+  Conectando. The service stops snx-rs, removes its DNS entry and gateway route, and the
+  log says the tunnel was not ready in time; it is not retried automatically.
+- Check Point: the order in which snx-rs 6.6.1 sets the interface, routes and DNS before
+  it prints the connection block is now documented and covered by tests; the readiness
+  rule is unchanged.
+
+## 1.2.0 — not published on its own (shipped in 1.3.0)
+
+- Check Point connections (Remote Access / Endpoint Security VPN gateways) through
+  snx-rs (`brew install snx-rs`, approved in Serviço privilegiado like the other
+  clients), without the official client or a site name: gateway, user, password in
+  Keychain (backups included), login type and, when the gateway uses its own internal CA,
+  the authority the user trusted.
+- **Consultar gateway** in the editor: reads the gateway certificate, shows its internal
+  CA (subject, validity, SHA-256 and the gateway's fingerprint words) to trust explicitly,
+  points out an address the certificate does not cover and offers the ones it does, and
+  lists the gateway's login types (`snx-rs -m info`, run by the service as an unprivileged
+  user). Only user-and-password login types are supported; MFA, SAML and client
+  certificates are listed but not yet available.
+- snx-rs runs in standalone mode with its configuration (the password inside, never in
+  argv or the environment) on a protected descriptor; its ignore-server-cert option is
+  never used. It sets routes and DNS itself; the connection shows Conectada once the
+  service sees the tunnel's DNS (or its interface), in any language snx-rs prints. If
+  snx-rs is killed, the service removes its DNS entry and the gateway route it left, and
+  the connection reconnects like the others. One Check Point connection at a time.
+- A VPN client killed from outside now reports its exit, so the retry policy applies.
+- Helper protocol 10: update the service together with the app.
+- Downgrade is not supported once a Check Point connection is saved: older versions do not
+  read the connection list with it (as with GlobalProtect in 1.1.0).
+
 ## 1.1.0 — 2026-10-30
 
 - GlobalProtect connections through OpenConnect (`brew install openconnect`, approved

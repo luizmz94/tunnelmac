@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 import ServiceManagement
 import AppKit
+import Carbon.HIToolbox
 import VPNHelperShared
 
 /// Local checks for the presentation layer: state mapping, digest grouping and offscreen
@@ -59,6 +60,92 @@ enum UIPreviewTests {
             let icon = Bundle.main.url(forResource: "AppIcon", withExtension: "icns").flatMap { NSImage(contentsOf: $0) }
             try require(icon?.representations.contains(where: { $0.pixelsWide == 1024 && $0.pixelsHigh == 1024 }) == true,
                         "ICNS não contém a representação de 1024 px")
+        }
+
+        test("Nova conexão: grade, quick view, teclado, escolha e VoiceOver") {
+            let standard = ProtocolCatalog.standard.entries
+            try require(standard.map(\.kind) == VPNProtocol.allCases, "O catálogo não cobre todos os tipos")
+            try require(ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 5, "Os 5 tipos não cabem numa linha")
+            // Quick view: nothing until the first hover or focus, then the tile of the last one.
+            var selection = ProtocolCatalog.Selection()
+            try require(selection.shown(in: standard) == nil, "Algo apareceu sem passar o mouse (pré-seleção)")
+            selection.hovered("wireguard")
+            try require(selection.shown(in: standard)?.kind == .wireguard, "Hover não mostrou o tile")
+            selection.hovered("checkPoint")
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Hover em outro tile não trocou")
+            selection.hovered(nil)
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile apagou o quick view (pisca entre tiles)")
+            try require(ProtocolCatalog.Selection(shown: "inexistente").shown(in: standard) == nil, "Tile inexistente mostrado")
+            var keyboard = ProtocolCatalog.Selection()
+            keyboard.focused(nil)
+            try require(keyboard.shown(in: standard) == nil, "Perder o foco sem interação mostrou um tile")
+            // hover → arrow: the focus moved by the arrow wins.
+            keyboard.hovered("openvpn")
+            keyboard.focused("wireguard")
+            try require(keyboard.shown(in: standard)?.kind == .wireguard, "Seta depois do hover não trocou o quick view")
+            // arrow → hover: the pointer wins; the focus left where it was does not come back.
+            keyboard.focused("globalProtect")
+            keyboard.hovered("checkPoint")
+            try require(keyboard.shown(in: standard)?.kind == .checkPoint, "Hover depois da seta não trocou o quick view")
+            keyboard.focused(nil)
+            keyboard.hovered(nil)
+            try require(keyboard.shown(in: standard)?.kind == .checkPoint, "Perder o foco ou sair do tile apagou o quick view")
+            // Arrows stop at the edges of a 5-column grid of 10.
+            let move = { (index: Int, direction: MoveCommandDirection) in ProtocolCatalog.move(from: index, direction, count: 10, columns: 5) }
+            try require(move(0, .left) == 0 && move(0, .up) == 0 && move(4, .right) == 4 && move(9, .down) == 9, "Setas deram a volta")
+            try require(move(0, .right) == 1 && move(1, .down) == 6 && move(6, .up) == 1 && move(5, .left) == 5, "Setas na grade")
+            try require(ProtocolCatalog.move(from: 3, .down, count: 5, columns: 5) == 3, "Seta para baixo sem linha abaixo")
+            // Choosing: a new connection whose client is missing asks first; otherwise it goes on.
+            try require(ProtocolChoice.decide(isNew: true, problem: "sem cliente") == .askService, "Tipo sem cliente seguiu direto")
+            try require(ProtocolChoice.decide(isNew: true, problem: nil) == .proceed, "Tipo aprovado perguntou")
+            try require(ProtocolChoice.decide(isNew: false, problem: "sem cliente") == .proceed, "Edição perguntou pelo serviço")
+
+            let ready = ProtocolClientState(kind: .ready, text: "snx-rs 6.6.1 aprovado")
+            let problem = ProtocolClientState(kind: .problem, text: "Nenhum cliente VPN aprovado. Nenhum cliente VPN aprovado. Aprove o cliente VPN que você usa.")
+            @MainActor func chooser(_ entries: [ProtocolCatalog.Entry], locale: Locale = Locale(identifier: "pt-BR"),
+                                    state: ProtocolClientState = ready) -> NSHostingView<some View> {
+                let host = NSHostingView(rootView: ProtocolChooser(catalog: ProtocolCatalog(entries: entries), state: { _, _ in state },
+                                                                   openService: {}, shown: entries.first?.id, choose: { _ in }, cancel: {})
+                    .frame(width: 560).environment(\.locale, locale))
+                host.layoutSubtreeIfNeeded()
+                return host
+            }
+            // Ten types (a fake catalog): two rows, and everything still fits the sheet (at most 500 pt).
+            let ten = (0..<10).map { index in
+                var entry = ProtocolCatalog.entry(VPNProtocol.allCases[index % VPNProtocol.allCases.count])
+                entry.id = "falso-\(index)"
+                return entry
+            }
+            try require((ten.count + 4) / ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 2, "10 tipos não formam 2 linhas")
+            try require(ProtocolChooser.sheetHeight(count: 10) <= 500 && ProtocolChooser.sheetHeight(count: 5) < 400, "Altura da folha")
+            for (entries, locale) in [(ten, "pt-BR"), (standard, "pt-BR"), (standard, "de")] {
+                let height = chooser(entries, locale: Locale(identifier: locale)).fittingSize.height
+                try require(height <= ProtocolChooser.sheetHeight(count: entries.count),
+                            "Seletor com \(entries.count) tipos (\(locale)) mede \(height) pt, mais que \(ProtocolChooser.sheetHeight(count: entries.count))")
+            }
+            // The quick view of every type fits its room, in pt-BR and German, also with a service problem.
+            for locale in ["pt-BR", "de"] {
+                for entry in standard {
+                    for state in [ready, problem] {
+                        let host = NSHostingView(rootView: ProtocolQuickView(entry: entry, state: state, openService: {})
+                            .frame(width: ProtocolChooser.gridWidth).environment(\.locale, Locale(identifier: locale)))
+                        let height = host.fittingSize.height
+                        try require(height <= ProtocolChooser.quickViewHeight,
+                                    "Quick view de \(entry.title) (\(locale), \(state.kind)) mede \(height) pt, mais que \(ProtocolChooser.quickViewHeight)")
+                    }
+                }
+            }
+            // Each tile is one VoiceOver element: name, client state and what the form asks for.
+            let spoken = ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), ready, locale: Locale(identifier: "pt-BR"))
+            try require(spoken == .init(label: "Check Point", value: "snx-rs 6.6.1 aprovado", hint: "Gateway Check Point, com usuário e senha. Pede o gateway."),
+                        "VoiceOver do tile Check Point: \(spoken)")
+            let shortProblem = ProtocolClientState(kind: .problem, text: "Nenhum snx-rs aprovado para o serviço.")
+            try require(ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), shortProblem, locale: Locale(identifier: "pt-BR")).value == shortProblem.text,
+                        "O problema do serviço não chega ao VoiceOver")
+            for entry in standard {
+                let german = ProtocolTileButton.spoken(entry, ready, locale: Locale(identifier: "de")).hint
+                try require(!german.isEmpty && german != String(localized: entry.hint), "Dica de VoiceOver sem tradução em alemão: \(entry.title)")
+            }
         }
 
         test("Renderização fora da tela: janela, menu bar, formulários e serviço em claro e escuro") {
@@ -118,9 +205,39 @@ enum UIPreviewTests {
             wireGuardSession.logs = ["[+] Interface do WireGuard: utun8", "[#] ifconfig utun8 inet 10.8.0.3/32 10.8.0.3 alias",
                                      "[#] route -q -n add -inet 0.0.0.0/1 -interface utun8", "\(WireGuardMarkers.ready) em utun8.",
                                      "\(WireGuardMarkers.handshake) com 203.0.113.10:51820."]
+            var checkPoint = Connection(name: "Matriz Check Point", server: "vpn.exemplo.invalid", username: "luiz.carlos", kind: .checkPoint,
+                                        checkPoint: CheckPointSettings(loginType: "vpn"))
+            checkPoint.checkPoint?.authority = CheckPointAuthority(der: Data([1]), sha256: String(repeating: "ab", count: 32), subject: "O=gw-exemplo",
+                                                                   notAfter: Date().addingTimeInterval(86_400 * 365), fingerprintWords: "BOAT HIT GAS MOLD ICY FEN AWE TOOL BIT RAN SOD WAND")
+            created.append(checkPoint.id)
+            let checkPointSession = model.manager.session(checkPoint.id)
+            defer { checkPointSession.state = .disconnected; checkPointSession.connectedAt = nil }
+            checkPointSession.state = .connected
+            checkPointSession.connectedAt = Date().addingTimeInterval(-96)
+            checkPointSession.logs = ["           Interface: utun7", "Tunnel connected, press Ctrl-C to exit.", "[+] TunnelMac: túnel Check Point pronto em utun7."]
             let bothService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
             bothService.useForLocalChecks(status: bothStatus)
             let bothModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("both")), passwords: passwords, service: bothService)
+
+            func runtimeSummary(_ id: String, _ version: String) -> RuntimeSummary {
+                RuntimeSummary(id: id, version: version, approvedAt: Date(), capabilities: RuntimeCapabilities(help: ""), sourcePath: "/fixture/\(id)", sourceSHA256: "0")
+            }
+            var allStatus = HelperTests.readyStatus()
+            allStatus.openVPNRuntime = runtimeSummary("openvpn", "2.7.8")
+            allStatus.wireGuardRuntime = runtimeSummary("wireguard-go", "0.0.20250522")
+            allStatus.openConnectRuntime = runtimeSummary("openconnect", "9.12")
+            allStatus.snxRuntime = runtimeSummary("snx-rs", "6.6.1")
+            let approvedService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
+            approvedService.useForLocalChecks(status: allStatus)
+            let approvedModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("approved")), passwords: passwords, service: approvedService)
+            var noClientStatus = HelperTests.readyStatus()
+            noClientStatus.runtime = nil
+            let noClientService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
+            noClientService.useForLocalChecks(status: noClientStatus)
+            let noClientModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("no-client")), passwords: passwords, service: noClientService)
+            // Never refreshed: the service is still being checked.
+            let checkingModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("checking")), passwords: passwords,
+                                         service: ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil))
 
             let unavailableModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("unavailable")),
                                             passwords: passwords,
@@ -174,8 +291,39 @@ enum UIPreviewTests {
                                NSSize(width: 640, height: 520), "detail-\(name)")
                 }
                 try render(MainView(model: unavailableModel, menuBar: emptyMenuBar), NSSize(width: 900, height: 560), "main-no-connections")
-                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 520), "menubar-list")
+                menuBar.preferences.pinnedConnections = [connections[6].id] // pinned, next to the active ones
+                try render(MenuBarView(menuBar: menuBar), NSSize(width: 360, height: 640), "menubar-list")
                 try render(MenuBarView(menuBar: emptyMenuBar), NSSize(width: 360, height: 300), "menubar-empty-service")
+                // Menu search: results with the first highlighted, a row highlighted by the arrows, and nothing found.
+                for (name, query, highlight) in [("menubar-search-results", "lab", nil as UUID?), ("menubar-search-highlight", "", connections[4].id),
+                                                 ("menubar-search-empty", "zzz", nil)] {
+                    let searching = MenuBarCoordinator(model: model)
+                    searching.announce = { _ in }
+                    searching.setSearch(query)
+                    if let highlight { searching.highlightedID = highlight }
+                    try render(MenuBarView(menuBar: searching), NSSize(width: 360, height: name == "menubar-search-empty" ? 300 : 520), name)
+                }
+                // Progress panel: one card per state, and five at once (4 + "+1").
+                @MainActor func progress(_ steps: [(Int, ConnectionState, ConnectionState)], reason: String = "", reviewable: Bool = false) -> MenuBarCoordinator {
+                    let coordinator = MenuBarCoordinator(model: model)
+                    for (index, old, new) in steps {
+                        coordinator.progress.model.apply(id: connections[index].id, name: connections[index].name, endpoint: connections[index].endpoint,
+                                                         from: old, to: new, attempt: 2, failure: { (reason, reviewable) }, enabled: true, now: Date())
+                    }
+                    return coordinator
+                }
+                for (name, coordinator) in [
+                    ("progress-connecting", progress([(0, .disconnected, .connecting)])),
+                    ("progress-saml", progress([(2, .disconnected, .authenticating)])),
+                    ("progress-connected", progress([(0, .disconnected, .connecting), (0, .connecting, .connected)])),
+                    ("progress-failed", progress([(1, .disconnected, .connecting), (1, .connecting, .failed)],
+                                                 reason: "ERROR: Could not connect to gateway (connection refused)")),
+                    ("progress-stack", progress([(0, .disconnected, .authorizing), (1, .disconnected, .waitingForSAML), (2, .disconnected, .authenticating),
+                                                 (4, .failed, .reconnecting), (5, .disconnected, .connecting)])),
+                ] {
+                    let height: CGFloat = name == "progress-stack" ? 360 : 90
+                    try render(ConnectionProgressView(center: coordinator.progress, menuBar: coordinator), NSSize(width: 300, height: height), name)
+                }
                 try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 600), "editor-new")
                 try render(ConnectionEditor(model: model, connection: connections[2], saved: {}), NSSize(width: 560, height: 600), "editor-saml")
                 try render(CertificateTrustSheet(connection: connections[4], digest: String(repeating: "0f", count: 32), trust: {}),
@@ -183,13 +331,23 @@ enum UIPreviewTests {
                 try render(ServicePanel(model: unavailableModel).padding(20), NSSize(width: 620, height: 360), "service-panel")
                 try render(ServiceStatusRow(service: model.service) {}, NSSize(width: 300, height: 56), "service-row")
                 try render(ConnectionEditor(model: model, connection: openVPN, pendingImport: imported, saved: {}), NSSize(width: 560, height: 640), "editor-openvpn-import")
-                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 520), "editor-choose-type")
+                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type")
+                // Nova conexão with every client approved (also in German, the longest texts), none, and while checking.
+                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-approved")
+                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}).environment(\.locale, Locale(identifier: "de")),
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-de")
+                try render(ConnectionEditor(model: noClientModel, connection: Connection(), openService: {}, saved: {}),
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-unapproved")
+                try render(ConnectionEditor(model: checkingModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-checking")
                 try render(ConnectionEditor(model: model, connection: wireGuard, pendingWireGuard: wireGuardWarned, saved: {}),
                            NSSize(width: 560, height: 640), "editor-wireguard-import")
                 try render(ConnectionDetail(connection: wireGuard, session: wireGuardSession, model: model, edit: {}, delete: {}),
                            NSSize(width: 640, height: 560), "detail-wireguard-connected")
                 try render(ConnectionDetail(connection: openVPN, session: openVPNSession, model: model, edit: {}, delete: {}),
                            NSSize(width: 640, height: 560), "detail-openvpn-digest")
+                try render(ConnectionDetail(connection: checkPoint, session: checkPointSession, model: model, edit: {}, delete: {}),
+                           NSSize(width: 640, height: 560), "detail-checkpoint-connected")
+                try render(ConnectionEditor(model: model, connection: checkPoint, saved: {}), NSSize(width: 560, height: 600), "editor-checkpoint")
                 let versions = ClientVersionChecker(transport: DisabledUpdateTransport())
                 versions.setForChecks(local: [.openvpn: .init(path: "/opt/homebrew/sbin/openvpn", exists: true, version: "2.7.8", sourceChanged: false),
                                               .openfortivpn: .init(path: "/opt/homebrew/bin/openfortivpn", exists: true, version: "1.24.1", sourceChanged: false),
@@ -219,13 +377,38 @@ enum UIPreviewTests {
                 let dnsDefault = AppPreferences.disposable()
                 let dnsCustom = AppPreferences.disposable()
                 dnsCustom.addCustomDNS(try InternetDNSOption.custom(name: "Servidor de casa com nome longo", servers: "192.0.2.53"))
+                // Configurações › Geral › Atalho in each state (fake registrar and tap source: nothing is registered).
+                let cmd = UInt32(cmdKey), opt = UInt32(optionKey), ctrl = UInt32(controlKey)
+                for (name, shortcut, access, refused) in [
+                    ("settings-shortcut-empty", nil as GlobalShortcut?, true, false),
+                    ("settings-shortcut-set", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, false),
+                    ("settings-shortcut-single-key", .keys(keyCode: 96, modifiers: 0), true, false),
+                    ("settings-shortcut-double-tap", .doubleTap(modifier: .option, side: .any), true, false),
+                    ("settings-shortcut-permission", .doubleTap(modifier: .command, side: .right), false, false),
+                    ("settings-shortcut-recording", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, false),
+                    ("settings-shortcut-error", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, true),
+                ] {
+                    let preferences = AppPreferences.disposable()
+                    let center = GlobalHotKeyCenter(preferences: preferences, registrar: FakeHotKeyRegistrar(),
+                                                    taps: FakeModifierTapSource(hasAccess: access), system: FakeSystemShortcuts([])) {}
+                    let recorder = ShortcutRecorderModel(center: center, translator: FakeKeyTranslator([:]))
+                    if let shortcut {
+                        recorder.handle(.recorded(shortcut, notice: name == "settings-shortcut-single-key" ? ShortcutValidator.functionKeyNotice : nil,
+                                                  side: .right))
+                    }
+                    if refused { recorder.message = ShortcutValidator.registrationFailed(OSStatus(eventHotKeyExistsErr)) }
+                    if name == "settings-shortcut-recording" { recorder.start() }
+                    defer { recorder.cancel() }
+                    try render(VStack(alignment: .leading, spacing: 18) { ShortcutSettings(center: center, preferences: preferences, recorder: recorder) }
+                        .padding(24), NSSize(width: 600, height: name == "settings-shortcut-permission" ? 300 : 230), name)
+                }
                 for (preferences, name) in [(dnsDefault, "settings-dns-default"), (dnsCustom, "settings-dns-custom")] {
                     try render(VStack(alignment: .leading, spacing: 18) { InternetDNSSection(preferences: preferences) }.padding(24),
                                NSSize(width: 540, height: 170), name)
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 58, "Renders esperados: 58, gerados: \(files.count)")
+            try require(files.count == 100, "Renders esperados: 100, gerados: \(files.count)")
         }
         return failures
     }

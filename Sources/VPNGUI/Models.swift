@@ -52,6 +52,7 @@ enum HostPortInput {
 import Security
 import Darwin
 import VPNHelperShared
+import CryptoKit
 
 struct AppFailure: LocalizedError {
     let message: String
@@ -70,7 +71,7 @@ extension Authentication {
 
 /// VPN protocol of a saved connection. Existing cadastros (no key) are Fortinet.
 enum VPNProtocol: String, Codable, CaseIterable, Identifiable {
-    case fortinet, openvpn, wireguard, globalProtect
+    case fortinet, openvpn, wireguard, globalProtect, checkPoint
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -78,6 +79,7 @@ enum VPNProtocol: String, Codable, CaseIterable, Identifiable {
         case .openvpn: return "OpenVPN"
         case .wireguard: return "WireGuard"
         case .globalProtect: return "GlobalProtect"
+        case .checkPoint: return "Check Point"
         }
     }
     var runtime: RuntimeKind {
@@ -86,8 +88,31 @@ enum VPNProtocol: String, Codable, CaseIterable, Identifiable {
         case .openvpn: return .openvpn
         case .wireguard: return .wireguard
         case .globalProtect: return .openconnect
+        case .checkPoint: return .snxrs
         }
     }
+}
+
+/// Check Point connection settings. The password lives in the Keychain; nothing here is secret
+/// (the authority is the gateway's public internal CA).
+struct CheckPointSettings: Codable, Equatable {
+    /// Login type id (vpn, vpn_Username_Password…), from the gateway query or typed.
+    var loginType = ""
+    /// nil: the system's validation of the gateway certificate.
+    var authority: CheckPointAuthority?
+}
+
+/// The Check Point internal CA (ICA) the user chose to trust after comparing its fingerprint.
+struct CheckPointAuthority: Codable, Equatable {
+    var der: Data
+    /// Lowercase hex SHA-256 of `der`.
+    var sha256: String
+    var subject: String
+    var notAfter: Date?
+    /// "Internal CA fingerprint" words the gateway showed, for display and comparison.
+    var fingerprintWords: String?
+
+    static func digest(_ der: Data) -> String { SHA256.hash(data: der).map { String(format: "%02x", $0) }.joined() }
 }
 
 /// Original files that other macOS users can still read (they may hold private keys).
@@ -162,13 +187,17 @@ struct Connection: Codable, Identifiable, Equatable {
     var wireGuard: WireGuardSummary?
     /// GlobalProtect only: networks routed through the tunnel (nil = the default list).
     var internalNetworks: [String]?
-    /// GlobalProtect only: follow the gateway's routing, which usually sends all traffic.
+    /// GlobalProtect: follow the gateway's routing, which usually sends all traffic.
+    /// Check Point: the default route through the tunnel (otherwise the gateway's routes).
     var allTraffic = false
+    /// Check Point only.
+    var checkPoint: CheckPointSettings?
     var routedNetworks: [String] { internalNetworks ?? GlobalProtectRules.defaultInternalNetworks }
 
     var isOpenVPN: Bool { kind == .openvpn }
     var isWireGuard: Bool { kind == .wireguard }
     var isGlobalProtect: Bool { kind == .globalProtect }
+    var isCheckPoint: Bool { kind == .checkPoint }
     /// OpenVPN and WireGuard connections come from an imported profile file.
     var usesProfile: Bool { kind == .openvpn || kind == .wireguard }
     /// Whether connecting needs the password saved in the Keychain.
@@ -177,13 +206,14 @@ struct Connection: Codable, Identifiable, Equatable {
         case .fortinet, .globalProtect: return authentication == .password
         case .openvpn: return openVPN?.requiresCredentials ?? false
         case .wireguard: return false
+        case .checkPoint: return true
         }
     }
     /// "host:port" for Fortinet, the first remote/endpoint (and how many more) for the others.
     var endpoint: String {
         let servers: [String]
         switch kind {
-        case .fortinet, .globalProtect:
+        case .fortinet, .globalProtect, .checkPoint:
             let address = GatewayAddress.display(host: server, port: port, realm: realm)
             return address.isEmpty ? kind.title : address
         case .openvpn: servers = (openVPN?.remotes ?? []).map(\.display)
@@ -235,13 +265,37 @@ struct Connection: Codable, Identifiable, Equatable {
             value.wireGuard = nil
             value.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        if !isGlobalProtect { value.internalNetworks = nil; value.allTraffic = false }
+        if isCheckPoint {
+            guard realm.isEmpty else { throw AppFailure(String(localized: "Informe o servidor como vpn.exemplo.com ou vpn.exemplo.com:4443.")) }
+            value.authentication = .password
+            value.clientCertificate = nil
+            value.openVPN = nil
+            value.wireGuard = nil
+            value.trustedCertificate = ""
+            value.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+            var settings = checkPoint ?? CheckPointSettings()
+            settings.loginType = settings.loginType.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !settings.loginType.isEmpty else { throw AppFailure(String(localized: "Informe o tipo de login (consulte o gateway).")) }
+            guard CheckPointRules.isValidLoginType(settings.loginType) else {
+                throw AppFailure(String(localized: "Tipo de login inválido: use letras, números, ponto, hífen ou sublinhado."))
+            }
+            if let authority = settings.authority {
+                guard authority.der.count <= CheckPointRules.maximumAuthorityDER,
+                      SecCertificateCreateWithData(nil, authority.der as CFData) != nil,
+                      CheckPointAuthority.digest(authority.der) == authority.sha256.lowercased() else {
+                    throw AppFailure(String(localized: "A autoridade confiada deste gateway é inválida; consulte o gateway de novo."))
+                }
+            }
+            value.checkPoint = settings
+        } else { value.checkPoint = nil }
+        if !isGlobalProtect { value.internalNetworks = nil }
+        if !isGlobalProtect && !isCheckPoint { value.allTraffic = false }
         do {
             value.server = try ConnectionRules.normalizedHost(server)
             try ConnectionRules.checkPort(port)
             try ConnectionRules.checkRealm(realm)
             try ConnectionRules.checkConfigValue(value.username, label: String(localized: "Usuário"))
-            value.trustedCertificate = try ConnectionRules.normalizedCertificate(trustedCertificate)
+            value.trustedCertificate = try ConnectionRules.normalizedCertificate(value.trustedCertificate)
         } catch let violation as RuleViolation { throw AppFailure(violation.message) }
         guard authentication != .password || !username.isEmpty else { throw AppFailure(String(localized: "Informe o usuário.")) }
         if let reference = clientCertificate, !ClientCertificateReference.isValidHash(reference.sha1) {
@@ -259,7 +313,7 @@ struct Connection: Codable, Identifiable, Equatable {
 extension Connection {
     enum CodingKeys: String, CodingKey {
         case id, name, server, port, realm, username, authentication, trustedCertificate, clientCertificate, kind, openVPN, wireGuard
-        case internalNetworks, allTraffic
+        case internalNetworks, allTraffic, checkPoint
     }
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
@@ -277,6 +331,7 @@ extension Connection {
         wireGuard = try values.decodeIfPresent(WireGuardSummary.self, forKey: .wireGuard)
         internalNetworks = try values.decodeIfPresent([String].self, forKey: .internalNetworks)
         allTraffic = try values.decodeIfPresent(Bool.self, forKey: .allTraffic) ?? false
+        checkPoint = try values.decodeIfPresent(CheckPointSettings.self, forKey: .checkPoint)
     }
 }
 

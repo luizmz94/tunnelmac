@@ -337,6 +337,12 @@ struct GeneralSettings: View {
                     .disabled(!preferences.showMenuBarIcon)
             }
             SettingsDivider()
+            SettingsRow(symbol: "rectangle.stack.badge.play", color: .teal, title: String(localized: "Mostrar o progresso das conexões"),
+                        subtitle: String(localized: "Um painel discreto no canto da tela enquanto a VPN conecta.")) {
+                Toggle("Mostrar o progresso das conexões", isOn: $preferences.showConnectionProgress)
+                    .settingsSwitch(String(localized: "Mostrar o progresso das conexões"))
+            }
+            SettingsDivider()
             SettingsRow(symbol: "power", color: .green, title: String(localized: "Abrir ao iniciar o Mac"), subtitle: loginItem.detail) {
                 HStack(spacing: 8) {
                     if loginItem.status == .requiresApproval && loginItem.available {
@@ -350,6 +356,9 @@ struct GeneralSettings: View {
                         .disabled(!loginItem.available)
                 }
             }
+        }
+        if let hotKeys = menuBar.hotKeys, let recorder = menuBar.shortcutRecorder {
+            ShortcutSettings(center: hotKeys, preferences: preferences, recorder: recorder)
         }
         InternetDNSSection(preferences: preferences)
     }

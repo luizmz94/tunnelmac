@@ -273,6 +273,470 @@ enum MenuBarTests {
             window.orderOut(nil)
             session.state = .disconnected
         }
+
+        test("Barra de menus: ícone anima só com conexão pendente, parado com Reduzir movimento, badge e nada ao lado") {
+            let idle = MenuBarIconState.of(connectedCount: 0, pendingCount: 0, reduceMotion: false, step: 5)
+            try require(!idle.spinning && idle.angle == 0 && !idle.connected && idle.badge == 0, "Ícone parado: \(idle)")
+            try require(idle.image?.isTemplate == true && idle.image?.size == NSSize(width: 18, height: 18), "Ícone sem túnel não é o template de 18 pt")
+            let pending = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, reduceMotion: false, step: 6)
+            try require(pending.spinning && pending.angle == 90, "Ícone em andamento: \(pending)")
+            let still = MenuBarIconState.of(connectedCount: 0, pendingCount: 1, reduceMotion: true, step: 6)
+            try require(!still.spinning && still.angle == 0, "Ícone girou com Reduzir movimento")
+            let connected = MenuBarIconState.of(connectedCount: 2, pendingCount: 1, reduceMotion: false, step: 30)
+            try require(connected.connected && connected.badge == 2 && connected.angle == 90, "Ícone conectado: \(connected)")
+            // Only the mark: no state symbol beside it.
+            try require(connected.image?.isTemplate == false && connected.image?.size == NSSize(width: 18, height: 18), "Algo ao lado do ícone")
+        }
+
+        test("Barra de menus: a preferência insere e remove o item (host falso), sem eco, e o app fica no Dock") {
+            let (model, connections) = try makeModel(root, names: ["A"])
+            let preferences = AppPreferences.disposable()
+            let menuBar = MenuBarCoordinator(model: model, preferences: preferences)
+            var policies: [NSApplication.ActivationPolicy] = []
+            menuBar.setActivationPolicy = { policies.append($0) }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            try require(host.isInserted && host.inserts == 1 && host.label.hasPrefix("TunnelMac"), "Item não inserido com a preferência ligada")
+            for _ in 0..<3 { preferences.showMenuBarIcon = true }
+            try require(host.inserts == 1 && host.removes == 0, "Escrever o mesmo valor reinseriu o item")
+            preferences.showMenuBarIcon = false
+            try require(!host.isInserted && host.removes == 1 && policies.last == .regular, "Desligar não removeu o item ou tirou o app do Dock")
+            preferences.showMenuBarIcon = false
+            try require(host.removes == 1, "Remover duas vezes")
+            host.forgetDrawing()
+            preferences.showMenuBarIcon = true
+            try require(host.isInserted && host.inserts == 2, "Religar não inseriu o item")
+            try require(host.image != nil && host.label.hasPrefix("TunnelMac"), "Item religado ficou sem imagem ou rótulo (ícone invisível)")
+            // The label follows the summary even when the image stays the same.
+            model.error = "erro local"
+            _ = TestSupport.spin(0.2) { host.label.contains("erro") }
+            try require(host.label.contains("erro"), "Rótulo de acessibilidade não acompanhou o resumo: \(host.label)")
+            model.error = nil
+            // The icon follows the sessions.
+            model.manager.session(connections[0].id).state = .connected
+            _ = TestSupport.spin(0.2) { menuBar.statusItem?.lastState?.connected == true }
+            try require(menuBar.statusItem?.lastState?.badge == 1 && host.label.contains("1 conectada"), "Ícone não acompanhou a conexão: \(host.label)")
+            model.manager.session(connections[0].id).state = .disconnected
+            _ = TestSupport.spin(0.2) { menuBar.statusItem?.lastState?.connected == false }
+            try require(menuBar.statusItem?.lastState?.connected == false, "Ícone não voltou ao estado parado")
+        }
+
+        test("Barra de menus: clique alterna o menu, destaca o botão, e abrir janelas ou um modal fecha ou impede") {
+            let (model, _) = try makeModel(root, names: ["A"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.activateApp = {}
+            menuBar.setActivationPolicy = { _ in }
+            var opened = 0, settings = 0
+            menuBar.openWindowFallback = { opened += 1 }
+            menuBar.openSettingsFallback = { settings += 1 }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            host.action?()
+            try require(presenter.isOpen && menuBar.menuOpen && host.highlighted && presenter.anchors == [host.anchor], "Clique não abriu o menu sob o ícone")
+            host.action?()
+            try require(!presenter.isOpen && !menuBar.menuOpen && !host.highlighted, "Segundo clique não fechou o menu")
+            menuBar.toggleMenu()
+            menuBar.showMainWindow()
+            try require(!presenter.isOpen && opened == 1, "Abrir TunnelMac não fechou o menu (ou não abriu a janela nunca aberta)")
+            menuBar.toggleMenu()
+            menuBar.showSettings()
+            try require(!presenter.isOpen && settings == 1, "Configurações… não fechou o menu (ou não abriu a janela)")
+            // Closed by the panel itself (click outside, ⌘Tab, Space).
+            menuBar.toggleMenu()
+            presenter.close()
+            try require(!menuBar.menuOpen && !host.highlighted, "Fechar pelo painel não atualizou o estado")
+            menuBar.hasModalWindow = { true }
+            menuBar.toggleMenu()
+            try require(!presenter.isOpen && presenter.anchors.count == 4, "O menu abriu sobre um alerta do app")
+            // Openers captured by the app's commands win over a hosted view's.
+            let fresh = MenuBarCoordinator(model: model)
+            var first = 0, second = 0
+            fresh.adoptWindowOpeners(main: { first += 1 }, settings: { first += 1 })
+            fresh.adoptWindowOpeners(main: { second += 1 }, settings: { second += 1 })
+            fresh.openWindowFallback?(); fresh.openSettingsFallback?()
+            try require(first == 2 && second == 0, "O abridor do painel substituiu o dos comandos do app")
+        }
+
+        test("Barra de menus: posição do painel cabe no visibleFrame (monitor secundário, notch, ícone oculto)") {
+            let size = NSSize(width: 360, height: 520)
+            let main = NSRect(x: 0, y: 0, width: 1512, height: 944) // under a 38 pt menu bar
+            @MainActor func check(_ anchor: MenuAnchor, size: NSSize = size, _ name: String) throws -> NSRect {
+                let frame = MenuPanelPlacement.frame(size: size, anchor: anchor)
+                let inside = anchor.visibleFrame.insetBy(dx: MenuPanelPlacement.margin - 0.5, dy: -0.5)
+                try require(inside.contains(frame), "\(name): \(frame) fora de \(anchor.visibleFrame)")
+                return frame
+            }
+            let button = NSRect(x: 900, y: 950, width: 30, height: 28) // room on its right for the 360 pt panel
+            var frame = try check(MenuAnchor(button: button, visibleFrame: main), "Ícone no meio")
+            try require(frame.minX == button.minX && frame.maxY == button.minY - 6 && frame.width == 360, "Não abriu para a direita a partir do ícone: \(frame)")
+            frame = try check(MenuAnchor(button: NSRect(x: 1490, y: 950, width: 22, height: 28), visibleFrame: main), "Ícone na borda direita")
+            try require(frame.maxX == main.maxX - 8, "Não respeitou a margem direita: \(frame)")
+            // Secondary screen to the left, below the main one, with negative coordinates.
+            let left = NSRect(x: -1920, y: -200, width: 1920, height: 1055)
+            frame = try check(MenuAnchor(button: NSRect(x: -1900, y: 856, width: 30, height: 24), visibleFrame: left), "Monitor secundário")
+            try require(frame.minX == -1900, "Monitor secundário não abriu a partir do ícone: \(frame)")
+            frame = try check(MenuAnchor(button: NSRect(x: -1918, y: 856, width: 30, height: 24), visibleFrame: left), "Ícone na borda esquerda")
+            try require(frame.minX == left.minX + 8, "Não respeitou a margem esquerda: \(frame)")
+            // Hidden icon (preference, Menu Bar settings or the notch): top right corner.
+            frame = try check(MenuAnchor(button: nil, visibleFrame: main), "Sem ícone")
+            try require(frame.maxX == main.maxX - 8 && frame.maxY == main.maxY - 6, "Sem ícone fora do canto: \(frame)")
+            // Taller than the screen: capped at the visible height minus 40.
+            frame = try check(MenuAnchor(button: button, visibleFrame: main), size: NSSize(width: 360, height: 3000), "Conteúdo alto")
+            try require(frame.height == main.height - 40, "Altura não limitada: \(frame)")
+        }
+
+        test("Barra de menus: painel real fora da tela abre sem virar janela principal e fecha ao perder o foco") {
+            let (model, _) = try makeModel(root, names: ["A", "B"])
+            let menuBar = MenuBarCoordinator(model: model)
+            let controller = MenuBarPanelController(menuBar: menuBar)
+            var closes = 0
+            controller.onClose = { closes += 1 }
+            let visible = NSRect(x: -30000, y: -30000, width: 1440, height: 870)
+            controller.open(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
+            _ = TestSupport.spin(0.3) { false }
+            let panel = controller.panel
+            try require(panel.isVisible && controller.isOpen && visible.contains(panel.frame) && panel.frame.width == 360,
+                        "Painel não abriu dentro da tela fictícia: \(panel.frame)")
+            try require(panel.canBecomeKey && !panel.canBecomeMain && panel.level == .popUpMenu
+                        && panel.styleMask.contains(.nonactivatingPanel) && !panel.hidesOnDeactivate && panel.backgroundColor == .clear,
+                        "Configuração do painel")
+            try require(panel.frame.height > 100, "Altura do conteúdo não aplicada: \(panel.frame.height)")
+            controller.windowDidResignKey(Notification(name: NSWindow.didResignKeyNotification))
+            try require(!panel.isVisible && closes == 1, "Perder o foco não fechou o painel")
+            controller.close()
+            try require(closes == 1, "Fechar duas vezes notificou duas vezes")
+        }
+
+        test("Busca no menu: nome, servidor, tipo e cliente sem acento; destaque inicial, setas e ajuste") {
+            let office = Connection(name: "Escritório São Paulo", server: "vpn0.invalid", port: 443, username: "a")
+            let lab = Connection(name: "Lab", server: "portal.lab.invalid", port: 443, username: "", kind: .globalProtect)
+            let home = Connection(name: "Casa", kind: .wireguard)
+            let all = [home, office, lab]
+            func names(_ query: String) -> [String] { MenuBarSearch.results(all, query: query).map(\.name) }
+            try require(names("sao paulo") == ["Escritório São Paulo"] && names("ESCRITORIO") == ["Escritório São Paulo"], "Acento/maiúscula")
+            try require(names("forti") == ["Escritório São Paulo"] && names("fortinet") == ["Escritório São Paulo"], "Tipo Fortinet")
+            try require(names("openconnect") == ["Lab"] && names("globalprotect") == ["Lab"] && names("portal.lab") == ["Lab"], "Cliente, tipo ou servidor")
+            try require(names("wireguard") == ["Casa"] && names("  ") == ["Casa", "Escritório São Paulo", "Lab"], "Ordem da lista ou busca vazia")
+            try require(names("zzz").isEmpty, "Sem resultado")
+            // Initial highlight.
+            try require(MenuBarSearch.initialHighlight(results: [lab], query: "lab", total: 3) == lab.id, "Com texto, o 1º não ficou destacado")
+            try require(MenuBarSearch.initialHighlight(results: [home], query: "", total: 1) == home.id, "Uma conexão só não ficou destacada")
+            try require(MenuBarSearch.initialHighlight(results: all, query: "", total: 3) == nil, "Com várias e sem texto, algo ficou destacado")
+            try require(MenuBarSearch.initialHighlight(results: [], query: "zzz", total: 3) == nil, "Sem resultado com destaque")
+            // Arrows: no wrapping.
+            try require(MenuBarSearch.move(nil, down: true, in: all) == home.id && MenuBarSearch.move(nil, down: false, in: all) == home.id, "Primeira seta")
+            try require(MenuBarSearch.move(home.id, down: true, in: all) == office.id && MenuBarSearch.move(lab.id, down: true, in: all) == lab.id, "↓ deu a volta")
+            try require(MenuBarSearch.move(home.id, down: false, in: all) == home.id && MenuBarSearch.move(lab.id, down: false, in: all) == office.id, "↑ deu a volta")
+            try require(MenuBarSearch.move(home.id, down: true, in: []) == nil, "Seta sem resultado")
+            // The filter removes the highlighted row.
+            try require(MenuBarSearch.adjusted(office.id, in: [home, lab]) == home.id, "Destaque removido não foi para a 1ª")
+            try require(MenuBarSearch.adjusted(office.id, in: []) == nil && MenuBarSearch.adjusted(nil, in: all) == nil, "Destaque sem resultado")
+            try require(MenuBarSearch.adjusted(lab.id, in: all) == lab.id, "Destaque mantido")
+        }
+
+        test("Menu: ativas e fixadas no topo, separadas das demais; o pino persiste e as setas seguem essa ordem") {
+            let (model, connections) = try makeModel(root, names: ["Alfa", "Beta", "Gama", "Delta"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let names = { (list: [Connection]) in list.map(\.name) }
+            try require(menuBar.searchSections.top.isEmpty && names(menuBar.searchSections.rest) == ["Alfa", "Beta", "Delta", "Gama"], "Sem ativas nem fixadas")
+            model.manager.session(connections[2].id).state = .connecting   // Gama active
+            menuBar.togglePin(connections[3].id)                             // Delta pinned
+            try require(names(menuBar.searchSections.top) == ["Delta", "Gama"] && names(menuBar.searchSections.rest) == ["Alfa", "Beta"],
+                        "Topo: \(names(menuBar.searchSections.top)), demais: \(names(menuBar.searchSections.rest))")
+            try require(names(menuBar.searchResults) == ["Delta", "Gama", "Alfa", "Beta"], "As setas não seguem a ordem das seções")
+            try require(AppPreferences(defaults: menuBar.preferences.defaults).pinnedConnections == [connections[3].id], "Pino não persistiu")
+            menuBar.setSearch("a")
+            try require(names(menuBar.searchSections.top) == ["Delta", "Gama"] && menuBar.highlightedID == connections[3].id, "Busca não manteve o topo")
+            menuBar.togglePin(connections[3].id)
+            model.manager.session(connections[2].id).state = .disconnected
+            try require(menuBar.searchSections.top.isEmpty && !menuBar.isPinned(connections[3].id), "Desafixar ou desconectar não devolveu às demais")
+            // With the menu open, connecting or disconnecting moves no row; pins still apply at once.
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            menuBar.showMenu()
+            model.manager.session(connections[0].id).state = .connecting
+            try require(menuBar.searchSections.top.isEmpty, "Linha subiu com o menu aberto (sob o ponteiro)")
+            menuBar.togglePin(connections[1].id)
+            try require(names(menuBar.searchSections.top) == ["Beta"], "Fixar com o menu aberto não subiu na hora")
+            menuBar.closeMenu(); menuBar.showMenu()
+            try require(names(menuBar.searchSections.top) == ["Alfa", "Beta"], "Ao reabrir, a ativa não foi para o topo")
+            menuBar.closeMenu()
+            menuBar.togglePin(connections[1].id)
+            model.manager.session(connections[0].id).state = .disconnected
+        }
+
+        test("Busca no menu: Enter segue a regra da linha, ⌘Enter abre a janela, Esc limpa e depois fecha") {
+            let (model, connections) = try makeModel(root, names: ["Alfa", "Beta", "Gama", "Delta"])
+            let menuBar = MenuBarCoordinator(model: model)
+            var connects: [UUID] = [], disconnects: [UUID] = [], opened = 0, beeps = 0
+            var spoken: [String] = []
+            menuBar.connectAction = { connects.append($0.id) }
+            menuBar.disconnectAction = { disconnects.append($0) }
+            menuBar.activateApp = {}
+            menuBar.setActivationPolicy = { _ in }
+            menuBar.openWindowFallback = { opened += 1 }
+            menuBar.beep = { beeps += 1 }
+            menuBar.announce = { spoken.append($0) }
+            let host = FakeStatusItemHost(), presenter = FakeMenuPresenter()
+            menuBar.installMenuBar(host: host, presenter: presenter)
+            menuBar.showMenu(focusSearch: true)
+            try require(menuBar.highlightedID == nil && menuBar.searchFocusRequest > 0, "Ao abrir com várias, algo ficou destacado ou o campo não pediu o foco")
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 1 && connects.isEmpty, "Enter distraído ao abrir conectou")
+            menuBar.setSearch("alf")
+            try require(menuBar.highlightedID == connections[0].id && spoken.last == "1 conexão", "Busca não destacou o 1º ou não anunciou: \(spoken)")
+            menuBar.handleMenuKey(.enter)
+            try require(connects == [connections[0].id] && presenter.isOpen, ".connect pelo Enter (o menu continua aberto)")
+            let session = model.manager.session(connections[0].id)
+            session.state = .connected
+            menuBar.handleMenuKey(.enter)
+            try require(disconnects == [connections[0].id] && presenter.isOpen, ".disconnect pelo Enter")
+            session.state = .disconnecting; session.wantsDisconnect = true
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 2 && disconnects.count == 1, ".disconnecting não fez só beep")
+            session.state = .disconnected; session.wantsDisconnect = false
+            model.manager.session(connections[1].id).authenticationRejected = true
+            menuBar.setSearch("beta")
+            menuBar.handleMenuKey(.enter)
+            try require(opened == 1 && menuBar.pendingSelection == connections[1].id && !presenter.isOpen, ".review abriu a janela e fechou o menu")
+            // ⌘Enter opens the window on the highlighted row.
+            menuBar.showMenu()
+            menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down); menuBar.handleMenuKey(.down)
+            // Alphabetical: Alfa, Beta, Delta, Gama.
+            try require(menuBar.highlightedID == connections[3].id, "Setas no menu (ordem alfabética): \(String(describing: menuBar.highlightedID))")
+            try require(spoken.last?.hasPrefix("Delta, ") == true, "Mudança de destaque não anunciou nome e estado")
+            menuBar.handleMenuKey(.commandEnter)
+            try require(opened == 2 && menuBar.pendingSelection == connections[3].id && !presenter.isOpen, "⌘Enter não abriu a janela na conexão")
+            // Esc: clears the text first, then closes; closing clears the search.
+            menuBar.showMenu()
+            menuBar.setSearch("ga")
+            menuBar.handleMenuKey(.escape)
+            try require(presenter.isOpen && menuBar.searchText.isEmpty, "Esc com texto não só limpou")
+            menuBar.handleMenuKey(.escape)
+            try require(!presenter.isOpen && !menuBar.menuOpen, "Esc sem texto não fechou")
+            menuBar.showMenu()
+            menuBar.setSearch("zzz")
+            try require(menuBar.searchResults.isEmpty && menuBar.highlightedID == nil && spoken.last == "Nenhuma conexão encontrada", "Sem resultados")
+            menuBar.handleMenuKey(.enter)
+            try require(beeps == 3, "Enter sem resultado não fez beep")
+            menuBar.closeMenu()
+            try require(menuBar.searchText.isEmpty && menuBar.highlightedID == nil, "Fechar não zerou a busca")
+            // Unavailable service: beep.
+            let unavailableStore = try JSONStore(directory: root.appendingPathComponent(UUID().uuidString))
+            try unavailableStore.save(SavedData(connections: connections))
+            let unavailable = MenuBarCoordinator(model: AppModel(store: unavailableStore, passwords: model.passwords,
+                                                                 service: ServiceController(policy: .unavailable(reason: "teste"), registrar: nil, client: nil)))
+            var unavailableBeeps = 0
+            unavailable.beep = { unavailableBeeps += 1 }
+            unavailable.announce = { _ in }
+            unavailable.setSearch("alfa")
+            unavailable.handleMenuKey(.enter)
+            try require(unavailableBeeps == 1 && unavailable.action(for: connections[0]) == .unavailable, ".unavailable não fez só beep")
+            // One connection: highlighted at once (shortcut + Enter connects).
+            let (single, singleConnections) = try makeModel(root, names: ["Só"])
+            let one = MenuBarCoordinator(model: single)
+            one.announce = { _ in }
+            one.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            one.showMenu()
+            try require(one.highlightedID == singleConnections[0].id, "Com uma conexão, ela não ficou destacada")
+            // The pointer moves the highlight only when it really moved.
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 1, y: 1))
+            one.highlightedID = nil
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 1, y: 1))
+            try require(one.highlightedID == nil, "A lista rolando sob o ponteiro parado mudou o destaque")
+            one.pointerHovered(singleConnections[0].id, at: NSPoint(x: 2, y: 1))
+            try require(one.highlightedID == singleConnections[0].id, "Mover o mouse não destacou a linha")
+        }
+
+        test("Busca no menu: ao abrir, o campo é o first responder (painel real fora da tela, host falso) e as teclas chegam") {
+            let (model, connections) = try makeModel(root, names: ["A", "B"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let controller = MenuBarPanelController(menuBar: menuBar)
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: controller)
+            menuBar.showMenu(focusSearch: true)
+            defer { menuBar.closeMenu() }
+            _ = TestSupport.spin(2) { controller.searchFieldFocused }
+            try require(controller.panel.isVisible && controller.searchFieldFocused,
+                        "Campo de busca sem foco ao abrir: \(String(describing: controller.panel.firstResponder))")
+            try require(controller.handle(window: controller.panel.windowNumber, keyCode: 125, flags: [.numericPad, .function], characters: nil)
+                        && menuBar.highlightedID == connections[0].id, "↓ não chegou à busca")
+            try require(!controller.handle(window: controller.panel.windowNumber, keyCode: 48, flags: [], characters: "\t"), "Tab foi interceptado")
+            try require(!controller.handle(window: -1, keyCode: 125, flags: [], characters: nil), "Tecla de outra janela interceptada")
+            try require(controller.handle(window: controller.panel.windowNumber, keyCode: 53, flags: [], characters: nil) && !controller.isOpen,
+                        "Esc sem texto não fechou o painel real")
+        }
+
+        test("Progresso: cartões nas transições, 2,5 s após conectar, falha até fechar, desconexão some, 4 + \"+N\"") {
+            var model = ConnectionProgressModel()
+            let start = Date(timeIntervalSince1970: 1_800_000_000)
+            let ids = (0..<6).map { _ in UUID() }
+            let none = { (reason: "nenhuma", reviewable: false) }
+            func apply(_ id: UUID, _ old: ConnectionState, _ new: ConnectionState, attempt: Int = 0, enabled: Bool = true, at offset: TimeInterval = 0) {
+                model.apply(id: id, name: "C", endpoint: "vpn.invalid:443", from: old, to: new, attempt: attempt, failure: none, enabled: enabled,
+                            now: start.addingTimeInterval(offset))
+            }
+            apply(ids[0], .disconnected, .authorizing)
+            try require(model.cards.map(\.id) == [ids[0]] && model.cards[0].state == .authorizing, "Inativa → ativa não criou o cartão")
+            apply(ids[0], .authorizing, .connecting)
+            apply(ids[0], .connecting, .connected, at: 1)
+            try require(model.cards[0].state == .connected && model.cards[0].dismissAt == start.addingTimeInterval(3.5), "Conectada não marcou 2,5 s")
+            model.expire(now: start.addingTimeInterval(3.4))
+            try require(model.cards.count == 1, "Sumiu antes de 2,5 s")
+            model.expire(now: start.addingTimeInterval(3.5))
+            try require(model.cards.isEmpty, "Não sumiu 2,5 s depois de conectar")
+            // Failure stays until Fechar.
+            apply(ids[1], .failed, .authorizing)
+            model.apply(id: ids[1], name: "C", endpoint: "", from: .authorizing, to: .failed, attempt: 0,
+                        failure: { (reason: "Autenticação recusada", reviewable: true) }, enabled: true, now: start)
+            model.expire(now: start.addingTimeInterval(3600))
+            try require(model.cards.first?.state == .failed && model.cards.first?.reason == "Autenticação recusada"
+                        && model.cards.first?.reviewable == true, "A falha não ficou até fechar")
+            model.dismiss(ids[1])
+            try require(model.cards.isEmpty, "Fechar não removeu a falha")
+            // Disconnected by the user: gone at once.
+            apply(ids[2], .disconnected, .connecting)
+            apply(ids[2], .connecting, .disconnecting)
+            try require(model.cards.isEmpty, "Desconexão pelo usuário manteve o cartão")
+            // A dropped tunnel that reconnects; a failure without a card shows nothing.
+            apply(ids[3], .connected, .failed)
+            try require(model.cards.isEmpty, "Falha sem cartão criou um")
+            apply(ids[3], .failed, .reconnecting, attempt: 2)
+            try require(model.cards.first?.state == .reconnecting && model.cards.first?.attempt == 2, "Reconexão não criou o cartão com a tentativa")
+            try require(ProgressCardView.detail(model.cards[0]) == "Reconectando: tentativa 2 de 3", "Texto da reconexão: \(ProgressCardView.detail(model.cards[0]))")
+            model.removeAll()
+            // Option off: nothing.
+            apply(ids[4], .disconnected, .connecting, enabled: false)
+            try require(model.cards.isEmpty, "Com a opção desligada, criou cartão")
+            // Five at once: newest first, 4 visible and "+1".
+            for id in ids.prefix(5) { apply(id, .disconnected, .authorizing) }
+            try require(model.visible.count == 4 && model.overflow == 1 && model.visible.first?.id == ids[4], "Limite de 4 cartões e +N")
+            try require(ConnectionProgressModel.shown(cards: 1, enabled: true, menuOpen: false)
+                        && !ConnectionProgressModel.shown(cards: 1, enabled: true, menuOpen: true)
+                        && !ConnectionProgressModel.shown(cards: 1, enabled: false, menuOpen: false)
+                        && !ConnectionProgressModel.shown(cards: 0, enabled: true, menuOpen: false), "Regra de exibição do painel")
+        }
+
+        test("Progresso: motivo da falha na ordem da tabela, sem o segredo de teste") {
+            let reason = ConnectionProgressModel.failureReason
+            try require(reason(true, true, ["ERROR: x"]) == "Autenticação recusada", "Recusa não veio primeiro")
+            try require(reason(false, true, ["ERROR: x"]) == "Certificado do gateway não confiado", "Certificado não veio em segundo")
+            try require(reason(false, false, ["ok", "ERROR: gateway unreachable", "Processo encerrado (código 1)."]) == "ERROR: gateway unreachable",
+                        "Última linha de erro")
+            try require(reason(false, false, ["Conectando", "Processo encerrado (código 1)."]) == "A conexão terminou sem detalhes", "Sem detalhes")
+            // The same filtered log the session keeps: the secret never reaches a card.
+            let secret = "s3cr3t-local-check"
+            let session = Session(id: UUID())
+            session.secret = secret
+            session.log("ERROR: login failed for user ana with password \(secret)")
+            session.log("Processo encerrado (código 1).")
+            let text = reason(false, false, session.logs)
+            try require(!text.isEmpty && !text.contains(secret), "Segredo no motivo: \(text)")
+            let card = ConnectionProgressModel.Card(id: session.id, name: "A", endpoint: "vpn.invalid", state: .failed, reason: text)
+            try require(!ProgressCardView.detail(card).contains(secret), "Segredo no texto do cartão")
+        }
+
+        test("Progresso: menu, janela e reconexão criam o cartão; Cancelar; opção desligada; escondido com o menu aberto") {
+            let (model, connections) = try makeModel(root, names: ["A", "B", "C", "D"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            var cancels: [UUID] = []
+            menuBar.connectAction = { model.manager.session($0.id).state = .authorizing }
+            menuBar.disconnectAction = { cancels.append($0) }
+            let presenter = FakeProgressPresenter()
+            menuBar.installMenuBar(host: FakeStatusItemHost(), presenter: FakeMenuPresenter())
+            menuBar.installProgressPanel(presenter)
+            let sessions = connections.map { model.manager.session($0.id) }
+            _ = TestSupport.spin(0.1) { false }
+            menuBar.perform(connections[0])                     // menu (and Enter in the search)
+            sessions[1].state = .connecting                     // window: model.connect sets the same states
+            sessions[2].state = .connected; sessions[2].state = .failed
+            sessions[2].reconnectAttempts = 1; sessions[2].state = .reconnecting // automatic reconnect
+            _ = TestSupport.spin(0.2) { presenter.isShown }
+            let ids = menuBar.progress.model.cards.map(\.id)
+            try require(Set(ids) == Set([connections[0].id, connections[1].id, connections[2].id]), "Origens sem cartão: \(ids.count)")
+            try require(menuBar.progress.model.cards.first { $0.id == connections[0].id }?.name == "A", "Cartão sem o nome da conexão")
+            try require(presenter.isShown && presenter.anchors.last?.button == nil, "Painel não apareceu no canto superior direito da tela")
+            menuBar.cancelProgress(connections[1].id)
+            try require(cancels == [connections[1].id], "Cancelar não chamou disconnectAction com o id certo")
+            // Hidden while the menu is open, back when it closes.
+            menuBar.showMenu()
+            _ = TestSupport.spin(0.1) { !presenter.isShown }
+            try require(!presenter.isShown, "Painel visível com o menu aberto")
+            menuBar.closeMenu()
+            _ = TestSupport.spin(0.1) { presenter.isShown }
+            try require(presenter.isShown, "Painel não voltou ao fechar o menu")
+            // Option off: everything goes and nothing new appears.
+            menuBar.preferences.showConnectionProgress = false
+            sessions[3].state = .connecting
+            _ = TestSupport.spin(0.2) { !presenter.isShown }
+            try require(menuBar.progress.model.cards.isEmpty && !presenter.isShown, "Com a opção desligada, há cartão ou painel")
+            for session in sessions { session.state = .disconnected }
+        }
+
+        test("Progresso: painel real fora da tela nunca vira key nem main e fica no visibleFrame") {
+            let (model, connections) = try makeModel(root, names: ["A"])
+            let menuBar = MenuBarCoordinator(model: model)
+            menuBar.announce = { _ in }
+            let controller = ConnectionProgressPanelController(menuBar: menuBar)
+            model.manager.session(connections[0].id).state = .connecting
+            _ = TestSupport.spin(0.1) { false }
+            let visible = NSRect(x: -30000, y: -30000, width: 1440, height: 870)
+            controller.show(anchor: MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24), visibleFrame: visible))
+            let panel = controller.panel
+            // After the 0.2 s entrance (fade and 8 pt slide).
+            _ = TestSupport.spin(1) { visible.contains(panel.frame) }
+            try require(panel.isVisible && !panel.canBecomeKey && !panel.canBecomeMain && !panel.isKeyWindow, "O painel pode receber o teclado")
+            try require(panel.level == .statusBar && panel.collectionBehavior.contains(.canJoinAllSpaces)
+                        && panel.collectionBehavior.contains(.ignoresCycle) && panel.styleMask.contains(.nonactivatingPanel), "Configuração do painel")
+            try require(visible.contains(panel.frame) && panel.frame.width == 300 && panel.frame.height > 30, "Fora da tela fictícia: \(panel.frame)")
+            controller.hide()
+            _ = TestSupport.spin(1) { !panel.isVisible }
+            try require(!panel.isVisible, "Painel não sumiu")
+            model.manager.session(connections[0].id).state = .disconnected
+        }
     }
 
+}
+
+/// Status item stand-in: the local checks never touch the real menu bar.
+@MainActor
+final class FakeStatusItemHost: StatusItemHost {
+    private(set) var isInserted = false
+    private(set) var inserts = 0, removes = 0
+    private(set) var label = ""
+    private(set) var image: NSImage?
+    private(set) var highlighted = false
+    private(set) var action: (() -> Void)?
+    var anchor = MenuAnchor(button: NSRect(x: -28700, y: -29125, width: 30, height: 24),
+                            visibleFrame: NSRect(x: -30000, y: -30000, width: 1440, height: 870))
+    func insert(action: @escaping () -> Void) { isInserted = true; inserts += 1; self.action = action }
+    func remove() { isInserted = false; removes += 1; action = nil }
+    /// A new NSStatusItem starts without image or label.
+    func forgetDrawing() { image = nil; label = "" }
+    func update(image: NSImage?, label: String) { self.image = image; self.label = label }
+    func setHighlighted(_ highlighted: Bool) { self.highlighted = highlighted }
+}
+
+/// Menu panel stand-in: records where it was asked to open.
+@MainActor
+final class FakeMenuPresenter: MenuPanelPresenter {
+    private(set) var isOpen = false
+    private(set) var anchors: [MenuAnchor] = []
+    var onClose: (() -> Void)?
+    func open(anchor: MenuAnchor) { isOpen = true; anchors.append(anchor) }
+    func close() {
+        guard isOpen else { return }
+        isOpen = false
+        onClose?()
+    }
+}
+
+/// Progress panel stand-in.
+@MainActor
+final class FakeProgressPresenter: ProgressPanelPresenter {
+    private(set) var isShown = false
+    private(set) var anchors: [MenuAnchor] = []
+    func show(anchor: MenuAnchor) { isShown = true; anchors.append(anchor) }
+    func hide() { isShown = false }
 }

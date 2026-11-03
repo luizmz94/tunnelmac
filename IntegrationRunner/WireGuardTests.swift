@@ -237,7 +237,7 @@ enum WireGuardTests {
             service.useForLocalChecks(status: status)
             try require(service.health == .ready && service.unavailableReason(for: .wireguard) == nil, "WireGuard aprovado não liberou")
             try require(service.unavailableReason(for: .openvpn) != nil && service.unavailableReason(for: .openfortivpn) != nil, "Outros liberados")
-            try require(RuntimeKind.wireguard.executableName == "wireguard-go" && RuntimeKind.allCases.count == 4, "Executável")
+            try require(RuntimeKind.wireguard.executableName == "wireguard-go" && RuntimeKind.allCases.count == 5, "Executável")
             try require(ServicePanel.presentation(.wireguard, .notInstalled).command == "brew install wireguard-go", "Comando de instalação")
             try require(ClientVersion.homebrewVersion(of: "/opt/homebrew/Cellar/wireguard-go/0.0.20250522/bin/wireguard-go") == "0.0.20250522", "Keg")
             try require(ClientState.evaluate(approved: "0.0.20250522", installed: "0.0.20250522", installedExists: true, sourceChanged: false,
@@ -449,6 +449,43 @@ enum WireGuardTests {
             try Data("#!/bin/sh\nid\n".utf8).write(to: URL(fileURLWithPath: copy))
             chmod(copy, 0o555)
             _ = try expectFailure("Executável alterado") { _ = try store.loadActive(.wireguard) }
+        }
+
+        test("Runtime real do Homebrew: snx-rs congelado com o OpenSSL e as licenças, versão lida e nada carregado do prefixo gravável") {
+            let candidate = BinaryLocator.defaultPath(for: .snxrs)
+            guard FileManager.default.isExecutableFile(atPath: candidate) else {
+                print("NOTE: snx-rs não instalado em \(candidate); verificação do runtime real pulada.")
+                return
+            }
+            let inventory = try RuntimeInspector.inspect(candidate: candidate, requester: getuid(), kind: .snxrs)
+            let libraries = inventory.report.items.filter { $0.role == .library }.map { ($0.sourcePath as NSString).lastPathComponent }
+            try require(inventory.report.kind == .snxrs && libraries.contains { $0.hasPrefix("libssl") } && libraries.contains { $0.hasPrefix("libcrypto") },
+                        "Inventário: \(inventory.report.items.map(\.sourcePath))")
+            let stateRoot = try HelperFixture.temporaryRoot()
+            defer { try? FileManager.default.removeItem(atPath: stateRoot) }
+            let store = RuntimeStore(root: stateRoot + "/state", ownership: TrustedOwnership(owners: [getuid()], anchor: stateRoot), probeIdentity: nil)
+            // Runs only --help and --version of the staged copy: no network, no root.
+            let summary = try store.install(inventory, approvedBy: getuid())
+            try require(summary.version.range(of: #"^[0-9]+\.[0-9]+"#, options: .regularExpression) != nil, "Versão: \(summary.version)")
+            let active = try store.loadActive(.snxrs)
+            try require(active.executable.hasSuffix("/bin/snx-rs"), "Cópia: \(active.executable)")
+            let licenses = (FileManager.default.enumerator(atPath: active.root + "/licenses")?.allObjects as? [String]) ?? []
+            try require(licenses.contains { $0.hasSuffix("/COPYING") } && licenses.contains { $0.contains("openssl") },
+                        "Licenças: \(licenses)")
+            _ = try expectFailure("Runtime snx-rs como OpenConnect") { _ = try store.loadActive(.openconnect) }
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: active.executable)
+            process.arguments = ["--version"]
+            process.environment = ["PATH": "/usr/bin:/bin", "DYLD_PRINT_LIBRARIES": "1"]
+            let pipe = Pipe()
+            process.standardOutput = pipe; process.standardError = pipe
+            try process.run()
+            let output = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            process.waitUntilExit()
+            try require(output.contains("snx-rs \(summary.version)"), "Cópia não executou --version: \(output.prefix(200))")
+            for line in output.split(separator: "\n") where line.hasPrefix("dyld[") {
+                try require(!line.contains("/opt/homebrew") && !line.contains("/usr/local/"), "Imagem do prefixo gravável: \(line)")
+            }
         }
 
         return failures

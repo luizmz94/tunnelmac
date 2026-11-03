@@ -332,9 +332,11 @@ extension ReviewTests {
             .openvpn: .notApproved(installed: "2.7.8", latest: "2.7.10"),
             .wireguard: .notApproved(installed: "0.0.20250522", latest: nil),
             .openconnect: .notApproved(installed: "9.21", latest: nil),
+            .snxrs: .notInstalled,
         ]
         let all = ServiceOnboarding.commands(RuntimeKind.allCases) { states[$0]! }
-        XCTAssertEqual(all, ["brew install openfortivpn", "brew upgrade openvpn"])
+        XCTAssertEqual(all, ["brew install openfortivpn snx-rs", "brew upgrade openvpn"])
+        XCTAssertEqual(ServiceOnboarding.commands([.snxrs]) { states[$0]! }, ["brew install snx-rs"])
         XCTAssertEqual(ServiceOnboarding.commands([.wireguard]) { states[$0]! }, [])
         XCTAssertEqual(ServiceOnboarding.commands([.wireguard, .openfortivpn]) { _ in .notInstalled }, ["brew install openfortivpn wireguard-go"])
         XCTAssertFalse(ServiceOnboarding.installed(states[.openvpn]!))

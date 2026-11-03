@@ -58,6 +58,55 @@ URL. A rejected cookie permits one fresh browser login. Reconnect after a previo
 established tunnel is limited to delays of 10, 20 and 40 seconds; rejected credentials,
 TLS failures and initial connection failures do not loop automatically.
 
+### Menu bar
+
+Click the icon to open the menu; it opens without bringing TunnelMac to the front, and
+the app you were using gets the keyboard back when it closes (click outside, ⌘Tab, Esc).
+The search field at the top has the focus as soon as the menu opens. It matches name,
+server and type (or its client: openconnect, snx-rs…), ignoring case and accents; the
+order stays the list's. **↓/↑** move the highlight (they stop at the ends), **Enter**
+connects or disconnects the highlighted connection (the menu stays open; Esc closes it),
+**⌘Enter** opens it in the main window, **Esc** clears the text and, with no text, closes
+the menu, and **⌘F** returns to the field after Tab. With text, the first result is
+already highlighted; with no text and a single connection, that one is. What you type is
+not logged.
+
+Active connections and the ones you pin (the pin on the highlighted row, or **Fixar no
+topo** in its context menu) stay at the top of the menu, above a separator. While the menu
+is open, a connection that connects or disconnects keeps its place until the menu opens again.
+
+While a connection starts, connects or fails, whatever started it (menu, window, search
+or an automatic reconnect), a small panel in the top right corner of the screen shows its
+progress: Iniciando,
+Na fila do SAML, Aguardando SAML, Conectando, Reconectando (attempt N of 3), then
+Conectada for 2.5 s, or the failure with its reason (credentials refused, untrusted
+gateway certificate, or the last error line of the log) until you close it. **Cancelar**
+disconnects (and cancels a reconnect or the SAML queue); **Ver logs** opens the window.
+Up to four cards are shown, then "+N em andamento". The panel never takes the keyboard,
+hides while the menu is open, and is off with **Mostrar o progresso das conexões** in
+Configurações › Geral.
+
+### Global shortcut
+
+Configurações › Geral › **Atalho** records a shortcut that opens the menu with the search
+ready, from any app, without bringing TunnelMac to the front (it also works with the menu
+bar icon hidden: the menu opens in the top right corner). There is none by default. Click
+**Gravar atalho** and press it; **Esc** cancels and **⌫** removes it. Three forms:
+
+- **A combination** with ⌘ or ⌃ (⌃⌥⌘K, ⇧⌘F5…). No permission.
+- **An F key alone** (F1–F20). No permission. On Apple keyboards F1–F12 control brightness
+  and sound: press them with fn or turn on "Use F1, F2, etc. keys as standard function keys".
+- **A double tap of ⌘, ⌥, ⌃ or ⇧** (either side by default, or the side you tapped). This one
+  needs **Input Monitoring** (System Settings › Privacy & Security), asked only after an
+  explanation; until it is allowed the shortcut stays saved but inactive. TunnelMac then
+  listens to modifier changes only, never to the keys you type (see SECURITY.md). macOS may
+  require reopening the app before it applies (**Reabrir agora**).
+
+Refused, with a message: keys without ⌘ or ⌃ (Option and Shift type characters), letters or
+Space alone, shortcuts macOS itself uses, and app shortcuts such as ⌘Q, ⌘W, ⌘C or ⌘Space.
+macOS does not tell an app that another one registered the same shortcut; if one does, it may
+get it instead. While you record, the current shortcut is suspended.
+
 ### OpenVPN
 
 Install OpenVPN 2.7 or later (`brew install openvpn`), then use **Aprovar OpenVPN…**
@@ -150,6 +199,33 @@ After a SAML login (GlobalProtect or Fortinet) the app closes the page left in t
 default browser (Safari, Chrome, Brave, Edge or Vivaldi); macOS asks once whether
 TunnelMac may control it.
 
+### Check Point
+
+Install snx-rs (`brew install snx-rs`), then approve **Check Point (snx-rs)** in
+Configurações → Serviço privilegiado. Never start it with `brew services`: the helper runs
+its own protected copy in standalone mode, one session at a time. Neither the official
+Check Point client nor a site name is used.
+
+Use **+** (⌘N) → **Check Point** with the address the gateway's certificate covers (a host
+name or IP, optionally `:port`), your user and password (saved in Keychain). **Consultar
+gateway** reads the gateway's certificate and, when it is issued by the gateway's own
+internal CA (ICA), shows that authority: subject, validity, SHA-256 and the gateway's
+fingerprint words. Compare the SHA-256 or the words with the VPN administrator before
+**Confiar nesta autoridade**. If the certificate is valid for another address (for example
+another IP of the same gateway), the editor says which ones and **Usar …** switches to it.
+The query also lists the gateway's login types (`snx-rs -m info`, run by the service as an
+unprivileged user); only login types with user and password are supported for now: MFA
+(OTP), SAML/identity provider and client certificates are listed but cannot be chosen.
+
+snx-rs configures the tunnel itself: the gateway's routes (or all traffic with **Todo o
+tráfego pela VPN**), a host route to the gateway and the VPN's DNS for its domains. The
+connection shows Conectada once the service sees that DNS (or the tunnel interface). On
+disconnect snx-rs removes its routes and DNS; if it is killed, the service removes the DNS
+entry and the gateway route it left. Only one Check Point connection can be active at a
+time (snx-rs replaces the DNS of any other one). A wrong password stops without retrying.
+If the official Check Point client is connected, it competes for routes and DNS:
+disconnect it first.
+
 ### Fortinet client certificates and gateway certificates
 
 A Fortinet connection can use a client certificate from your Keychain (FortiClient's
@@ -163,7 +239,8 @@ explicit review and approval of the profile's trusted digest; TLS is not disable
 
 - **Geral:** show the menu bar icon; hide from the Dock when the window is closed
   (always kept in the Dock while the menu bar icon is off, so the app never becomes
-  invisible); open at login (`SMAppService.mainApp`, only in signed builds).
+  invisible); show connection progress (on by default); open at login
+  (`SMAppService.mainApp`, only in signed builds).
 - **Atualizações:** update check options and how to update (see below).
 - **Serviço privilegiado:** its state, runtime approval and **Remover serviço** on top;
   why the service exists below (formerly the Gerenciar… sheet).

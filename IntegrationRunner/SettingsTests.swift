@@ -415,20 +415,12 @@ enum SettingsTests {
             try require(AppPreferences(defaults: rc.defaults).skippedVersion == nil, "Remoção não persistiu")
         }
 
-        test("Barra de menus: o binding do ícone ignora o eco do SwiftUI e só publica mudanças reais") {
+        test("Progresso das conexões: ligado por padrão e persiste na suíte descartável") {
             let preferences = AppPreferences.disposable()
-            var notifications = 0
-            let token = preferences.objectWillChange.sink { notifications += 1 }
-            defer { token.cancel() }
-            let binding = preferences.menuBarIconBinding()
-            for _ in 0..<5 { binding.wrappedValue = true }
-            try require(notifications == 0 && preferences.defaults.object(forKey: AppPreferences.Key.showMenuBarIcon) == nil,
-                        "Escrever o mesmo valor publicou mudança (recursão das cenas na rc.4)")
-            binding.wrappedValue = false
-            try require(notifications == 1 && !preferences.showMenuBarIcon && !binding.wrappedValue, "Mudança real não aplicada")
-            let disabled = preferences.menuBarIconBinding(enabled: false)
-            disabled.wrappedValue = true
-            try require(!disabled.wrappedValue && !preferences.showMenuBarIcon && notifications == 1, "Executor de verificações inseriu o ícone")
+            try require(preferences.showConnectionProgress && preferences.defaults !== UserDefaults.standard, "Padrão desligado ou preferências reais")
+            preferences.showConnectionProgress = false
+            try require(preferences.defaults.object(forKey: AppPreferences.Key.showConnectionProgress) as? Bool == false
+                        && !AppPreferences(defaults: preferences.defaults).showConnectionProgress, "Preferência não persistiu")
         }
 
         test("Dock: política ao esconder cada janela em cada combinação, desligar o ícone e iniciar") {

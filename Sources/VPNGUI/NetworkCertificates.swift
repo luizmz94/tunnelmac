@@ -75,6 +75,12 @@ enum NetworkCertificates {
     /// sites macOS already trusts.
     static func probe(_ host: String) async -> (trusted: Bool?, chain: [SecCertificate], error: String?) {
         guard let url = URL(string: "https://\(host)/") else { return (nil, [], nil) }
+        return await handshake(url)
+    }
+
+    /// The certificate chain a server presents and whether macOS trusts it (ephemeral session;
+    /// an untrusted server never receives the request). Also used by the Check Point editor.
+    static func handshake(_ url: URL) async -> (trusted: Bool?, chain: [SecCertificate], error: String?) {
         let capture = Capture()
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 10
