@@ -366,7 +366,7 @@ enum MenuBarTests {
                 try require(inside.contains(frame), "\(name): \(frame) fora de \(anchor.visibleFrame)")
                 return frame
             }
-            let button = NSRect(x: 1200, y: 950, width: 30, height: 28)
+            let button = NSRect(x: 900, y: 950, width: 30, height: 28) // room on its right for the 360 pt panel
             var frame = try check(MenuAnchor(button: button, visibleFrame: main), "Ícone no meio")
             try require(frame.minX == button.minX && frame.maxY == button.minY - 6 && frame.width == 360, "Não abriu para a direita a partir do ícone: \(frame)")
             frame = try check(MenuAnchor(button: NSRect(x: 1490, y: 950, width: 22, height: 28), visibleFrame: main), "Ícone na borda direita")
