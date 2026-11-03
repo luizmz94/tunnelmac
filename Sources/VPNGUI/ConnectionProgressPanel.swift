@@ -330,9 +330,9 @@ struct ProgressCardView: View {
             .accessibilityElement(children: .combine)
             actions
         }
+        // No tap action: the card changes state under the pointer (a click meant for
+        // Cancelar would land on a Conectada card).
         .padding(.horizontal, 12).padding(.vertical, 10)
-        .contentShape(Rectangle())
-        .onTapGesture { if card.state == .connected { menuBar.showMenu() } }
     }
 
     /// The state in words (color is never the only signal).
