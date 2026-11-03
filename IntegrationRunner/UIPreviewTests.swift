@@ -61,6 +61,78 @@ enum UIPreviewTests {
                         "ICNS não contém a representação de 1024 px")
         }
 
+        test("Nova conexão: grade, quick view, teclado, escolha e VoiceOver") {
+            let standard = ProtocolCatalog.standard.entries
+            try require(standard.map(\.kind) == VPNProtocol.allCases, "O catálogo não cobre todos os tipos")
+            try require(ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 5, "Os 5 tipos não cabem numa linha")
+            // Quick view: nothing until the pointer passes over a tile, then the last one it passed over.
+            var selection = ProtocolCatalog.Selection()
+            try require(selection.shown(in: standard) == nil, "Algo apareceu sem passar o mouse (pré-seleção)")
+            selection.hovered("wireguard")
+            try require(selection.shown(in: standard)?.kind == .wireguard, "Hover não mostrou o tile")
+            selection.hovered("checkPoint")
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Hover em outro tile não trocou")
+            selection.hovered(nil)
+            try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile apagou o quick view (pisca entre tiles)")
+            try require(ProtocolCatalog.Selection(shown: "inexistente").shown(in: standard) == nil, "Tile inexistente mostrado")
+            // Arrows stop at the edges of a 5-column grid of 10.
+            let move = { (index: Int, direction: MoveCommandDirection) in ProtocolCatalog.move(from: index, direction, count: 10, columns: 5) }
+            try require(move(0, .left) == 0 && move(0, .up) == 0 && move(4, .right) == 4 && move(9, .down) == 9, "Setas deram a volta")
+            try require(move(0, .right) == 1 && move(1, .down) == 6 && move(6, .up) == 1 && move(5, .left) == 5, "Setas na grade")
+            try require(ProtocolCatalog.move(from: 3, .down, count: 5, columns: 5) == 3, "Seta para baixo sem linha abaixo")
+            // Choosing: a new connection whose client is missing asks first; otherwise it goes on.
+            try require(ProtocolChoice.decide(isNew: true, problem: "sem cliente") == .askService, "Tipo sem cliente seguiu direto")
+            try require(ProtocolChoice.decide(isNew: true, problem: nil) == .proceed, "Tipo aprovado perguntou")
+            try require(ProtocolChoice.decide(isNew: false, problem: "sem cliente") == .proceed, "Edição perguntou pelo serviço")
+
+            let ready = ProtocolClientState(kind: .ready, text: "snx-rs 6.6.1 aprovado")
+            let problem = ProtocolClientState(kind: .problem, text: "Nenhum cliente VPN aprovado. Nenhum cliente VPN aprovado. Aprove o cliente VPN que você usa.")
+            @MainActor func chooser(_ entries: [ProtocolCatalog.Entry], locale: Locale = Locale(identifier: "pt-BR"),
+                                    state: ProtocolClientState = ready) -> NSHostingView<some View> {
+                let host = NSHostingView(rootView: ProtocolChooser(catalog: ProtocolCatalog(entries: entries), state: { _, _ in state },
+                                                                   openService: {}, shown: entries.first?.id, choose: { _ in }, cancel: {})
+                    .frame(width: 560).environment(\.locale, locale))
+                host.layoutSubtreeIfNeeded()
+                return host
+            }
+            // Ten types (a fake catalog): two rows, and everything still fits the sheet (at most 500 pt).
+            let ten = (0..<10).map { index in
+                var entry = ProtocolCatalog.entry(VPNProtocol.allCases[index % VPNProtocol.allCases.count])
+                entry.id = "falso-\(index)"
+                return entry
+            }
+            try require((ten.count + 4) / ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 2, "10 tipos não formam 2 linhas")
+            try require(ProtocolChooser.sheetHeight(count: 10) <= 500 && ProtocolChooser.sheetHeight(count: 5) < 400, "Altura da folha")
+            for (entries, locale) in [(ten, "pt-BR"), (standard, "pt-BR"), (standard, "de")] {
+                let height = chooser(entries, locale: Locale(identifier: locale)).fittingSize.height
+                try require(height <= ProtocolChooser.sheetHeight(count: entries.count),
+                            "Seletor com \(entries.count) tipos (\(locale)) mede \(height) pt, mais que \(ProtocolChooser.sheetHeight(count: entries.count))")
+            }
+            // The quick view of every type fits its room, in pt-BR and German, also with a service problem.
+            for locale in ["pt-BR", "de"] {
+                for entry in standard {
+                    for state in [ready, problem] {
+                        let host = NSHostingView(rootView: ProtocolQuickView(entry: entry, state: state, openService: {})
+                            .frame(width: ProtocolChooser.gridWidth).environment(\.locale, Locale(identifier: locale)))
+                        let height = host.fittingSize.height
+                        try require(height <= ProtocolChooser.quickViewHeight,
+                                    "Quick view de \(entry.title) (\(locale), \(state.kind)) mede \(height) pt, mais que \(ProtocolChooser.quickViewHeight)")
+                    }
+                }
+            }
+            // Each tile is one VoiceOver element: name, client state and what the form asks for.
+            let spoken = ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), ready, locale: Locale(identifier: "pt-BR"))
+            try require(spoken == .init(label: "Check Point", value: "snx-rs 6.6.1 aprovado", hint: "Gateway Check Point, com usuário e senha. Pede o gateway."),
+                        "VoiceOver do tile Check Point: \(spoken)")
+            let shortProblem = ProtocolClientState(kind: .problem, text: "Nenhum snx-rs aprovado para o serviço.")
+            try require(ProtocolTileButton.spoken(ProtocolCatalog.entry(.checkPoint), shortProblem, locale: Locale(identifier: "pt-BR")).value == shortProblem.text,
+                        "O problema do serviço não chega ao VoiceOver")
+            for entry in standard {
+                let german = ProtocolTileButton.spoken(entry, ready, locale: Locale(identifier: "de")).hint
+                try require(!german.isEmpty && german != String(localized: entry.hint), "Dica de VoiceOver sem tradução em alemão: \(entry.title)")
+            }
+        }
+
         test("Renderização fora da tela: janela, menu bar, formulários e serviço em claro e escuro") {
             let output = Bundle.main.bundleURL.deletingLastPathComponent().appendingPathComponent("ui-review", isDirectory: true)
             try? FileManager.default.removeItem(at: output)
@@ -132,6 +204,26 @@ enum UIPreviewTests {
             bothService.useForLocalChecks(status: bothStatus)
             let bothModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("both")), passwords: passwords, service: bothService)
 
+            func runtimeSummary(_ id: String, _ version: String) -> RuntimeSummary {
+                RuntimeSummary(id: id, version: version, approvedAt: Date(), capabilities: RuntimeCapabilities(help: ""), sourcePath: "/fixture/\(id)", sourceSHA256: "0")
+            }
+            var allStatus = HelperTests.readyStatus()
+            allStatus.openVPNRuntime = runtimeSummary("openvpn", "2.7.8")
+            allStatus.wireGuardRuntime = runtimeSummary("wireguard-go", "0.0.20250522")
+            allStatus.openConnectRuntime = runtimeSummary("openconnect", "9.12")
+            allStatus.snxRuntime = runtimeSummary("snx-rs", "6.6.1")
+            let approvedService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
+            approvedService.useForLocalChecks(status: allStatus)
+            let approvedModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("approved")), passwords: passwords, service: approvedService)
+            var noClientStatus = HelperTests.readyStatus()
+            noClientStatus.runtime = nil
+            let noClientService = ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil)
+            noClientService.useForLocalChecks(status: noClientStatus)
+            let noClientModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("no-client")), passwords: passwords, service: noClientService)
+            // Never refreshed: the service is still being checked.
+            let checkingModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("checking")), passwords: passwords,
+                                         service: ServiceController(policy: .unavailable(reason: "verificações locais"), registrar: nil, client: nil))
+
             let unavailableModel = AppModel(store: try JSONStore(directory: root.appendingPathComponent("unavailable")),
                                             passwords: passwords,
                                             service: ServiceController(policy: .unavailable(reason: "ad hoc"), registrar: nil, client: nil))
@@ -193,7 +285,14 @@ enum UIPreviewTests {
                 try render(ServicePanel(model: unavailableModel).padding(20), NSSize(width: 620, height: 360), "service-panel")
                 try render(ServiceStatusRow(service: model.service) {}, NSSize(width: 300, height: 56), "service-row")
                 try render(ConnectionEditor(model: model, connection: openVPN, pendingImport: imported, saved: {}), NSSize(width: 560, height: 640), "editor-openvpn-import")
-                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: 520), "editor-choose-type")
+                try render(ConnectionEditor(model: model, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type")
+                // Nova conexão with every client approved (also in German, the longest texts), none, and while checking.
+                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-approved")
+                try render(ConnectionEditor(model: approvedModel, connection: Connection(), saved: {}).environment(\.locale, Locale(identifier: "de")),
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-de")
+                try render(ConnectionEditor(model: noClientModel, connection: Connection(), openService: {}, saved: {}),
+                           NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-unapproved")
+                try render(ConnectionEditor(model: checkingModel, connection: Connection(), saved: {}), NSSize(width: 560, height: ProtocolChooser.sheetHeight(count: 5)), "editor-choose-type-checking")
                 try render(ConnectionEditor(model: model, connection: wireGuard, pendingWireGuard: wireGuardWarned, saved: {}),
                            NSSize(width: 560, height: 640), "editor-wireguard-import")
                 try render(ConnectionDetail(connection: wireGuard, session: wireGuardSession, model: model, edit: {}, delete: {}),
@@ -238,7 +337,7 @@ enum UIPreviewTests {
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 62, "Renders esperados: 62, gerados: \(files.count)")
+            try require(files.count == 70, "Renders esperados: 70, gerados: \(files.count)")
         }
         return failures
     }

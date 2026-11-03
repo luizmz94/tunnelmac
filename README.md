@@ -82,9 +82,9 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
     <td align="center" width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/new-connection-dark.png">
-        <img src="docs/assets/new-connection-light.png" alt="New connection: Fortinet, OpenVPN, WireGuard or GlobalProtect">
+        <img src="docs/assets/new-connection-light.png" alt="New connection: Fortinet, OpenVPN, WireGuard, GlobalProtect or Check Point tiles, with details of the selected type">
       </picture>
-      <br><sub>Add a Fortinet or GlobalProtect gateway, or import an OpenVPN / WireGuard profile</sub>
+      <br><sub>Add a Fortinet, GlobalProtect or Check Point gateway, or import an OpenVPN / WireGuard profile</sub>
     </td>
     <td align="center" width="50%">
       <picture>
