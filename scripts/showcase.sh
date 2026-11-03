@@ -60,6 +60,13 @@ fi
 captures="$out/captures"
 rm -rf "$captures"
 open -W -n --stdout "$out/showcase.log" --stderr "$out/showcase.log" "$app" --args --showcase-capture "$captures" -AppleLanguages "(en)" # The README is in English.
+# open -W does not pass the app's exit code on: the tour marks a finished run itself.
+# Without the mark (focus lost, window missing), docs/assets keeps the previous images.
+if [[ ! -e "$captures/.complete" ]]; then
+    grep -E "^Showcase: (o app perdeu|janela|falha)" "$out/showcase.log" >&2 || true
+    echo "A captura não terminou; docs/assets não foi alterado." >&2
+    exit 1
+fi
 assets=docs/assets
 mkdir -p "$assets"
 for image in "$captures"/*.png; do cp "$image" "$assets/"; done
