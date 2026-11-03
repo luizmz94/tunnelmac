@@ -286,7 +286,8 @@ Release candidates are offered by default only when the running version is one.
 Turn off **Verificar automaticamente** in Configurações → Atualizações to stop
 automatic checks; manual checks stay available.
 
-When the check at launch finds a new version, the update window opens with its notes
+When the check at launch, or a later automatic check (every 4 hours while the app is
+open, or on Conectar), finds a new version, the update window opens once with its notes
 and **Instalar atualização**, **Lembrar mais tarde** and **Pular esta versão**. The
 version also shows a small card in the main window (**Atualizar**, **Depois**,
 **Ver novidades**), a line in the menu bar and a dot on the Atualizações tab.

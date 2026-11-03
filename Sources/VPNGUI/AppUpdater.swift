@@ -102,7 +102,7 @@ final class AppUpdater: NSObject, ObservableObject {
         if installing { awaitingQuit = true }
     }
 
-    /// After the launch check: the same window, unless Sparkle has this version skipped.
+    /// After an automatic check (UpdateChecker.onOffer): the same window, unless Sparkle has this version skipped.
     /// A missing or invalid appcast fails silently here; the card still offers the update.
     /// The app comes forward only when the window is about to be shown.
     func present(_ offer: UpdateOffer) {

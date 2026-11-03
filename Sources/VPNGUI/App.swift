@@ -182,7 +182,7 @@ public struct VPNGUIApp: App {
         model.manager.internetDNS = { [weak preferences] in preferences?.internetDNSServers }
         let updates = UpdateChecker.production(preferences: preferences)
         let installer = AppUpdater.production(checker: updates) { NSApplication.shared.activate(ignoringOtherApps: true) }
-        updates.onLaunchOffer = { [weak installer] in installer?.present($0) }
+        updates.onOffer = { [weak installer] in installer?.present($0) }
         let menuBar = MenuBarCoordinator(model: model, preferences: preferences, updates: updates,
                                          installer: installer, loginItem: .production())
         // NSApp does not exist yet inside App.init; with the menu bar icon off, applying the
