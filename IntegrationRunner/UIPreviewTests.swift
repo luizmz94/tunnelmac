@@ -66,7 +66,7 @@ enum UIPreviewTests {
             let standard = ProtocolCatalog.standard.entries
             try require(standard.map(\.kind) == VPNProtocol.allCases, "O catálogo não cobre todos os tipos")
             try require(ProtocolCatalog.columns(width: ProtocolChooser.gridWidth) == 5, "Os 5 tipos não cabem numa linha")
-            // Quick view: nothing until the pointer passes over a tile, then the last one it passed over.
+            // Quick view: nothing until the first hover or focus, then the tile of the last one.
             var selection = ProtocolCatalog.Selection()
             try require(selection.shown(in: standard) == nil, "Algo apareceu sem passar o mouse (pré-seleção)")
             selection.hovered("wireguard")
@@ -76,6 +76,20 @@ enum UIPreviewTests {
             selection.hovered(nil)
             try require(selection.shown(in: standard)?.kind == .checkPoint, "Sair do tile apagou o quick view (pisca entre tiles)")
             try require(ProtocolCatalog.Selection(shown: "inexistente").shown(in: standard) == nil, "Tile inexistente mostrado")
+            var keyboard = ProtocolCatalog.Selection()
+            keyboard.focused(nil)
+            try require(keyboard.shown(in: standard) == nil, "Perder o foco sem interação mostrou um tile")
+            // hover → arrow: the focus moved by the arrow wins.
+            keyboard.hovered("openvpn")
+            keyboard.focused("wireguard")
+            try require(keyboard.shown(in: standard)?.kind == .wireguard, "Seta depois do hover não trocou o quick view")
+            // arrow → hover: the pointer wins; the focus left where it was does not come back.
+            keyboard.focused("globalProtect")
+            keyboard.hovered("checkPoint")
+            try require(keyboard.shown(in: standard)?.kind == .checkPoint, "Hover depois da seta não trocou o quick view")
+            keyboard.focused(nil)
+            keyboard.hovered(nil)
+            try require(keyboard.shown(in: standard)?.kind == .checkPoint, "Perder o foco ou sair do tile apagou o quick view")
             // Arrows stop at the edges of a 5-column grid of 10.
             let move = { (index: Int, direction: MoveCommandDirection) in ProtocolCatalog.move(from: index, direction, count: 10, columns: 5) }
             try require(move(0, .left) == 0 && move(0, .up) == 0 && move(4, .right) == 4 && move(9, .down) == 9, "Setas deram a volta")

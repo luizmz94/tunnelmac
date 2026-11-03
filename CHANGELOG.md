@@ -4,7 +4,8 @@
 
 - **Nova conexão** shows the VPN types as a grid of tiles that fits the sheet without
   scrolling, with a warning badge on the ones whose client is missing in the service.
-  Nothing is preselected; a compact panel below describes the type under the pointer: what it is, its client and state, how it signs in and what the form asks for,
+  Nothing is preselected; a compact panel below describes the type last under the pointer or
+  the keyboard focus: what it is, its client and state, how it signs in and what the form asks for,
   with Abrir Serviço privilegiado… when the client is missing. Tab enters the grid, arrow
   keys move between tiles, Enter or Space chooses and Esc cancels; VoiceOver reads each
   tile's name, client state and what it asks for. Liquid Glass tiles on macOS 26 and later.
@@ -42,6 +43,12 @@
   Monitoring after an explanation and listens to modifier changes only (SECURITY.md).
   Shortcuts macOS uses and common app shortcuts (⌘Q, ⌘C, ⌘Space…) are refused; a saved
   shortcut that macOS refuses at launch stays saved with a warning.
+- Check Point: a connection whose tunnel is not ready after 120 s no longer stays in
+  Conectando. The service stops snx-rs, removes its DNS entry and gateway route, and the
+  log says the tunnel was not ready in time; it is not retried automatically.
+- Check Point: the order in which snx-rs 6.6.1 sets the interface, routes and DNS before
+  it prints the connection block is now documented and covered by tests; the readiness
+  rule is unchanged.
 
 ## 1.2.0 — 2026-11-02
 

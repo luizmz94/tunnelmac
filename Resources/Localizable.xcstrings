@@ -38786,6 +38786,40 @@
         }
       }
     },
+    "[!] TunnelMac: o túnel Check Point não ficou pronto em %@ s; a conexão foi encerrada.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: Der Check Point-Tunnel war nach %@ s nicht bereit; die Verbindung wurde beendet."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: the Check Point tunnel was not ready after %@ s; the connection was closed."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: el túnel Check Point no estuvo listo en %@ s; se cerró la conexión."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac : le tunnel Check Point n’était pas prêt après %@ s ; la connexion a été fermée."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "[!] TunnelMac: Check Point टनल %@ सेकंड में तैयार नहीं हुआ; कनेक्शन बंद कर दिया गया।"
+          }
+        }
+      }
+    },
     "[!] TunnelMac: rotas obrigatórias não configuradas (%@); a conexão foi encerrada.": {
       "extractionState": "stale",
       "localizations": {

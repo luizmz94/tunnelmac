@@ -69,12 +69,14 @@ struct ProtocolCatalog {
         }
     }
 
-    /// The entry the quick view describes: nothing until the pointer passes over a tile, then
-    /// the last tile it passed over (leaving it keeps it, so nothing flickers between tiles).
+    /// The entry the quick view describes: nothing until the first interaction, then the tile
+    /// of the last one, the pointer entering it or the keyboard focusing it (leaving a tile or
+    /// losing the focus keeps it, so nothing flickers between tiles).
     struct Selection: Equatable {
         private(set) var last: String?
         init(shown: String? = nil) { last = shown }
         mutating func hovered(_ id: String?) { if let id { last = id } }
+        mutating func focused(_ id: String?) { if let id { last = id } }
         func shown(in entries: [Entry]) -> Entry? { entries.first { $0.id == last } }
     }
 

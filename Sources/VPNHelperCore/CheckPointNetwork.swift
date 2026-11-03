@@ -176,8 +176,12 @@ enum CheckPointNetwork {
 /// 2. without that key (a gateway that sends no DNS): the `Interface: utunN` line of the
 ///    connection block, whose value is stable in every language, or cli-tunnel-connected in
 ///    any of the 17 languages of snx-rs 6.6.1 once the interface is known.
-/// An interface that does not exist when the tunnel reports up is a failure: the helper
-/// stops snx-rs.
+///    snx-rs 6.6.1 prints both only after routes and DNS are set: every tunnel (ssl.rs `run`,
+///    ipsec/imp/tun.rs `run`, ipsec/imp/native.rs) configures the utun, then the routes, then
+///    the DNS, any error ending the attempt, and only then sends TunnelEvent::Connected;
+///    apps/snx-rs/src/main.rs prints the block and cli-tunnel-connected on that event.
+/// An interface that does not exist when the tunnel reports up is a failure, and so is a
+/// tunnel not ready when the timeout ends: the helper stops snx-rs.
 final class CheckPointSession: SessionObserver {
     enum Source: Equatable { case dns, output }
     private let token: String
@@ -194,6 +198,7 @@ final class CheckPointSession: SessionObserver {
     private var outputInterface: String?
     private(set) var readySource: Source?
     private var ended = false
+    private var failed = false
     private let poller = DispatchQueue(label: "com.luiz.vpngui.helper.checkpoint")
     typealias Record = CheckPointNetwork.Record
 
@@ -208,11 +213,28 @@ final class CheckPointSession: SessionObserver {
     private func schedule(deadline: Date) {
         poller.asyncAfter(deadline: .now() + interval) { [weak self] in
             guard let self else { return }
-            let waiting = self.lock.withLock { self.readySource == nil && !self.ended }
-            guard waiting else { return }
+            guard self.waiting() else { return }
             if self.checkDNS() { return }
-            if Date() < deadline { self.schedule(deadline: deadline) }
+            if Date() < deadline {
+                self.schedule(deadline: deadline)
+            } else {
+                self.stop(CheckPointRules.networkTimeout + "\(Int(self.timeout.rounded())) s.")
+            }
         }
+    }
+
+    private func waiting() -> Bool { lock.withLock { readySource == nil && !ended && !failed } }
+
+    /// Once, and only while not ready: a later markReady or failure does nothing.
+    private func stop(_ line: String) {
+        let first = lock.withLock { () -> Bool in
+            guard readySource == nil, !ended, !failed else { return false }
+            failed = true
+            return true
+        }
+        guard first else { return }
+        emit(line)
+        fail()
     }
 
     /// Ready through the DNS key (path 1).
@@ -232,13 +254,12 @@ final class CheckPointSession: SessionObserver {
         guard interface != nil || connected else { return }
         let (waiting, known): (Bool, String?) = lock.withLock {
             if let interface { outputInterface = interface }
-            return (readySource == nil && !ended, outputInterface)
+            return (readySource == nil && !ended && !failed, outputInterface)
         }
         guard waiting, !checkDNS(), let known else { return }
         // Path 2: the gateway sent no DNS (or snx-rs has not published it).
         guard exists(known) else {
-            emit(CheckPointRules.networkFailure + " \(known)")
-            fail()
+            stop(CheckPointRules.networkFailure + " \(known)")
             return
         }
         markReady(known, source: .output)
@@ -246,7 +267,7 @@ final class CheckPointSession: SessionObserver {
 
     private func markReady(_ interface: String, source: Source) {
         let snapshot: Record? = lock.withLock {
-            guard readySource == nil, !ended else { return nil }
+            guard readySource == nil, !ended, !failed else { return nil }
             readySource = source
             record.interface = interface
             return record
