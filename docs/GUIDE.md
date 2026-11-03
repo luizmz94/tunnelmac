@@ -316,18 +316,17 @@ brew upgrade --cask luizmz94/tunnelmac/tunnelmac
 brew uninstall --cask luizmz94/tunnelmac/tunnelmac
 ```
 
-Upgrade/reinstall/uninstall call the installed app's restricted normal-user
-maintenance command **before** bundle removal. Homebrew runs it inside its sandbox,
-where the app cannot reach the service registration or the helper. There it only
-checks, without contacting anything, that TunnelMac, its supervisors and its
-openfortivpn are not running, and keeps the service registered: the upgraded bundle
-lands at the same path with the same identifiers and Team, so the registration stays
-valid. Before `brew upgrade`, quit the app with **Sair** (this disconnects its VPNs);
-otherwise brew stops and nothing is replaced.
+Upgrade/reinstall/uninstall first ask TunnelMac to quit, the same way as **Sair**:
+without active VPNs it closes at once; with active VPNs it asks **Desconectar e sair?**
+and disconnects them first. The installed app then waits (up to 2 minutes) until
+TunnelMac, its supervisors and its VPN clients are gone; if you cancel, brew stops and
+nothing is replaced. After `brew upgrade`, Homebrew reopens the app when it closed in
+time. The service stays registered: the upgraded bundle lands at the same path with the
+same identifiers and Team, so the registration stays valid. (Casks installed with 1.3.1
+or earlier still ask you to quit with **Sair** before their first `brew upgrade`.)
 
 Before `brew uninstall`, open the app and use **Configurações… → Serviço privilegiado
-→ Remover serviço**, then
-quit with **Sair**: the sandbox cannot remove the registration for you. Do not use
+→ Remover serviço**: Homebrew's sandbox cannot remove the registration for you. Do not use
 `--force` and do not reopen the app during maintenance. Outside the sandbox (for
 example `./scripts/install.sh`), the same command requests normal quit, waits for
 cleanup, has the authenticated helper prove global idle and unregisters the service.

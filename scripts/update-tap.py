@@ -74,42 +74,21 @@ def cask(version, digests):
     end
   end
 
-  # In Homebrew's sandbox: refuses while the app runs, keeps the registration.
-  uninstall_preflight_steps do
-    run "TunnelMac.app/Contents/MacOS/VPNGUI",
-        args:         ["--prepare-for-maintenance"],
-        base:         :appdir,
-        sudo:         false,
-        must_succeed: true
-  end
+  # Homebrew quits the app (it asks first when VPNs are active) and reopens it after
+  # an upgrade; the script waits for that quit and the VPN cleanup to finish.
+  uninstall quit:   "com.luiz.vpngui",
+            script: {
+              executable:   "#{appdir}/TunnelMac.app/Contents/MacOS/VPNGUI",
+              args:         ["--wait-for-quit"],
+              must_succeed: true,
+            }
 
   caveats <<~EOS
-    First use: open TunnelMac and follow the setup guide. Pick the VPN types you
-    use and install only those clients (brew install openfortivpn, openvpn,
-    wireguard-go, openconnect and/or snx-rs; the guide shows the command),
-    activate its service,
-    approve it in System Settings and approve each client once.
-
-    Updates: TunnelMac offers new versions and installs them itself
-    (Atualizar agora). To use brew upgrade instead, quit TunnelMac with Sair
-    first (this disconnects its VPNs). The service registration is kept for
-    the upgraded app either way.
-
-    Before brew uninstall: open the app, use Configurações… > Serviço
-    privilegiado > Remover serviço, then quit with Sair. Homebrew's sandbox does
-    not allow removing the registration.
-
-    Migrating from OpenFortiDesk.app or VPNGUI.app (same product, earlier
-    name): remove its service first the same way, quit it, then
-    brew uninstall --cask openfortidesk (if installed) before installing.
-
-    %s
-    Profiles, Keychain secrets and the protected runtime survive uninstall. Do not
-    reopen the app during an upgrade. See SECURITY.md before removing managed root
-    files.
+    Open TunnelMac and follow the setup guide.
+    Before brew uninstall, use Configurações… > Serviço privilegiado > Remover serviço.%s
   EOS
 end
-''' % (version, digests['arm'], digests['intel'], 'Release candidate: isolated root lifecycle integration is not yet validated.' if '-' in version else 'Stable release: see the release validation report for supported platforms.')
+''' % (version, digests['arm'], digests['intel'], '\n    Release candidate: not yet validated for production.' if '-' in version else '')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

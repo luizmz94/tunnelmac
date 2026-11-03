@@ -1,4 +1,4 @@
-TunnelMac 1.3.1: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
+TunnelMac 1.3.2: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
 TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles, WireGuard
 configurations, GlobalProtect gateways (OpenConnect) and Check Point gateways (snx-rs)
@@ -7,6 +7,13 @@ from one native Mac app.
 Install: `brew install --cask luizmz94/tunnelmac/tunnelmac`, or download the disk image
 for your Mac below (arm64 for Apple Silicon, x86_64 for Intel), open it and drag
 TunnelMac to Applications. Then open the app and follow the setup guide.
+
+Changes in 1.3.2:
+- brew upgrade closes TunnelMac by itself and reopens it afterwards. With VPNs connected
+  it asks Disconnect and quit? first. This applies from the next upgrade after 1.3.2;
+  for this one, quit TunnelMac with Quit before running brew upgrade.
+- Shorter Homebrew install notes.
+- Cleaner release notes in this update window.
 
 Changes in 1.3.1:
 - The update window now also opens when a new version is found while the app is already
