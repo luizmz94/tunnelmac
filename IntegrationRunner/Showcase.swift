@@ -375,8 +375,8 @@ struct ShowcaseTour {
             await activate(window)
             demo.menuBar.showMenu()
             await pause(1.5)
-            if let panel = (demo.menuBar.menuPresenter as? MenuBarPanelController)?.panel {
-                await captureGlass(panel, key: panel, dark: dark, "menubar-\(suffix)")
+            if let controller = demo.menuBar.menuPresenter as? MenuBarPanelController {
+                await captureGlass(controller.panel, frame: controller.menuFrame, key: controller.panel, dark: dark, "menubar-\(suffix)")
             }
             demo.menuBar.closeMenu()
             await pause(0.5)
@@ -386,7 +386,7 @@ struct ShowcaseTour {
             demo.connect("Production Cloud")
             await pause(0.9)
             if let panel = (demo.menuBar.progressPresenter as? ConnectionProgressPanelController)?.panel, panel.isVisible {
-                await captureGlass(panel, key: nil, dark: dark, "progress-\(suffix)")
+                await captureGlass(panel, frame: panel.frame, key: nil, dark: dark, "progress-\(suffix)")
             }
             demo.model.manager.disconnect(demo.connection("Production Cloud").id)
             await pause(1.5)
@@ -561,14 +561,14 @@ struct ShowcaseTour {
     /// panel and its shadow, below the menu bar. Compositing [panel, backdrop] from the window
     /// list already shows the backdrop through the glass (checked against a screen capture of
     /// the same area: identical), and it reads only this app's windows, so it is the one used.
-    private func captureGlass(_ panel: NSWindow, key: NSWindow?, dark: Bool, _ name: String) async {
-        let backdrop = ShowcaseBackdrop.window(around: panel.frame, dark: dark)
+    /// `frame` is the panel's visible part (the menu panel has a clear margin for the glass's shadow).
+    private func captureGlass(_ panel: NSWindow, frame: NSRect, key: NSWindow?, dark: Bool, _ name: String) async {
+        let backdrop = ShowcaseBackdrop.window(around: frame, dark: dark)
         backdrop.order(.below, relativeTo: panel.windowNumber)
         await pause(0.8)
         await ensureActive(key, name)
         // Shadow room on the sides and below; only 4 pt above, so the menu bar stays out.
-        let area = NSRect(x: panel.frame.minX - 28, y: panel.frame.minY - 44,
-                          width: panel.frame.width + 56, height: panel.frame.height + 48)
+        let area = NSRect(x: frame.minX - 28, y: frame.minY - 44, width: frame.width + 56, height: frame.height + 48)
         Self.write([panel, backdrop], area: area, to: directory.appendingPathComponent("\(name).png"))
         print("Showcase: \(name).png")
         backdrop.orderOut(nil)
