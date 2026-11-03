@@ -1,4 +1,4 @@
-TunnelMac 1.3.0: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
+TunnelMac 1.3.1: macOS 13+, Apple Silicon (arm64) and Intel (x86_64).
 
 TunnelMac connects Fortinet SSL VPN (openfortivpn), OpenVPN profiles, WireGuard
 configurations, GlobalProtect gateways (OpenConnect) and Check Point gateways (snx-rs)
@@ -7,6 +7,16 @@ from one native Mac app.
 Install: `brew install --cask luizmz94/tunnelmac/tunnelmac`, or download the disk image
 for your Mac below (arm64 for Apple Silicon, x86_64 for Intel), open it and drag
 TunnelMac to Applications. Then open the app and follow the setup guide.
+
+Changes in 1.3.1:
+- The update window now also opens when a new version is found while the app is already
+  running (the check every 4 hours or on Connect), not only at launch. Once per version;
+  never after Remind me later or Skip this version.
+- The menu bar menu has no dark outline or square corners: on macOS 26 and later its
+  Liquid Glass casts its own soft shadow, like the system's menu bar panels.
+- About names every supported VPN: Fortinet, OpenVPN, WireGuard, GlobalProtect and Check Point.
+- Disk image: the arrow no longer runs under the Applications icon, and the footer lists
+  all five VPN types.
 
 Changes in 1.3.0:
 - Check Point (Remote Access) connections through snx-rs: `brew install snx-rs`, then
