@@ -37,6 +37,8 @@
 - **Several tunnels at once.** Each connection has its own session, timer and live log.
 - **Lives in the menu bar.** Close the window and your VPNs keep running. A small panel
   in the corner of the screen follows each connection as it starts, connects or fails.
+  Search the menu as you type, or open it from any app with a shortcut you record (a
+  combination, an F key or a double tap of ⌥).
 - **DNS that just works.** Internal names resolve through each VPN, everything else
   keeps your DNS (or Cloudflare, Google, AdGuard), and it is restored when you disconnect.
 - **Secure by design.** Passwords and SAML sessions stay in Keychain. A small signed
@@ -119,7 +121,7 @@ Prefer not to use Homebrew? Download the disk image for your Mac from
         <source media="(prefers-color-scheme: dark)" srcset="docs/assets/menubar-dark.png">
         <img src="docs/assets/menubar-light.png" alt="Menu bar with all connections" width="300">
       </picture>
-      <br><sub>Connect and disconnect anything from the menu bar</sub>
+      <br><sub>Search, connect and disconnect anything from the menu bar</sub>
     </td>
     <td align="center" width="50%">
       <picture>

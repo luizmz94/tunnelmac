@@ -3,6 +3,7 @@ import Foundation
 import SwiftUI
 import ServiceManagement
 import AppKit
+import Carbon.HIToolbox
 import VPNHelperShared
 
 /// Local checks for the presentation layer: state mapping, digest grouping and offscreen
@@ -362,13 +363,38 @@ enum UIPreviewTests {
                 let dnsDefault = AppPreferences.disposable()
                 let dnsCustom = AppPreferences.disposable()
                 dnsCustom.addCustomDNS(try InternetDNSOption.custom(name: "Servidor de casa com nome longo", servers: "192.0.2.53"))
+                // Configurações › Geral › Atalho in each state (fake registrar and tap source: nothing is registered).
+                let cmd = UInt32(cmdKey), opt = UInt32(optionKey), ctrl = UInt32(controlKey)
+                for (name, shortcut, access, refused) in [
+                    ("settings-shortcut-empty", nil as GlobalShortcut?, true, false),
+                    ("settings-shortcut-set", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, false),
+                    ("settings-shortcut-single-key", .keys(keyCode: 96, modifiers: 0), true, false),
+                    ("settings-shortcut-double-tap", .doubleTap(modifier: .option, side: .any), true, false),
+                    ("settings-shortcut-permission", .doubleTap(modifier: .command, side: .right), false, false),
+                    ("settings-shortcut-recording", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, false),
+                    ("settings-shortcut-error", .keys(keyCode: 40, modifiers: ctrl | opt | cmd), true, true),
+                ] {
+                    let preferences = AppPreferences.disposable()
+                    let center = GlobalHotKeyCenter(preferences: preferences, registrar: FakeHotKeyRegistrar(),
+                                                    taps: FakeModifierTapSource(hasAccess: access), system: FakeSystemShortcuts([])) {}
+                    let recorder = ShortcutRecorderModel(center: center, translator: FakeKeyTranslator([:]))
+                    if let shortcut {
+                        recorder.handle(.recorded(shortcut, notice: name == "settings-shortcut-single-key" ? ShortcutValidator.functionKeyNotice : nil,
+                                                  side: .right))
+                    }
+                    if refused { recorder.message = ShortcutValidator.registrationFailed(OSStatus(eventHotKeyExistsErr)) }
+                    if name == "settings-shortcut-recording" { recorder.start() }
+                    defer { recorder.cancel() }
+                    try render(VStack(alignment: .leading, spacing: 18) { ShortcutSettings(center: center, preferences: preferences, recorder: recorder) }
+                        .padding(24), NSSize(width: 600, height: name == "settings-shortcut-permission" ? 300 : 230), name)
+                }
                 for (preferences, name) in [(dnsDefault, "settings-dns-default"), (dnsCustom, "settings-dns-custom")] {
                     try render(VStack(alignment: .leading, spacing: 18) { InternetDNSSection(preferences: preferences) }.padding(24),
                                NSSize(width: 540, height: 170), name)
                 }
             }
             let files = try FileManager.default.contentsOfDirectory(atPath: output.path).filter { $0.hasSuffix(".png") }
-            try require(files.count == 86, "Renders esperados: 86, gerados: \(files.count)")
+            try require(files.count == 100, "Renders esperados: 100, gerados: \(files.count)")
         }
         return failures
     }

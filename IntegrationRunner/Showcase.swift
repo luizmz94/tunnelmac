@@ -177,6 +177,11 @@ final class ShowcaseDemo: ObservableObject {
         // The app's own menu bar icon and menu panel (a demo, not the local checks).
         menuBar.installMenuBar(host: SystemStatusItemHost(), presenter: MenuBarPanelController(menuBar: menuBar))
         menuBar.installProgressPanel(ConnectionProgressPanelController(menuBar: menuBar))
+        // Recording a shortcut in the demo's Configurações is the user's own action.
+        menuBar.installHotKeys(GlobalHotKeyCenter(preferences: menuBar.preferences, registrar: CarbonHotKeyRegistrar(),
+                                                  taps: EventTapModifierSource(), system: SymbolicHotKeys()) { [weak self] in
+            self?.menuBar.toggleMenu(focusSearch: true)
+        })
         // Two tunnels already up for a while, through the same connect path as the button.
         connect("Head Office", fast: true, since: 4_325)
         connect("Home", fast: true, since: 1_268)

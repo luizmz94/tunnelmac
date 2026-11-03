@@ -127,6 +127,9 @@ final class MenuBarCoordinator: ObservableObject {
     /// Cards of the progress panel and the panel itself (a fake in the local checks).
     let progress = ConnectionProgressCenter()
     private(set) var progressPresenter: ProgressPanelPresenter?
+    /// Global shortcut and its recorder; nil in the local checks unless fakes are installed.
+    private(set) var hotKeys: GlobalHotKeyCenter?
+    private(set) var shortcutRecorder: ShortcutRecorderModel?
     var setActivationPolicy: (NSApplication.ActivationPolicy) -> Void = { _ = NSApp?.setActivationPolicy($0) }
     private var observers = Set<AnyCancellable>()
     private var sessionObservers: [AnyCancellable] = []
@@ -263,6 +266,11 @@ final class MenuBarCoordinator: ObservableObject {
         searchText = ""
         highlightedID = nil
         statusItem?.host.setHighlighted(false)
+    }
+
+    func installHotKeys(_ center: GlobalHotKeyCenter) {
+        hotKeys = center
+        shortcutRecorder = ShortcutRecorderModel(center: center)
     }
 
     // MARK: Progress panel

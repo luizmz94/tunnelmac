@@ -673,6 +673,176 @@
         }
       }
     },
+    "%@ direito": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ rechts"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ right"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ derecha"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ droite"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ दायाँ"
+          }
+        }
+      }
+    },
+    "%@ direito duas vezes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechte %@ zweimal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right %@ twice"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ derecha dos veces"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ droite deux fois"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "दायाँ %@ दो बार"
+          }
+        }
+      }
+    },
+    "%@ duas vezes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ zweimal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ twice"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ dos veces"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ deux fois"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ दो बार"
+          }
+        }
+      }
+    },
+    "%@ esquerdo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ links"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ left"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ izquierda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ gauche"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ बायाँ"
+          }
+        }
+      }
+    },
+    "%@ esquerdo duas vezes": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linke %@ zweimal"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left %@ twice"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ izquierda dos veces"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ gauche deux fois"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "बायाँ %@ दो बार"
+          }
+        }
+      }
+    },
     "%@ está em local alterável sem senha de administrador (dono uid %u). A aprovação congela exatamente estes bytes numa cópia protegida; confira a origem antes de aprovar.": {
       "localizations": {
         "de": {
@@ -3067,6 +3237,40 @@
         }
       }
     },
+    "Abre o menu com a busca pronta, de qualquer app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Öffnet das Menü mit bereiter Suche, aus jeder App."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opens the menu with the search ready, from any app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre el menú con la búsqueda lista, desde cualquier app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvre le menu avec la recherche prête, depuis n’importe quelle app."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "किसी भी ऐप से, खोज तैयार रखकर मेनू खोलता है।"
+          }
+        }
+      }
+    },
     "Abrir": {
       "localizations": {
         "de": {
@@ -3645,6 +3849,40 @@
         }
       }
     },
+    "Aceita a tecla da esquerda ou da direita.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Akzeptiert die linke oder rechte Taste."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accepts the left or the right key."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acepta la tecla izquierda o la derecha."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accepte la touche de gauche ou de droite."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "बाईं या दाईं कुंजी स्वीकार करता है।"
+          }
+        }
+      }
+    },
     "Aceita pedidos apenas do TunnelMac assinado e executa só os clientes aprovados.": {
       "localizations": {
         "de": {
@@ -4151,6 +4389,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "ब्राउज़र में लॉगिन की प्रतीक्षा"
+          }
+        }
+      }
+    },
+    "Aguardando permissão em Ajustes › Privacidade e Segurança › Monitoramento de Entrada": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warten auf Erlaubnis in Systemeinstellungen › Datenschutz & Sicherheit › Eingabeüberwachung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for permission in System Settings › Privacy & Security › Input Monitoring"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando permiso en Ajustes del Sistema › Privacidad y seguridad › Monitorización de entrada"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En attente d’autorisation dans Réglages Système › Confidentialité et sécurité › Surveillance de l’entrée"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "सिस्टम सेटिंग्स › गोपनीयता और सुरक्षा › इनपुट मॉनिटरिंग में अनुमति की प्रतीक्षा"
           }
         }
       }
@@ -5993,6 +6265,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "हस्ताक्षर आवश्यक"
+          }
+        }
+      }
+    },
+    "Atalho": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourci"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट"
+          }
+        }
+      }
+    },
+    "Atalho para abrir o menu": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl zum Öffnen des Menüs"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shortcut to open the menu"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atajo para abrir el menú"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Raccourci pour ouvrir le menu"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "मेनू खोलने का शॉर्टकट"
           }
         }
       }
@@ -9185,6 +9525,40 @@
         }
       }
     },
+    "Clique e digite o atalho": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Klicken und Kurzbefehl eingeben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click and type the shortcut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Haz clic y escribe el atajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cliquez et tapez le raccourci"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "क्लिक करें और शॉर्टकट टाइप करें"
+          }
+        }
+      }
+    },
     "Colar o retorno do GlobalProtect": {
       "localizations": {
         "de": {
@@ -9521,6 +9895,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "शुरू करें"
+          }
+        }
+      }
+    },
+    "Command": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Befehl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comando"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commande"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Command"
           }
         }
       }
@@ -11617,6 +12025,40 @@
         }
       }
     },
+    "Control": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contrôle"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Control"
+          }
+        }
+      }
+    },
     "Copiada": {
       "localizations": {
         "de": {
@@ -12163,6 +12605,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "डेटा लोड नहीं हुआ"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete"
+          }
+        }
+      }
+    },
+    "Delete para a frente": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entfernen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forward Delete"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suprimir"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer vers l’avant"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forward Delete"
           }
         }
       }
@@ -13023,6 +13533,74 @@
         }
       }
     },
+    "Digite o atalho ou toque duas vezes num modificador…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl eingeben oder eine Sondertaste zweimal tippen …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type the shortcut or tap a modifier twice…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe el atajo o toca dos veces un modificador…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapez le raccourci ou touchez deux fois un modificateur…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट टाइप करें या किसी मॉडिफ़ायर को दो बार टैप करें…"
+          }
+        }
+      }
+    },
+    "Digite o atalho…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl eingeben …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type the shortcut…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribe el atajo…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tapez le raccourci…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट टाइप करें…"
+          }
+        }
+      }
+    },
     "Digite uma senha.": {
       "localizations": {
         "de": {
@@ -13647,6 +14225,40 @@
         }
       }
     },
+    "Em teclados Apple, F1–F12 controlam brilho e som; aperte com fn ou ative \"Usar F1, F2 etc. como teclas de função padrão\".": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auf Apple-Tastaturen steuern F1–F12 Helligkeit und Ton; drücke sie mit fn oder aktiviere „F1, F2 usw. als Standard-Funktionstasten verwenden“."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "On Apple keyboards, F1–F12 control brightness and sound; press them with fn or turn on \"Use F1, F2, etc. keys as standard function keys\"."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En teclados Apple, F1–F12 controlan el brillo y el sonido; púlsalas con fn o activa \"Usar F1, F2, etc. como teclas de función estándar\"."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur les claviers Apple, F1–F12 règlent la luminosité et le son ; appuyez avec fn ou activez « Utiliser les touches F1, F2, etc. comme des touches de fonction standard »."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apple कीबोर्ड पर F1–F12 चमक और ध्वनि नियंत्रित करती हैं; इन्हें fn के साथ दबाएँ या \"F1, F2 आदि को मानक फ़ंक्शन कुंजियों के रूप में उपयोग करें\" चालू करें।"
+          }
+        }
+      }
+    },
     "Emitida por %@": {
       "localizations": {
         "de": {
@@ -13745,6 +14357,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "TunnelMac बंद करें; सक्रिय कनेक्शनों के लिए पुष्टि आवश्यक है (⌘Q)"
+          }
+        }
+      }
+    },
+    "End": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ende"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fin"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fin"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "End"
           }
         }
       }
@@ -13919,6 +14565,40 @@
         }
       }
     },
+    "Enter": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intro"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrée"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter"
+          }
+        }
+      }
+    },
     "Entre os arquivos escolhidos não há um perfil .ovpn ou .conf.": {
       "localizations": {
         "de": {
@@ -14017,6 +14697,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "त्रुटि: %@"
+          }
+        }
+      }
+    },
+    "Esc": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échap"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc"
+          }
+        }
+      }
+    },
+    "Esc cancela; ⌫ remove o atalho": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc bricht ab; ⌫ entfernt den Kurzbefehl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc cancels; ⌫ removes the shortcut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc cancela; ⌫ elimina el atajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échap annule ; ⌫ supprime le raccourci"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esc रद्द करता है; ⌫ शॉर्टकट हटाता है"
           }
         }
       }
@@ -14565,6 +15313,40 @@
         }
       }
     },
+    "Espaço": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leertaste"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Space"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espacio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Espace"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "स्पेस"
+          }
+        }
+      }
+    },
     "Esta conexão ainda não conecta: o serviço privilegiado não está pronto para o %@.": {
       "localizations": {
         "de": {
@@ -14901,6 +15683,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "स्थिति, अनुमोदित क्लाइंट और हटाना सेटिंग्स › विशेषाधिकार प्राप्त सेवा में हैं।"
+          }
+        }
+      }
+    },
+    "Este atalho já é usado pelo macOS (Ajustes › Teclado › Atalhos de Teclado).": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Kurzbefehl wird bereits von macOS verwendet (Systemeinstellungen › Tastatur › Tastaturkurzbefehle)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS already uses this shortcut (System Settings › Keyboard › Keyboard Shortcuts)."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ya usa este atajo (Ajustes del Sistema › Teclado › Funciones rápidas de teclado)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS utilise déjà ce raccourci (Réglages Système › Clavier › Raccourcis clavier)."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS पहले से यह शॉर्टकट उपयोग करता है (सिस्टम सेटिंग्स › कीबोर्ड › कीबोर्ड शॉर्टकट)।"
+          }
+        }
+      }
+    },
+    "Este atalho é usado por apps comuns; escolha outro.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gängige Apps verwenden diesen Kurzbefehl; wähle einen anderen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Common apps use this shortcut; choose another one."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las apps comunes usan este atajo; elige otro."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les apps courantes utilisent ce raccourci ; choisissez-en un autre."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "आम ऐप यह शॉर्टकट उपयोग करते हैं; कोई दूसरा चुनें।"
           }
         }
       }
@@ -16710,6 +17560,40 @@
         }
       }
     },
+    "Gravar atalho": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl aufnehmen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record shortcut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabar atajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer un raccourci"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट रिकॉर्ड करें"
+          }
+        }
+      }
+    },
     "Gravação incompleta.": {
       "localizations": {
         "de": {
@@ -16774,6 +17658,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "किसी भी कार्य से पहले handshake आवश्यक है।"
+          }
+        }
+      }
+    },
+    "Home": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pos1"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicio"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Début"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Home"
           }
         }
       }
@@ -22746,6 +23664,40 @@
         }
       }
     },
+    "Não foi possível ativar o atalho; grave outro ou tente reabrir o app.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Kurzbefehl konnte nicht aktiviert werden; nimm einen anderen auf oder öffne die App erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The shortcut could not be turned on; record another one or try reopening the app."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo activar el atajo; graba otro o vuelve a abrir la app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’activer le raccourci ; enregistrez-en un autre ou rouvrez l’app."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट चालू नहीं हो सका; दूसरा रिकॉर्ड करें या ऐप फिर से खोलें।"
+          }
+        }
+      }
+    },
     "Não foi possível ativar o runtime.": {
       "localizations": {
         "de": {
@@ -26539,6 +27491,40 @@
         }
       }
     },
+    "O macOS ainda não entregou as teclas modificadoras ao TunnelMac; reabra o app para o toque duplo valer.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS liefert die Sondertasten noch nicht an TunnelMac; öffne die App erneut, damit das Doppeltippen funktioniert."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS is not delivering the modifier keys to TunnelMac yet; reopen the app for the double tap to work."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS aún no entrega las teclas modificadoras a TunnelMac; vuelve a abrir la app para que funcione el doble toque."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ne transmet pas encore les touches de modification à TunnelMac ; rouvrez l’app pour que le double appui fonctionne."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS अभी TunnelMac को मॉडिफ़ायर कुंजियाँ नहीं दे रहा; डबल टैप के लिए ऐप फिर से खोलें।"
+          }
+        }
+      }
+    },
     "O macOS não devolveu o retorno do login ao aplicativo anterior; o TunnelMac tentará novamente no próximo login.": {
       "localizations": {
         "de": {
@@ -26705,6 +27691,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "macOS ने ऐप का हस्ताक्षर अस्वीकार किया। Daemons के लिए Team ID से हस्ताक्षरित और नोटराइज़्ड ऐप आवश्यक है; सक्रियण गाइड देखें।"
+          }
+        }
+      }
+    },
+    "O macOS recusou este atalho (código %@). Escolha outro.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS hat diesen Kurzbefehl abgelehnt (Code %@). Wähle einen anderen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS refused this shortcut (code %@). Choose another one."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS rechazó este atajo (código %@). Elige otro."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS a refusé ce raccourci (code %@). Choisissez-en un autre."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "macOS ने यह शॉर्टकट अस्वीकार किया (कोड %@)। कोई दूसरा चुनें।"
           }
         }
       }
@@ -28427,6 +29447,40 @@
         }
       }
     },
+    "Option": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wahl"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opción"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Option"
+          }
+        }
+      }
+    },
     "Origem": {
       "localizations": {
         "de": {
@@ -28773,6 +29827,74 @@
         }
       }
     },
+    "Page Down": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild ab"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Down"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Av Pág"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page suivante"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Down"
+          }
+        }
+      }
+    },
+    "Page Up": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bild auf"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Up"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re Pág"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page précédente"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Page Up"
+          }
+        }
+      }
+    },
     "Palavras inteiras valem pouco: acrescente mais palavras ou troque letras por números e símbolos no meio delas.": {
       "localizations": {
         "de": {
@@ -28976,6 +30098,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "यह किस लिए है"
+          }
+        }
+      }
+    },
+    "Para reconhecer o toque duplo, o macOS precisa permitir que o TunnelMac monitore as teclas modificadoras. O app lê só ⌘ ⌥ ⌃ ⇧, nunca o que você digita.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um das Doppeltippen zu erkennen, muss macOS TunnelMac erlauben, die Sondertasten zu überwachen. Die App liest nur ⌘ ⌥ ⌃ ⇧, nie, was du tippst."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To recognize the double tap, macOS must allow TunnelMac to monitor the modifier keys. The app reads only ⌘ ⌥ ⌃ ⇧, never what you type."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para reconocer el doble toque, macOS debe permitir que TunnelMac monitorice las teclas modificadoras. La app solo lee ⌘ ⌥ ⌃ ⇧, nunca lo que escribes."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour reconnaître le double appui, macOS doit autoriser TunnelMac à surveiller les touches de modification. L’app ne lit que ⌘ ⌥ ⌃ ⇧, jamais ce que vous tapez."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डबल टैप पहचानने के लिए macOS को TunnelMac को मॉडिफ़ायर कुंजियाँ मॉनिटर करने देना होगा। ऐप केवल ⌘ ⌥ ⌃ ⇧ पढ़ता है, आप जो टाइप करते हैं वह कभी नहीं।"
           }
         }
       }
@@ -29882,6 +31038,40 @@
         }
       }
     },
+    "Permitir…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Erlauben …"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser…"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "अनुमति दें…"
+          }
+        }
+      }
+    },
     "Peça esse certificado ao administrador da rede.": {
       "localizations": {
         "de": {
@@ -30364,6 +31554,40 @@
         }
       }
     },
+    "Qualquer lado": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beliebige Seite"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Either side"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cualquier lado"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "N’importe quel côté"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "कोई भी तरफ़"
+          }
+        }
+      }
+    },
     "Raiz": {
       "localizations": {
         "de": {
@@ -30809,6 +32033,40 @@
     "Remote Access": {
       "shouldTranslate": false
     },
+    "Remover atalho": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kurzbefehl entfernen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove shortcut"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eliminar atajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer le raccourci"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट हटाएँ"
+          }
+        }
+      }
+    },
     "Remover o serviço privilegiado?": {
       "localizations": {
         "de": {
@@ -31213,6 +32471,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "अमान्य GlobalProtect वापसी।"
+          }
+        }
+      }
+    },
+    "Return": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeilenschaltung"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retorno"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Return"
           }
         }
       }
@@ -33733,6 +35025,176 @@
         }
       }
     },
+    "Seta para a direita": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechtspfeil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Right Arrow"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flecha derecha"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flèche droite"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "दायाँ तीर"
+          }
+        }
+      }
+    },
+    "Seta para a esquerda": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linkspfeil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Left Arrow"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flecha izquierda"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flèche gauche"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "बायाँ तीर"
+          }
+        }
+      }
+    },
+    "Seta para baixo": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abwärtspfeil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Down Arrow"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flecha abajo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flèche bas"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "नीचे तीर"
+          }
+        }
+      }
+    },
+    "Seta para cima": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aufwärtspfeil"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Up Arrow"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flecha arriba"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Flèche haut"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ऊपर तीर"
+          }
+        }
+      }
+    },
+    "Shift": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umschalt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shift"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mayúsculas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Maj"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Shift"
+          }
+        }
+      }
+    },
     "Sistema": {
       "localizations": {
         "de": {
@@ -34307,6 +35769,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "1.2 से पुराना TLS स्वीकार नहीं है; अपडेट की गई प्रोफ़ाइल माँगें।"
+          }
+        }
+      }
+    },
+    "Tab": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tabulador"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tab"
           }
         }
       }
@@ -35618,6 +37114,40 @@
         }
       }
     },
+    "Usar uma combinação": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kombination verwenden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use a combination"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar una combinación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utiliser une combinaison"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "संयोजन उपयोग करें"
+          }
+        }
+      }
+    },
     "Use Abrir TunnelMac para cadastrar uma conexão.": {
       "localizations": {
         "de": {
@@ -35818,6 +37348,74 @@
           "stringUnit": {
             "state": "translated",
             "value": "लंबा पासवर्ड उपयोग करें।"
+          }
+        }
+      }
+    },
+    "Use ⌘ ou ⌃ no atalho, uma tecla F1–F20 sozinha ou toque duas vezes num modificador.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwende ⌘ oder ⌃ im Kurzbefehl, eine F1–F20-Taste allein oder tippe zweimal auf eine Sondertaste."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use ⌘ or ⌃ in the shortcut, an F1–F20 key alone, or tap a modifier twice."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa ⌘ o ⌃ en el atajo, una tecla F1–F20 sola o toca dos veces un modificador."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisez ⌘ ou ⌃ dans le raccourci, une touche F1–F20 seule ou touchez deux fois un modificateur."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "शॉर्टकट में ⌘ या ⌃ उपयोग करें, अकेली F1–F20 कुंजी, या किसी मॉडिफ़ायर को दो बार टैप करें।"
+          }
+        }
+      }
+    },
+    "Use ⌘, ⌥, ⌃ ou ⇧ para o toque duplo.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verwende ⌘, ⌥, ⌃ oder ⇧ zum Doppeltippen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use ⌘, ⌥, ⌃ or ⇧ for the double tap."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usa ⌘, ⌥, ⌃ o ⇧ para el doble toque."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Utilisez ⌘, ⌥, ⌃ ou ⇧ pour le double appui."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "डबल टैप के लिए ⌘, ⌥, ⌃ या ⇧ उपयोग करें।"
           }
         }
       }
