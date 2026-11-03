@@ -258,7 +258,12 @@ final class MenuBarPanelController: NSObject, MenuPanelPresenter, NSWindowDelega
             glass.style = .regular
             glass.cornerRadius = 16
             glass.contentView = hosting
-            panel.contentView = glass
+            // In a plain container: as the window's own content view, the glass fills the whole
+            // frame and ignores cornerRadius, leaving dark square corners (and their shadow).
+            let container = NSView(frame: NSRect(origin: .zero, size: size))
+            glass.autoresizingMask = [.width, .height]
+            container.addSubview(glass)
+            panel.contentView = container
         } else {
             // The menu material, as the system popover had.
             let material = NSVisualEffectView(frame: NSRect(origin: .zero, size: size))

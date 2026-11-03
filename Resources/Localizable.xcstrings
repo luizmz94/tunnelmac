@@ -19368,36 +19368,36 @@
         }
       }
     },
-    "Interface nativa de macOS para o openfortivpn, o OpenVPN e o WireGuard.": {
+    "Interface nativa de macOS para Fortinet, OpenVPN, WireGuard, GlobalProtect e Check Point.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Native macOS-Oberfläche für openfortivpn, OpenVPN und WireGuard."
+            "value": "Native macOS-Oberfläche für Fortinet, OpenVPN, WireGuard, GlobalProtect und Check Point."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Native macOS interface for openfortivpn, OpenVPN and WireGuard."
+            "value": "Native macOS interface for Fortinet, OpenVPN, WireGuard, GlobalProtect and Check Point."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Interfaz nativa de macOS para openfortivpn, OpenVPN y WireGuard."
+            "value": "Interfaz nativa de macOS para Fortinet, OpenVPN, WireGuard, GlobalProtect y Check Point."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Interface macOS native pour openfortivpn, OpenVPN et WireGuard."
+            "value": "Interface macOS native pour Fortinet, OpenVPN, WireGuard, GlobalProtect et Check Point."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "translated",
-            "value": "openfortivpn, OpenVPN और WireGuard के लिए नेटिव macOS इंटरफ़ेस।"
+            "value": "Fortinet, OpenVPN, WireGuard, GlobalProtect और Check Point के लिए नेटिव macOS इंटरफ़ेस।"
           }
         }
       }
